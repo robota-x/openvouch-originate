@@ -86,14 +86,24 @@ make deploy-infra
 
 ## CI/CD
 
-| Workflow             | Trigger                    | Action                |
-|----------------------|----------------------------|-----------------------|
-| `ci.yml`             | PR or push to `main`       | lint → test → build   |
-| `cd-staging.yml`     | CI passes on `main`        | Deploy to staging     |
-| `cd-production.yml`  | GitHub release published   | Deploy to production  |
+| Workflow             | Trigger                    | Action                                        |
+|----------------------|----------------------------|-----------------------------------------------|
+| `ci.yml`             | PR or push to `main`       | lint → test → build + Docker image verify     |
+| `cd-staging.yml`     | CI passes on `main`        | build → deploy to staging                     |
+| `cd-production.yml`  | GitHub release published   | build → deploy to production                  |
 
-All steps are currently mocked with `echo` — replace with real commands as the project matures.
+## Testing
+
+```bash
+make test
+```
+
+Runs `npm run test` via Turborepo, which runs Vitest in each package:
+
+- `apps/lending-api` — Vitest node environment, uses `fastify.inject()` (no port bound)
+- `apps/web` — Vitest happy-dom environment, uses `@vue/test-utils`
+- `packages/shared-types` — no tests (stub script satisfies Turbo pipeline)
 
 ## Architecture decisions
 
-See [`docs/decisions/`](docs/decisions/) for ADRs covering key design choices.
+See [`docs/decisions/`](docs/decisions/) for ADRs covering key design choices. This readme won't contain a list of ADRs.

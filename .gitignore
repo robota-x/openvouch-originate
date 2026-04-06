@@ -4,6 +4,16 @@ node_modules/
 # Build outputs
 dist/
 
+# Caches
+.turbo/
+.vite/
+.cache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
 # Environment files
 .env
 !.env.example

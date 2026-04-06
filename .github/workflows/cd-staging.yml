@@ -9,17 +9,16 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      ref:
-        description: "Branch name or commit SHA to deploy to staging"
+      sha:
+        description: "Full commit SHA of the image to deploy"
         required: true
-        default: main
 
 jobs:
   deploy-staging:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    env:
+      # workflow_run provides head_sha; workflow_dispatch requires the caller to pass the full SHA
+      IMAGE_SHA: ${{ github.event.workflow_run.head_sha || inputs.sha }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref || github.sha }}
-      - run: echo "Deploying to staging"
+      - run: echo "Deploying defi-hack/lending-api:${{ env.IMAGE_SHA }} to staging"

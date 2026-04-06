@@ -11,5 +11,6 @@
   "devDependencies": {
     "turbo": "latest"
   },
+  "packageManager": "npm@11.4.1",
   "engines": { "node": ">=22" }
 }
