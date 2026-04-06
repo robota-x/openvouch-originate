@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Environment files
+.env
+!.env.example
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Java
+target/
+.gradle/
+
+# IDE
+.idea/
+.vscode/
