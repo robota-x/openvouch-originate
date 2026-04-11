@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{ address: string; truncated?: boolean }>()
+// Using `full` instead of `truncated?: boolean` to avoid Vue's absent-boolean-prop
+// casting (absent boolean prop → false), which would invert the default behaviour.
+const props = defineProps<{ address: string; full?: boolean }>()
 
-// Full 42-char addresses break layouts — truncate to 0xABC...DEF by default
 const display = computed(() =>
-  props.truncated === false
+  props.full
     ? props.address
     : `${props.address.slice(0, 6)}...${props.address.slice(-4)}`
 )
 </script>
 
 <template>
-  <span class="font-mono text-sm text-white">{{ display }}</span>
+  <span class="font-mono text-sm text-white truncate">{{ display }}</span>
 </template>

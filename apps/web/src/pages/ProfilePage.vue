@@ -31,7 +31,7 @@ const attestations = [
       <!-- Address + attestation count -->
       <div class="flex flex-col items-center gap-2">
         <div class="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 backdrop-blur-md">
-          <WalletAddress :address="address" :truncated="false" />
+          <WalletAddress :address="address" :full="true" />
         </div>
         <div class="flex items-center gap-2 mt-1">
           <span class="material-symbols-outlined text-emerald text-lg">verified_user</span>
