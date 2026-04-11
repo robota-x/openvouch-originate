@@ -1,0 +1,187 @@
+# Glassmorphic Void
+
+## Product Overview
+
+**The Pitch:** A peer-to-peer crypto lending platform bridging Web3 liquidity with real-world trust. Users lend and borrow directly via smart contracts, utilizing 3rd-party on-chain attestations for creditworthiness.
+
+**For:** Crypto-native lenders seeking yield and verified borrowers needing liquidity without traditional banking intermediaries.
+
+**Device:** desktop
+
+**Design Direction:** A premium, slick Web3 aesthetic featuring deep charcoal backgrounds, frosted glass panels, subtle colored glows, and clean geometric typography.
+
+**Inspired by:** Phantom Wallet, Blur.io
+
+---
+
+## Screens
+
+- **Connect:** Wallet authentication and onboarding
+- **Lender Marketplace:** Discover and fund open loan requests
+- **Borrower Dashboard:** Active loans, repayment schedule, and loan creation
+- **Identity Profile:** Showcase of on-chain attestations and trust scores
+
+---
+
+## Key Flows
+
+**Fund a Loan:** Lender discovers and funds a request
+
+1. User is on Lender Marketplace -> sees grid of glass loan cards
+2. User clicks "Fund 5,000 USDC" -> triggers wallet signature modal
+3. Transaction submitted, card updates to "Funded", emerald glow expands
+
+**Create Loan Request:** Borrower sets terms for liquidity
+
+1. User is on Borrower Dashboard -> sees active loans and "New Contract" CTA
+2. User clicks "New Contract" -> opens glassmorphic slide-over panel
+3. Fills terms (Amount, APY, Duration) -> signs transaction -> Request appears in Marketplace
+
+---
+
+<details>
+<summary>Design System</summary>
+
+## Color Palette
+
+- **Primary:** `#4C1D95` - Deeper, darker purple glows, primary actions
+- **Background:** `#0A0B0E` - Void void
+- **Surface:** `rgba(255, 255, 255, 0.03)` - Frosted glass base
+- **Surface Highlight:** `rgba(255, 255, 255, 0.08)` - Card hovers, active tabs
+- **Text:** `#F8FAFC` - Primary text
+- **Muted:** `#94A3B8` - Secondary text, borders (`rgba(255,255,255,0.1)`)
+- **Accent/Success:** `#10B981` - Emerald glows, funded status, high trust scores
+- **Accent/Warning:** `#F97316` - Orange-ish accent for moderate failure rates and secondary highlights
+- **Danger:** `#EF4444` - High failure rates
+
+## Typography
+
+- **Headings:** `Outfit`, 700, 20-40px, tight tracking (`-0.02em`)
+- **Body:** `Plus Jakarta Sans`, 400, 14px, open line-height (`1.5`)
+- **Small text:** `Plus Jakarta Sans`, 500, 12px, uppercase tracking (`0.05em`)
+- **Data/Numbers:** `Space Grotesk`, 500, 14-24px (for APY, USDC amounts)
+
+**Style notes:** 
+- `backdrop-filter: blur(24px)` on all surface elements
+- `1px` borders using `rgba(255,255,255,0.08)`
+- Large, diffuse radial gradients fixed to the viewport background (Purple top-left, Emerald bottom-right)
+- 8px border radius on primary cards, 8px on buttons and badges (less rounded, structured corners)
+- Compact spacing: Use tighter padding (12px to 24px) to create a denser, data-rich UI
+
+## Design Tokens
+
+```css
+:root {
+  --color-primary: #4C1D95;
+  --color-bg: #0A0B0E;
+  --color-surface: rgba(255, 255, 255, 0.03);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-text: #F8FAFC;
+  --color-muted: #94A3B8;
+  --color-emerald: #10B981;
+  --color-orange: #F97316;
+  --color-danger: #EF4444;
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'Space Grotesk', monospace;
+  --radius-card: 8px;
+  --radius-button: 8px;
+  --blur-heavy: blur(24px);
+}
+```
+
+</details>
+
+---
+
+<details>
+<summary>Screen Specifications</summary>
+
+### Connect
+
+**Purpose:** Initial landing and Web3 authentication
+
+**Layout:** Centered 360px glass card, intense background purple radial glow
+
+**Key Elements:**
+- **Logo:** `Outfit`, 28px, stark white, centered top
+- **Connect Button:** 100% width, 48px height, deep purple background `#4C1D95`, 14px `Plus Jakarta Sans`, bold, 8px radius
+- **Glow Rings:** Absolute positioned, `blur(120px)`, `-z-10` behind the card
+
+**States:**
+- **Loading:** Button text swaps to "Waiting for Signature...", pulsing opacity
+- **Error:** Subtle red border `rgba(239, 68, 68, 0.5)` around card, red text below button
+
+**Components:**
+- **Glass Card:** 360px width, `var(--color-surface)`, 1px border, 24px blur, 24px padding
+
+### Lender Marketplace
+
+**Purpose:** Discovery of open borrower requests
+
+**Layout:** Top nav, left sidebar (filters), dense main grid (loan cards)
+
+**Key Elements:**
+- **Top Nav:** 56px height, sticky, frosted glass. Contains "Search by Wallet" input (center) and Wallet Address button (right)
+- **Filter Sidebar:** 200px width, compact sliders for APY range, duration toggles
+- **Loan Card:** 280px width, dense glassmorphic card. Contains borrower avatar, Trust Score (emerald), Number of Attestations, Amount (Space Grotesk), APY, Duration, Failure Rate, and "Fund" CTA.
+
+**States:**
+- **Failure Rate Strip:** 
+  - `0%`: Neutral/muted text
+  - `>0% to 1%`: Warning state, orange-ish accent text/border (`#F97316`)
+  - `>1%`: Danger state, red text/border (`#EF4444`)
+- **Empty:** "No matching requests" in center, muted text, ghost icon
+- **Loading:** Skeleton pulses using `rgba(255,255,255,0.05)`
+
+**Components:**
+- **Trust Score Badge:** 8px radius shape, emerald border, emerald text, 12px font
+- **Search Input:** 8px radius, frosted glass background, muted search icon, tight 12px padding
+
+### Borrower Dashboard
+
+**Purpose:** Manage active debt and initiate new loans
+
+**Layout:** 2-column layout. Left: Summary stats. Right: Active loans list (dense rows). Top right: "New Request" CTA.
+
+**Key Elements:**
+- **Total Debt Widget:** Compact glass card, deep purple glow, `Space Grotesk` 40px for total amount
+- **New Request Button:** Floating top right, 40px height, solid white text, purple background, 8px radius
+- **Repayment Timeline:** Vertical timeline component, muted gray lines, emerald dots for paid, hollow dots for upcoming
+
+**Components:**
+- **Slide-over Modal:** Triggered by New Request. 360px width, anchored right, slides in. Glass effect, form inputs with transparent backgrounds and bottom borders only.
+
+### Identity Profile
+
+**Purpose:** Display borrower trustworthiness via attestations
+
+**Layout:** Centered max-width 640px column. Dense header section, followed by a tight grid of Attestation Badges.
+
+**Key Elements:**
+- **Header:** 64px circular avatar, copyable wallet address, and prominent "Total Attestations: [Number]" counter
+- **Attestation Cards:** 1:1 aspect ratio glass squares. E.g., "Coinbase KYC Verified", "Cred Protocol Score: 850". 16px padding.
+- **Verification Stamp:** Emerald checkmark overlay on valid attestations, subtle pulsing glow to indicate active on-chain status
+
+**States:**
+- **Empty:** "No attestations linked." Prominent CTA to "Connect Identity Provider".
+
+**Interactions:**
+- **Hover Attestation:** 3D tilt effect (`transform: perspective(1000px) rotateX(2deg) rotateY(2deg)`), border highlight brightens to `rgba(255,255,255,0.2)`.
+
+</details>
+
+---
+
+<details>
+<summary>Build Guide</summary>
+
+**Stack:** HTML + Tailwind CSS v3
+
+**Build Order:**
+1. **Connect** - Establishes the core glassmorphic UI, dense padding structures, background glows, and typography hierarchy.
+2. **Identity Profile** - Sets up the attestation cards, attestation counts, and trust signaling.
+3. **Lender Marketplace** - Applies the established card designs to a dense grid layout, implements the search input, and sets up the 3-state failure rate logic.
+4. **Borrower Dashboard** - Reuses components for a data-heavy view and introduces the slide-over form modal.
+
+</details>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Identity Profile - Glassmorphic Void</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#8c51f0",
+              "background-light": "#f7f6f8",
+              "background-dark": "#0A0B0E",
+              "surface": "rgba(255, 255, 255, 0.03)",
+              "surface-highlight": "rgba(255, 255, 255, 0.08)",
+              "border-color": "rgba(255, 255, 255, 0.08)",
+              "emerald-accent": "#10B981",
+              "muted-text": "#94A3B8"
+            },
+            fontFamily: {
+              "display": ["Plus Jakarta Sans", "sans-serif"],
+              "body": ["Plus Jakarta Sans", "sans-serif"],
+              "mono": ["Space Grotesk", "monospace"]
+            },
+            borderRadius: {
+                "DEFAULT": "8px", 
+                "lg": "8px", 
+                "xl": "12px", 
+                "full": "9999px"
+            },
+            backgroundImage: {
+                'radial-glows': 'radial-gradient(circle at 10% 10%, rgba(140, 81, 240, 0.15) 0%, transparent 40%), radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.1) 0%, transparent 40%)',
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .glass-panel {
+            background-color: var(--color-surface);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--color-border);
+        }
+        
+        .tilt-effect {
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            transform-style: preserve-3d;
+        }
+        
+        .tilt-effect:hover {
+            transform: perspective(1000px) rotateX(2deg) rotateY(2deg) scale(1.02);
+            border-color: rgba(255, 255, 255, 0.2);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-background-dark text-[#F8FAFC] font-body min-h-screen bg-radial-glows bg-fixed">
+<!-- Top NavBar (Shared Component - Included as it's a browsing destination) -->
+<div class="relative flex h-auto w-full flex-col group/design-root overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<div class="px-4 md:px-10 flex flex-1 justify-center py-5">
+<div class="layout-content-container flex flex-col max-w-[960px] flex-1">
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-white/10 px-0 py-3 mb-8">
+<div class="flex items-center gap-4 text-white">
+<div class="size-4 text-primary">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M24 45.8096C19.6865 45.8096 15.4698 44.5305 11.8832 42.134C8.29667 39.7376 5.50128 36.3314 3.85056 32.3462C2.19985 28.361 1.76794 23.9758 2.60947 19.7452C3.451 15.5145 5.52816 11.6284 8.57829 8.5783C11.6284 5.52817 15.5145 3.45101 19.7452 2.60948C23.9758 1.76795 28.361 2.19986 32.3462 3.85057C36.3314 5.50129 39.7376 8.29668 42.134 11.8833C44.5305 15.4698 45.8096 19.6865 45.8096 24L24 24L24 45.8096Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-white text-lg font-bold leading-tight tracking-[-0.015em]">Glassmorphic Void</h2>
+</div>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
+<span class="truncate font-mono">0x71C...976F</span>
+</button>
+</header>
+<!-- Main Content Container (Max 640px) -->
+<main class="w-full max-w-[640px] mx-auto flex flex-col gap-8 pb-20">
+<!-- Profile Header Section -->
+<section class="flex flex-col items-center justify-center gap-4 text-center">
+<!-- Avatar -->
+<div class="relative">
+<div class="w-16 h-16 rounded-full bg-surface border border-white/10 p-1 flex items-center justify-center overflow-hidden relative z-10 backdrop-blur-2xl">
+<div class="w-full h-full rounded-full bg-cover bg-center" data-alt="abstract geometric pattern in purple and green representing a digital identity avatar" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAONdQfXvArt5WbFSrFqugB1Gnc8OK2rizkm4-qFndEyYCd1z2I-8jOqEE8_CXU4CIsaXRQNGMl2HHaUm8DoZPzFfNSYPdJ-HzOIopV_Hf_aPZxJJ8WJt3PaQBP93ESkKsgolJaNR0DFAdM19WwpVeqL1o4HFfBFhq0a9SaPbDtkgXo4utRlcpppUJefUmRb1opOxNQC0LJ2w3DLGFMzbKh0h_zsIy2TIoVjNspCeSNR7E3DqXaFEMi4xweFTSxkWe20qfVrMZHPQbi');"></div>
+</div>
+<!-- Avatar Glow -->
+<div class="absolute inset-0 bg-primary/30 rounded-full blur-xl -z-10 scale-150"></div>
+</div>
+<!-- Identity Details -->
+<div class="flex flex-col items-center gap-2">
+<div class="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 backdrop-blur-md cursor-pointer hover:bg-white/10 transition-colors group">
+<span class="font-mono text-lg font-medium text-white tracking-wide">0x71C...976F</span>
+<span class="material-symbols-outlined text-muted-text text-sm group-hover:text-white transition-colors" data-icon="content_copy">content_copy</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-emerald-accent text-lg" data-icon="verified_user">verified_user</span>
+<span class="text-emerald-accent font-medium text-sm tracking-wide uppercase">12 Verified Attestations</span>
+</div>
+<p class="text-muted-text text-sm max-w-sm mt-2 leading-relaxed">
+                    This profile's trust score is calculated based on on-chain activity and 3rd-party identity verifications.
+                </p>
+</div>
+</section>
+<!-- Attestation Grid -->
+<section class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
+<!-- Attestation Card 1 -->
+<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
+<div class="absolute top-3 right-3 text-emerald-accent animate-pulse">
+<span class="material-symbols-outlined text-xl" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-white text-2xl" data-icon="account_balance">account_balance</span>
+</div>
+<div>
+<h3 class="text-white text-sm font-bold leading-tight">Coinbase KYC</h3>
+<p class="text-emerald-accent text-xs font-medium mt-1">Verified</p>
+</div>
+</div>
+<!-- Attestation Card 2 -->
+<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
+<div class="absolute top-3 right-3 text-emerald-accent animate-pulse">
+<span class="material-symbols-outlined text-xl" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-primary text-2xl" data-icon="monitoring">monitoring</span>
+</div>
+<div>
+<h3 class="text-white text-sm font-bold leading-tight">Cred Protocol</h3>
+<p class="text-emerald-accent text-xs font-medium mt-1 font-mono">Score: 850</p>
+</div>
+</div>
+<!-- Attestation Card 3 -->
+<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
+<div class="absolute top-3 right-3 text-emerald-accent animate-pulse">
+<span class="material-symbols-outlined text-xl" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-white text-2xl" data-icon="language">language</span>
+</div>
+<div>
+<h3 class="text-white text-sm font-bold leading-tight">ENS Domain</h3>
+<p class="text-emerald-accent text-xs font-medium mt-1">Ownership Verified</p>
+</div>
+</div>
+<!-- Attestation Card 4 -->
+<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
+<div class="absolute top-3 right-3 text-emerald-accent animate-pulse">
+<span class="material-symbols-outlined text-xl" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-[#F97316] text-2xl" data-icon="history">history</span>
+</div>
+<div>
+<h3 class="text-white text-sm font-bold leading-tight">Repayment History</h3>
+<p class="text-emerald-accent text-xs font-medium mt-1">100% Repaid</p>
+</div>
+</div>
+<!-- Add New Attestation (Empty State example) -->
+<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect cursor-pointer group border-dashed border-white/20 hover:border-primary/50">
+<div class="w-12 h-12 rounded-full bg-white/5 border border-dashed border-white/20 flex items-center justify-center mb-1 group-hover:bg-primary/20 transition-colors duration-300">
+<span class="material-symbols-outlined text-muted-text group-hover:text-white transition-colors" data-icon="add">add</span>
+</div>
+<div>
+<h3 class="text-muted-text group-hover:text-white transition-colors text-sm font-medium leading-tight">Link Provider</h3>
+</div>
+</div>
+</section>
+</main>
+</div>
+</div>
+</div>
+</div>
+</body></html>
