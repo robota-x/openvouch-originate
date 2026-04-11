@@ -1,9 +1,10 @@
 [features]
 resolution = true
+seeds = false
 skip-lint = false
 
 [programs.devnet]
-dblt_lending = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+dblt_lending = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS" # REPLACE WITH YOUR ACTUAL ID
 
 [programs.localnet]
 dblt_lending = "AXdWprPxpre9hbCJpryiwktSYgBKKaoFHHTufwGRTfLQ"
@@ -11,10 +12,11 @@ dblt_lending = "AXdWprPxpre9hbCJpryiwktSYgBKKaoFHHTufwGRTfLQ"
 [provider]
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
+# cluster = "devnet"
+# wallet = "~/.config/solana/id.json"
 
-[toolchain]
-anchor_version = "1.0.0"
-solana_version = "3.1.10"
+[registry]
+url = "https://api.apr.dev"
 
 [scripts]
-test = "make anchor-test"
+test = "cargo test"
