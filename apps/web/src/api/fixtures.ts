@@ -1,0 +1,56 @@
+import type { Loan } from '../types'
+
+// Flat mock data mirroring what the backend will return.
+// Field names match the API contract — no client-side reshaping needed.
+export const openRequests: Loan[] = [
+  {
+    borrower:         '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    nickname:         'alice.eth',
+    amount:           5000,
+    currency:         'USDC',
+    apy:              12.5,
+    duration:         30,
+    repaymentRate:    100,
+    attestationCount: 12,
+  },
+  {
+    borrower:         '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+    nickname:         'vitalik.eth',
+    amount:           2500,
+    currency:         'USDC',
+    apy:              9.0,
+    duration:         60,
+    repaymentRate:    100,
+    attestationCount: 8,
+  },
+  {
+    borrower:         '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
+    nickname:         'defi-whale.eth',
+    amount:           10000,
+    currency:         'USDC',
+    apy:              11.0,
+    duration:         30,
+    repaymentRate:    94,
+    attestationCount: 5,
+  },
+  {
+    borrower:         '0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6',
+    nickname:         'anon-3439',
+    amount:           1500,
+    currency:         'USDC',
+    apy:              14.0,
+    duration:         90,
+    repaymentRate:    78,
+    attestationCount: 2,
+  },
+  {
+    borrower:         '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
+    nickname:         'cobie.base',
+    amount:           7500,
+    currency:         'USDC',
+    apy:              10.5,
+    duration:         60,
+    repaymentRate:    100,
+    attestationCount: 9,
+  },
+]

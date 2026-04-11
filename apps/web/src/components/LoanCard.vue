@@ -1,17 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { Loan } from '../types'
 
-const props = defineProps<{
-  borrower: string
-  nickname: string
-  repaymentRate: number
-  attestationCount: number
-  amount: number
-  currency: string
-  apy: number
-  duration: number        // days
-  variant?: 'card' | 'list'
-}>()
+const props = defineProps<Loan & { variant?: 'card' | 'list' }>()
 
 const emit = defineEmits<{ fund: [borrower: string] }>()
 
@@ -30,23 +21,28 @@ const repaymentStyle = computed(() => {
     class="glass-panel rounded px-5 py-4 flex items-center gap-4 hover:bg-surface-hover transition-colors"
   >
     <!-- Borrower column -->
-    <div class="w-72 flex-shrink-0 flex items-center gap-3 min-w-0">
+    <div class="w-56 flex-shrink-0 flex items-center gap-3 min-w-0">
       <div class="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
         <span class="font-mono text-xs text-primary">0x</span>
       </div>
-      <div class="min-w-0 flex flex-col gap-1">
+      <div class="min-w-0 flex flex-col gap-0.5">
         <span class="text-sm font-bold text-white truncate">{{ nickname }}</span>
         <span class="font-mono text-[10px] text-muted leading-tight break-all">{{ borrower }}</span>
-        <!-- Badges -->
-        <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
-          <span class="px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono" :class="repaymentStyle">
-            {{ repaymentRate }}% repaid
-          </span>
-          <span class="px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary/80 text-[10px] font-bold font-mono">
-            {{ attestationCount }} attested
-          </span>
-        </div>
       </div>
+    </div>
+
+    <!-- Repaid -->
+    <div class="w-24 flex-shrink-0">
+      <span class="px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono" :class="repaymentStyle">
+        {{ repaymentRate }}%
+      </span>
+    </div>
+
+    <!-- Attestations -->
+    <div class="w-20 flex-shrink-0">
+      <span class="px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary/80 text-[10px] font-bold font-mono">
+        {{ attestationCount }}
+      </span>
     </div>
 
     <!-- Amount -->
@@ -93,7 +89,7 @@ const repaymentStyle = computed(() => {
             {{ repaymentRate }}% repaid
           </span>
           <span class="px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary/80 text-[10px] font-bold font-mono">
-            {{ attestationCount }} attested
+            {{ attestationCount }} attestations
           </span>
         </div>
       </div>

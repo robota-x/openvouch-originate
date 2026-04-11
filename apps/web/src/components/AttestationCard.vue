@@ -1,10 +1,7 @@
 <script setup lang="ts">
-defineProps<{
-  icon: string
-  title: string
-  status: string
-  verified?: boolean
-}>()
+import type { Attestation } from '../types'
+
+defineProps<Attestation>()
 </script>
 
 <template>

@@ -1,29 +1,23 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import LoanCard from '../components/LoanCard.vue'
+import { backendClient } from '../api/client'
+import { ApiError, type Loan } from '../types'
 
 type View   = 'grid' | 'list'
 type SortBy = 'apy' | 'repayment' | 'attestations' | 'amount'
 
-interface Loan {
-  borrower: string
-  nickname: string
-  repaymentRate: number   // 0–100
-  attestationCount: number
-  amount: number
-  currency: string
-  apy: number
-  duration: number        // days
-}
+// ── Remote data ──────────────────────────────────────────────────────────────
+const loans     = ref<Loan[]>([])
+const loadError = ref<string | null>(null)
 
-// ── Static data ─────────────────────────────────────────────────────────────
-const loans: Loan[] = [
-  { borrower: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', nickname: 'alice.eth',      repaymentRate: 100, attestationCount: 12, amount: 5000,   currency: 'USDC', apy: 12.5, duration: 30  },
-  { borrower: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', nickname: 'vitalik.eth',    repaymentRate: 100, attestationCount: 8,  amount: 2500,   currency: 'USDC', apy: 9.0,  duration: 60  },
-  { borrower: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B', nickname: 'defi-whale.eth', repaymentRate: 94,  attestationCount: 5,  amount: 10000,  currency: 'USDC', apy: 11.0, duration: 30  },
-  { borrower: '0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6', nickname: 'anon-3439',      repaymentRate: 78,  attestationCount: 2,  amount: 1500,   currency: 'USDC', apy: 14.0, duration: 90  },
-  { borrower: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4', nickname: 'cobie.base',     repaymentRate: 100, attestationCount: 9,  amount: 7500,   currency: 'USDC', apy: 10.5, duration: 60  },
-]
+onMounted(async () => {
+  try {
+    loans.value = await backendClient.getOpenRequests()
+  } catch (e) {
+    loadError.value = e instanceof ApiError ? e.message : 'Failed to load open requests'
+  }
+})
 
 // ── View & sort state ────────────────────────────────────────────────────────
 const view   = ref<View>('grid')
@@ -94,7 +88,7 @@ function clampAmount() {
 // ── Derived list ─────────────────────────────────────────────────────────────
 const visibleLoans = computed(() => {
   const f = filters
-  return loans
+  return loans.value
     .filter(l =>
       l.apy              >= f.apyMin                                   &&
       (f.apyMaxUnbound      || l.apy      <= f.apyMax)                 &&
@@ -122,6 +116,30 @@ const visibleLoans = computed(() => {
     <aside class="hidden md:flex flex-col w-64 flex-shrink-0 glass-panel border-r border-border overflow-y-auto">
       <div class="p-6 flex flex-col gap-6">
 
+        <!-- Sort -->
+        <div class="flex flex-col gap-3">
+          <h2 class="font-display font-bold text-white text-sm tracking-tight">Sort</h2>
+          <div class="flex flex-col gap-1">
+            <button
+              v-for="opt in ([
+                { value: 'apy',          label: 'Highest APY' },
+                { value: 'repayment',    label: 'Best Repayment' },
+                { value: 'attestations', label: 'Most Attestations' },
+                { value: 'amount',       label: 'Largest Amount' },
+              ] as const)"
+              :key="opt.value"
+              class="w-full text-left px-3 py-1.5 rounded text-xs transition-colors"
+              :class="sortBy === opt.value
+                ? 'bg-primary/20 text-primary font-bold'
+                : 'text-muted hover:text-white hover:bg-white/5'"
+              @click="sortBy = opt.value"
+            >{{ opt.label }}</button>
+          </div>
+        </div>
+
+        <div class="border-t border-border" />
+
+        <!-- Filters heading -->
         <div class="flex items-center justify-between">
           <h2 class="font-display font-bold text-white text-sm tracking-tight">Filters</h2>
           <button class="text-xs text-muted hover:text-white transition-colors" @click="reset">Reset</button>
@@ -142,21 +160,15 @@ const visibleLoans = computed(() => {
               class="w-full accent-primary"
               @input="clampApy('min')"
             />
-            <!-- Max with ∞ toggle -->
+            <!-- Max -->
             <div class="flex items-center justify-between">
-              <span class="text-xs text-muted">Max</span>
-              <div class="flex items-center gap-1.5">
-                <span class="font-mono text-xs" :class="filters.apyMaxUnbound ? 'text-primary' : 'text-white'">
-                  {{ filters.apyMaxUnbound ? '∞' : `${filters.apyMax}%` }}
-                </span>
-                <button
-                  class="text-[10px] font-bold px-1.5 py-0.5 rounded border transition-colors"
-                  :class="filters.apyMaxUnbound
-                    ? 'bg-primary/20 text-primary border-primary/30'
-                    : 'bg-white/5 text-muted border-white/10 hover:text-white'"
-                  @click="filters.apyMaxUnbound = !filters.apyMaxUnbound"
-                >∞</button>
-              </div>
+              <span class="text-xs text-muted">
+                Max<span v-if="!filters.apyMaxUnbound" class="font-mono text-white ml-1">{{ filters.apyMax }}%</span>
+              </span>
+              <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                <input v-model="filters.apyMaxUnbound" type="checkbox" class="accent-primary cursor-pointer" />
+                <span class="text-xs text-muted">No limit</span>
+              </label>
             </div>
             <input
               v-model.number="filters.apyMax"
@@ -184,21 +196,15 @@ const visibleLoans = computed(() => {
               class="w-full accent-primary"
               @input="clampAmount"
             />
-            <!-- Max with ∞ toggle -->
+            <!-- Max -->
             <div class="flex items-center justify-between">
-              <span class="text-xs text-muted">Max</span>
-              <div class="flex items-center gap-1.5">
-                <span class="font-mono text-xs" :class="filters.amountMaxUnbound ? 'text-primary' : 'text-white'">
-                  {{ filters.amountMaxUnbound ? '∞' : fmtAmount(amountMax) }}
-                </span>
-                <button
-                  class="text-[10px] font-bold px-1.5 py-0.5 rounded border transition-colors"
-                  :class="filters.amountMaxUnbound
-                    ? 'bg-primary/20 text-primary border-primary/30'
-                    : 'bg-white/5 text-muted border-white/10 hover:text-white'"
-                  @click="filters.amountMaxUnbound = !filters.amountMaxUnbound"
-                >∞</button>
-              </div>
+              <span class="text-xs text-muted">
+                Max<span v-if="!filters.amountMaxUnbound" class="font-mono text-white ml-1">{{ fmtAmount(amountMax) }}</span>
+              </span>
+              <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                <input v-model="filters.amountMaxUnbound" type="checkbox" class="accent-primary cursor-pointer" />
+                <span class="text-xs text-muted">No limit</span>
+              </label>
             </div>
             <input
               v-model.number="filters.amountMaxSlider"
@@ -215,19 +221,13 @@ const visibleLoans = computed(() => {
         <div class="flex flex-col gap-3">
           <p class="text-xs text-muted uppercase tracking-widest">Max Duration</p>
           <div class="flex items-center justify-between">
-            <span class="text-xs text-muted">Up to</span>
-            <div class="flex items-center gap-1.5">
-              <span class="font-mono text-xs" :class="filters.durationMaxUnbound ? 'text-primary' : 'text-white'">
-                {{ filters.durationMaxUnbound ? '∞' : fmtDays(durationMax) }}
-              </span>
-              <button
-                class="text-[10px] font-bold px-1.5 py-0.5 rounded border transition-colors"
-                :class="filters.durationMaxUnbound
-                  ? 'bg-primary/20 text-primary border-primary/30'
-                  : 'bg-white/5 text-muted border-white/10 hover:text-white'"
-                @click="filters.durationMaxUnbound = !filters.durationMaxUnbound"
-              >∞</button>
-            </div>
+            <span class="text-xs text-muted">
+              Up to<span v-if="!filters.durationMaxUnbound" class="font-mono text-white ml-1">{{ fmtDays(durationMax) }}</span>
+            </span>
+            <label class="flex items-center gap-1.5 cursor-pointer select-none">
+              <input v-model="filters.durationMaxUnbound" type="checkbox" class="accent-primary cursor-pointer" />
+              <span class="text-xs text-muted">No limit</span>
+            </label>
           </div>
           <input
             v-model.number="filters.durationMaxSlider"
@@ -287,16 +287,6 @@ const visibleLoans = computed(() => {
         </div>
 
         <div class="flex items-center gap-3">
-          <select
-            v-model="sortBy"
-            class="bg-black/20 border border-border text-muted text-xs rounded px-3 py-1.5 cursor-pointer"
-          >
-            <option value="apy">Sort: Highest APY</option>
-            <option value="repayment">Sort: Best Repayment</option>
-            <option value="attestations">Sort: Most Attested</option>
-            <option value="amount">Sort: Largest Amount</option>
-          </select>
-
           <!-- View toggle -->
           <div class="flex items-center border border-border rounded overflow-hidden">
             <button
@@ -320,8 +310,15 @@ const visibleLoans = computed(() => {
         </div>
       </div>
 
+      <!-- Error state -->
+      <div v-if="loadError" class="glass-panel rounded p-12 flex flex-col items-center gap-3 text-center">
+        <span class="material-symbols-outlined text-4xl text-danger">error_outline</span>
+        <p class="text-white font-bold">Could not load open requests</p>
+        <p class="text-muted text-sm font-mono">{{ loadError }}</p>
+      </div>
+
       <!-- Empty state -->
-      <div v-if="visibleLoans.length === 0" class="glass-panel rounded p-12 flex flex-col items-center gap-3 text-center">
+      <div v-else-if="visibleLoans.length === 0" class="glass-panel rounded p-12 flex flex-col items-center gap-3 text-center">
         <span class="material-symbols-outlined text-4xl text-muted">search_off</span>
         <p class="text-white font-bold">No requests match your filters</p>
         <p class="text-muted text-sm">Try widening the ranges or
@@ -335,9 +332,11 @@ const visibleLoans = computed(() => {
       </div>
 
       <!-- List view -->
-      <div v-else class="flex flex-col gap-2">
+      <div v-else-if="view === 'list'" class="flex flex-col gap-2">
         <div class="px-5 pb-1 flex items-center gap-4">
-          <div class="w-72 flex-shrink-0 text-xs text-muted uppercase tracking-widest">Borrower</div>
+          <div class="w-56 flex-shrink-0 text-xs text-muted uppercase tracking-widest">Borrower</div>
+          <div class="w-24 flex-shrink-0 text-xs text-muted uppercase tracking-widest">Repaid</div>
+          <div class="w-20 flex-shrink-0 text-xs text-muted uppercase tracking-widest">Attestations</div>
           <div class="flex-1 text-xs text-muted uppercase tracking-widest">Amount</div>
           <div class="w-16 flex-shrink-0 text-xs text-muted uppercase tracking-widest">APY</div>
           <div class="w-20 flex-shrink-0 text-xs text-muted uppercase tracking-widest">Duration</div>
