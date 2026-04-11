@@ -5,62 +5,70 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Identity Profile - Glassmorphic Void</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700&amp;family=Plus+Jakarta+Sans:wght@400;500;700&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
       tailwind.config = {
         darkMode: "class",
         theme: {
           extend: {
             colors: {
-              "primary": "#8c51f0",
-              "background-light": "#f7f6f8",
-              "background-dark": "#0A0B0E",
-              "surface": "rgba(255, 255, 255, 0.03)",
-              "surface-highlight": "rgba(255, 255, 255, 0.08)",
-              "border-color": "rgba(255, 255, 255, 0.08)",
-              "emerald-accent": "#10B981",
-              "muted-text": "#94A3B8"
+              "primary":       "#8c51f0",
+              "background":    "#0A0B0E",
+              "surface":       "rgba(255, 255, 255, 0.03)",
+              "surface-hover": "rgba(255, 255, 255, 0.06)",
+              "emerald":       "#10B981",
+              "muted":         "#94A3B8",
+              "orange":        "#F97316",
+              "danger":        "#EF4444",
+              // Depth overlays — black/40: nav  black/20: inset rows  black/10: skeletons
             },
             fontFamily: {
-              "display": ["Plus Jakarta Sans", "sans-serif"],
-              "body": ["Plus Jakarta Sans", "sans-serif"],
-              "mono": ["Space Grotesk", "monospace"]
+              "display": ["Outfit", "sans-serif"],
+              "body":    ["Plus Jakarta Sans", "sans-serif"],
+              "mono":    ["Space Grotesk", "monospace"],
             },
             borderRadius: {
-                "DEFAULT": "8px", 
-                "lg": "8px", 
-                "xl": "12px", 
-                "full": "9999px"
+              "DEFAULT": "4px",
+              "lg":      "4px",
+              "xl":      "4px",
+              "full":    "9999px",
             },
             backgroundImage: {
-                'radial-glows': 'radial-gradient(circle at 10% 10%, rgba(140, 81, 240, 0.15) 0%, transparent 40%), radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.1) 0%, transparent 40%)',
-            }
+              // Fixed ambient glows — applied to page root with bg-fixed
+              "ambient-glows": "radial-gradient(circle at top left, rgba(140, 81, 240, 0.15) 0%, transparent 50%), radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.10) 0%, transparent 50%)",
+            },
+            boxShadow: {
+              // Named glow shadows — use on interactive elements
+              "glow-primary":        "0 0 20px rgba(140, 81, 240, 0.30)",
+              "glow-primary-strong": "0 0 25px rgba(140, 81, 240, 0.50)",
+              "glow-emerald":        "0 0 10px rgba(16, 185, 129, 0.10)",
+              "glow-emerald-strong": "0 0 15px rgba(16, 185, 129, 0.15)",
+            },
           },
         },
       }
     </script>
 <style>
         .glass-panel {
-            background-color: var(--color-surface);
+            background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
-            border: 1px solid var(--color-border);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        
+
         .tilt-effect {
-            transition: transform 0.3s ease, border-color 0.3s ease;
+            transition: transform 0.3s ease, border-color 0.3s ease, background 0.3s ease;
             transform-style: preserve-3d;
         }
-        
+
         .tilt-effect:hover {
             transform: perspective(1000px) rotateX(2deg) rotateY(2deg) scale(1.02);
-            border-color: rgba(255, 255, 255, 0.2);
-            background-color: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.06);
         }
     </style>
 </head>
-<body class="bg-background-dark text-[#F8FAFC] font-body min-h-screen bg-radial-glows bg-fixed">
+<body class="bg-background text-[#F8FAFC] font-body min-h-screen bg-ambient-glows bg-fixed">
 <!-- Top NavBar (Shared Component - Included as it's a browsing destination) -->
 <div class="relative flex h-auto w-full flex-col group/design-root overflow-x-hidden">
 <div class="layout-container flex h-full grow flex-col">
@@ -95,13 +103,13 @@
 <div class="flex flex-col items-center gap-2">
 <div class="flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 backdrop-blur-md cursor-pointer hover:bg-white/10 transition-colors group">
 <span class="font-mono text-lg font-medium text-white tracking-wide">0x71C...976F</span>
-<span class="material-symbols-outlined text-muted-text text-sm group-hover:text-white transition-colors" data-icon="content_copy">content_copy</span>
+<span class="material-symbols-outlined text-muted text-sm group-hover:text-white transition-colors" data-icon="content_copy">content_copy</span>
 </div>
 <div class="flex items-center gap-2 mt-1">
-<span class="material-symbols-outlined text-emerald-accent text-lg" data-icon="verified_user">verified_user</span>
-<span class="text-emerald-accent font-medium text-sm tracking-wide uppercase">12 Verified Attestations</span>
+<span class="material-symbols-outlined text-emerald text-lg" data-icon="verified_user">verified_user</span>
+<span class="text-emerald font-medium text-sm tracking-wide uppercase">12 Verified Attestations</span>
 </div>
-<p class="text-muted-text text-sm max-w-sm mt-2 leading-relaxed">
+<p class="text-muted text-sm max-w-sm mt-2 leading-relaxed">
                     This profile's trust score is calculated based on on-chain activity and 3rd-party identity verifications.
                 </p>
 </div>
@@ -109,8 +117,8 @@
 <!-- Attestation Grid -->
 <section class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
 <!-- Attestation Card 1 -->
-<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
-<div class="absolute top-3 right-3 text-emerald-accent animate-pulse">
+<div class="glass-panel rounded aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
+<div class="absolute top-3 right-3 text-emerald animate-pulse">
 <span class="material-symbols-outlined text-xl" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
 </div>
 <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
@@ -118,12 +126,12 @@
 </div>
 <div>
 <h3 class="text-white text-sm font-bold leading-tight">Coinbase KYC</h3>
-<p class="text-emerald-accent text-xs font-medium mt-1">Verified</p>
+<p class="text-emerald text-xs font-medium mt-1">Verified</p>
 </div>
 </div>
 <!-- Attestation Card 2 -->
-<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
-<div class="absolute top-3 right-3 text-emerald-accent animate-pulse">
+<div class="glass-panel rounded aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
+<div class="absolute top-3 right-3 text-emerald animate-pulse">
 <span class="material-symbols-outlined text-xl" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
 </div>
 <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
@@ -131,12 +139,12 @@
 </div>
 <div>
 <h3 class="text-white text-sm font-bold leading-tight">Cred Protocol</h3>
-<p class="text-emerald-accent text-xs font-medium mt-1 font-mono">Score: 850</p>
+<p class="text-emerald text-xs font-medium mt-1 font-mono">Score: 850</p>
 </div>
 </div>
 <!-- Attestation Card 3 -->
-<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
-<div class="absolute top-3 right-3 text-emerald-accent animate-pulse">
+<div class="glass-panel rounded aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
+<div class="absolute top-3 right-3 text-emerald animate-pulse">
 <span class="material-symbols-outlined text-xl" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
 </div>
 <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
@@ -144,29 +152,29 @@
 </div>
 <div>
 <h3 class="text-white text-sm font-bold leading-tight">ENS Domain</h3>
-<p class="text-emerald-accent text-xs font-medium mt-1">Ownership Verified</p>
+<p class="text-emerald text-xs font-medium mt-1">Ownership Verified</p>
 </div>
 </div>
 <!-- Attestation Card 4 -->
-<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
-<div class="absolute top-3 right-3 text-emerald-accent animate-pulse">
+<div class="glass-panel rounded aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect relative group cursor-default">
+<div class="absolute top-3 right-3 text-emerald animate-pulse">
 <span class="material-symbols-outlined text-xl" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
 </div>
 <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform duration-300">
-<span class="material-symbols-outlined text-[#F97316] text-2xl" data-icon="history">history</span>
+<span class="material-symbols-outlined text-orange text-2xl" data-icon="history">history</span>
 </div>
 <div>
 <h3 class="text-white text-sm font-bold leading-tight">Repayment History</h3>
-<p class="text-emerald-accent text-xs font-medium mt-1">100% Repaid</p>
+<p class="text-emerald text-xs font-medium mt-1">100% Repaid</p>
 </div>
 </div>
 <!-- Add New Attestation (Empty State example) -->
-<div class="glass-panel rounded-lg aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect cursor-pointer group border-dashed border-white/20 hover:border-primary/50">
+<div class="glass-panel rounded aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 tilt-effect cursor-pointer group border-dashed border-white/20 hover:border-primary/50">
 <div class="w-12 h-12 rounded-full bg-white/5 border border-dashed border-white/20 flex items-center justify-center mb-1 group-hover:bg-primary/20 transition-colors duration-300">
-<span class="material-symbols-outlined text-muted-text group-hover:text-white transition-colors" data-icon="add">add</span>
+<span class="material-symbols-outlined text-muted group-hover:text-white transition-colors" data-icon="add">add</span>
 </div>
 <div>
-<h3 class="text-muted-text group-hover:text-white transition-colors text-sm font-medium leading-tight">Link Provider</h3>
+<h3 class="text-muted group-hover:text-white transition-colors text-sm font-medium leading-tight">Link Provider</h3>
 </div>
 </div>
 </section>
