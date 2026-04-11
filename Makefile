@@ -1,26 +1,63 @@
-.PHONY: help install build dev test lint build-java docker-build deploy-infra
+# Local dev hierarchy: Make is the entrypoint. It invokes npm/turbo for the Node
+# workspaces only; it invokes anchor/cargo for Rust programs. Root package.json
+# does not call Make or Rust — use `make <target>` from the repo root.
 
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-	  awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+.DEFAULT_GOAL := help
 
-install: ## Install JS dependencies
+.PHONY: help install install-js install-all \
+	build build-js build-programs \
+	dev test test-js test-programs \
+	lint anchor-build anchor-test anchor-keys-sync clean-anchor docker-build
+
+help: ## List targets (start here: Make drives npm and Anchor/cargo)
+	@grep -E '^[a-zA-Z0-9_.-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	  awk 'BEGIN {FS = ":.*?## "}; {printf "  %-22s %s\n", $$1, $$2}'
+
+install: install-js ## Install Node dependencies (npm workspaces)
+
+install-js:
 	npm install
 
-build: ## Build all JS/TS packages
+install-all: install-js ## JS deps + reminder for Solana/Anchor CLI
+	@echo "Use Anchor 1.0.0 and Solana 3.1.x (see Anchor.toml [toolchain], .anchor-version). Example: avm install 1.0.0 && avm use 1.0.0"
+
+build: build-js build-programs ## Turbo/JS build, then Anchor programs
+
+build-js: ## TS/Vite/API packages only
 	npm run build
 
-dev: ## Start all dev servers
+build-programs: anchor-build ## On-chain artifacts (IDL, .so)
+
+anchor-build: ## anchor build (from repo root; requires Anchor CLI 1.0.x)
+	anchor build
+
+dev: ## Start dev servers (Turbo)
 	npm run dev
 
-test: ## Run all tests
+test: test-js test-programs ## All tests: JS workspaces then Rust program crate
+
+test-js: ## Frontend/API tests (Turbo)
 	npm run test
 
-lint: ## Lint all packages
+test-programs: ## Rust integration tests for dblt_lending
+	cargo test -p dblt_lending
+
+anchor-test: anchor-build test-programs ## Used by Anchor.toml [scripts].test
+
+lint: ## Lint JS/TS workspaces
 	npm run lint
 
-build-java: ## Build Java app (not configured yet)
+anchor-keys-sync: ## Align declare_id! and Anchor.toml with target/deploy keypair
+	anchor keys sync
+
+clean-anchor: ## Remove Anchor build outputs (local only)
+	rm -rf target/deploy target/idl target/verifiable .anchor
+
+docker-build: ## lending-api image
+	docker build -t defi-hack/lending-api:local -f apps/lending-api/Dockerfile apps/lending-api
+
+build-java: ## Placeholder
 	@echo "Java build not configured yet"
 
-docker-build: ## Build lending-api Docker image (local)
-	docker build -t defi-hack/lending-api:local -f apps/lending-api/Dockerfile apps/lending-api
+deploy-infra: ## Placeholder
+	@echo "Infra deploy not wired in Makefile"

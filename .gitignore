@@ -23,8 +23,9 @@ npm-debug.log*
 *.tfstate
 *.tfstate.backup
 
-# Java
+# Rust workspace (Anchor / Cargo) and Java
 target/
+.anchor/
 .gradle/
 
 # IDE
