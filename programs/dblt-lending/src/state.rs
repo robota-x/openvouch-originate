@@ -1,12 +1,9 @@
-// Updated code with new functions for term offers and loan pools, as well as contribution and finalization of pools.
-
 use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
-pub enum PoolStatus {
-    Open,
+pub enum LoanStatus {
+    Pending,
     Funded,
-    Active,
     Completed,
     Defaulted,
 }
@@ -34,24 +31,10 @@ pub struct UserProfile {
 }
 
 #[account]
-pub struct TermOffer {
-    pub authority: Pubkey,
-    pub min_interest_rate_bps: u64,
-    pub max_duration_days: u64,
-    pub collateral_required: bool,
-    pub description: String,
-    pub is_active: bool,
-    pub created_at: i64,
-}
-
-#[account]
-pub struct LoanPool {
+pub struct LoanListing {
     pub borrower: Pubkey,
-    pub target_amount: u64,
-    pub current_amount: u64,
-    pub term_offer: Pubkey,
-    pub years_data_hash: String,
-    pub years_covered: u8,
-    pub status: u8,
+    pub amount: u64,
+    pub interest_rate_bps: u64,
+    pub status: LoanStatus,
     pub created_at: i64,
 }
