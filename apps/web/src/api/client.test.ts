@@ -40,6 +40,42 @@ describe('backendClient', () => {
       }
     })
   })
+
+  describe('getProfile', () => {
+    const KNOWN = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+
+    it('resolves a known address to a full profile', async () => {
+      const profile = await backendClient.getProfile(KNOWN)
+      expect(profile.address).toBe(KNOWN)
+      expect(typeof profile.nickname).toBe('string')
+      expect(profile.trustScore).toBeGreaterThan(0)
+      expect(Array.isArray(profile.attestations)).toBe(true)
+      expect(Array.isArray(profile.loans)).toBe(true)
+      expect(profile.attestations.length).toBeGreaterThan(0)
+      expect(profile.loans.length).toBeGreaterThan(0)
+    })
+
+    it('resolves an unknown address to a fallback without throwing', async () => {
+      const profile = await backendClient.getProfile('0x000000000000000000000000000000000000dead')
+      expect(profile.trustScore).toBe(0)
+      expect(profile.attestations).toHaveLength(0)
+      expect(profile.loans).toHaveLength(0)
+    })
+
+    it('each loan has required fields and a valid status', async () => {
+      const profile = await backendClient.getProfile(KNOWN)
+      for (const loan of profile.loans) {
+        expect(typeof loan.id).toBe('string')
+        expect(typeof loan.amount).toBe('number')
+        expect(typeof loan.currency).toBe('string')
+        expect(typeof loan.apy).toBe('number')
+        expect(typeof loan.duration).toBe('number')
+        expect(typeof loan.repaid).toBe('number')
+        expect(['open', 'active', 'closed']).toContain(loan.status)
+        expect(loan.repaid).toBeGreaterThanOrEqual(0)
+      }
+    })
+  })
 })
 
 // Verify ApiError is importable and constructable from this layer

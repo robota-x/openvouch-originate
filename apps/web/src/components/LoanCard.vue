@@ -4,7 +4,7 @@ import type { Loan } from '../types'
 
 const props = defineProps<Loan & { variant?: 'card' | 'list' }>()
 
-const emit = defineEmits<{ fund: [borrower: string] }>()
+const emit = defineEmits<{ fund: [borrower: string]; view: [] }>()
 
 // 100% → emerald  ·  ≥ 90% → orange (caution)  ·  < 90% → danger
 const repaymentStyle = computed(() => {
@@ -32,10 +32,15 @@ const trustScoreMuted = computed(() => {
   <!-- ── List row ──────────────────────────────────────────────────── -->
   <div
     v-if="variant === 'list'"
-    class="glass-panel rounded px-5 py-4 flex items-center gap-5 hover:bg-surface-hover transition-colors"
+    class="glass-panel rounded px-5 py-4 flex items-center gap-5 hover:bg-surface-hover transition-colors cursor-pointer"
+    @click="emit('view')"
   >
     <!-- Borrower column -->
-    <div class="w-56 flex-shrink-0 flex items-center gap-3 min-w-0">
+    <RouterLink
+      :to="`/profile/${borrower}`"
+      class="w-56 flex-shrink-0 flex items-center gap-3 min-w-0 hover:bg-white/5 rounded cursor-pointer transition-colors"
+      @click.stop
+    >
       <div class="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
         <span class="font-mono text-xs text-primary">0x</span>
       </div>
@@ -43,7 +48,7 @@ const trustScoreMuted = computed(() => {
         <span class="text-sm font-bold text-white truncate">{{ nickname }}</span>
         <span class="font-mono text-[10px] text-muted leading-tight break-all">{{ borrower }}</span>
       </div>
-    </div>
+    </RouterLink>
 
     <!-- Trust Score — subtle rounded chip, no border, no icon in rows -->
     <div class="w-20 flex-shrink-0">
@@ -87,18 +92,22 @@ const trustScoreMuted = computed(() => {
     <!-- CTA -->
     <button
       class="w-16 flex-shrink-0 px-3 py-1.5 rounded bg-primary text-white text-xs font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
-      @click="emit('fund', borrower)"
+      @click.stop="emit('view')"
     >
       Fund
     </button>
   </div>
 
   <!-- ── Card ──────────────────────────────────────────────────────── -->
-  <div v-else class="glass-panel rounded p-5 flex flex-col gap-4">
+  <div v-else class="glass-panel rounded p-5 flex flex-col gap-4 cursor-pointer" @click="emit('view')">
 
     <!-- Borrower header — profile left, trust score right -->
     <div class="flex items-start justify-between gap-3">
-      <div class="flex items-start gap-3 min-w-0 flex-1">
+      <RouterLink
+        :to="`/profile/${borrower}`"
+        class="flex items-start gap-3 min-w-0 flex-1 hover:bg-white/5 rounded transition-colors"
+        @click.stop
+      >
         <div class="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0 mt-0.5">
           <span class="font-mono text-xs text-primary">0x</span>
         </div>
@@ -115,7 +124,7 @@ const trustScoreMuted = computed(() => {
             </span>
           </div>
         </div>
-      </div>
+      </RouterLink>
 
       <!-- Trust Score — number prominent, icon small and to its right -->
       <div class="flex-shrink-0 flex flex-col items-end gap-0.5">
@@ -151,7 +160,7 @@ const trustScoreMuted = computed(() => {
     <!-- CTA -->
     <button
       class="w-full py-2.5 rounded bg-primary text-white text-sm font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
-      @click="emit('fund', borrower)"
+      @click.stop="emit('view')"
     >
       Fund Request
     </button>

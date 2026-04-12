@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import LoanCard from '../components/LoanCard.vue'
+import ContractModal from '../components/ContractModal.vue'
 import { backendClient } from '../api/client'
-import { ApiError, type Loan } from '../types'
+import { ApiError, type Loan, type ContractView } from '../types'
 
 type View   = 'grid' | 'list'
 type SortBy  = 'trustScore' | 'apy' | 'repayment' | 'attestations' | 'amount' | 'duration'
@@ -19,6 +20,24 @@ onMounted(async () => {
     loadError.value = e instanceof ApiError ? e.message : 'Failed to load open requests'
   }
 })
+
+// ── Contract modal ────────────────────────────────────────────────────────────
+const activeContract = ref<ContractView | null>(null)
+
+function openContract(loan: Loan) {
+  activeContract.value = {
+    borrower:                loan.borrower,
+    borrowerNickname:        loan.nickname,
+    borrowerTrustScore:      loan.trustScore,
+    borrowerAttestationCount: loan.attestationCount,
+    borrowerRepaymentRate:   loan.repaymentRate,
+    amount:   loan.amount,
+    currency: loan.currency,
+    apy:      loan.apy,
+    duration: loan.duration,
+    status:   'open',
+  }
+}
 
 // ── View & sort state ────────────────────────────────────────────────────────
 const view    = ref<View>('grid')
@@ -382,7 +401,7 @@ const visibleLoans = computed(() => {
 
       <!-- Grid view -->
       <div v-else-if="view === 'grid'" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        <LoanCard v-for="loan in visibleLoans" :key="loan.borrower" v-bind="loan" />
+        <LoanCard v-for="loan in visibleLoans" :key="loan.borrower" v-bind="loan" @view="openContract(loan)" />
       </div>
 
       <!-- List view -->
@@ -437,9 +456,17 @@ const visibleLoans = computed(() => {
 
           <div class="w-16 flex-shrink-0" />
         </div>
-        <LoanCard v-for="loan in visibleLoans" :key="loan.borrower" v-bind="loan" variant="list" />
+        <LoanCard v-for="loan in visibleLoans" :key="loan.borrower" v-bind="loan" variant="list" @view="openContract(loan)" />
       </div>
 
     </main>
   </div>
+
+  <!-- Contract modal -->
+  <ContractModal
+    v-if="activeContract"
+    :contract="activeContract"
+    @close="activeContract = null"
+    @fund="activeContract = null"
+  />
 </template>

@@ -41,11 +41,12 @@ function isActive(prefix: string) {
       </div>
 
       <!-- Wallet button -->
-      <button
-        class="h-8 px-4 rounded-full border border-primary/50 bg-primary/10 text-primary font-mono text-xs font-bold hover:bg-primary/20 transition-colors"
+      <RouterLink
+        to="/profile/0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
+        class="h-8 px-4 rounded-full border border-primary/50 bg-primary/10 text-primary font-mono text-xs font-bold hover:bg-primary/20 transition-colors inline-flex items-center"
       >
         0x71C...976F
-      </button>
+      </RouterLink>
 
     </div>
   </nav>

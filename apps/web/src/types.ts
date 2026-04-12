@@ -19,6 +19,55 @@ export interface Attestation {
   verified?: boolean       // defaults to true when absent
 }
 
+export interface ProfileLoan {
+  id: string
+  amount: number        // original requested / borrowed amount
+  currency: string
+  apy: number
+  duration: number      // days
+  status: 'open' | 'active' | 'closed'
+  repaid: number        // 0 (unpaid/defaulted) or full amount (repaid); no partials
+  dueDate?: string      // ISO date; present for active and closed loans
+  counterparty?: string // lender address; absent for open offers
+}
+
+export interface Profile {
+  address: string
+  nickname: string
+  trustScore: number
+  attestations: Attestation[]
+  loans: ProfileLoan[]
+}
+
+// ── Contract modal view ────────────────────────────────────────────────────────
+// Unified shape fed to ContractModal regardless of source (Loan or ProfileLoan).
+
+export interface ContractView {
+  id?: string                  // contract reference, if known
+
+  // Borrower
+  borrower: string
+  borrowerNickname: string
+  borrowerTrustScore: number
+  borrowerAttestationCount: number
+  borrowerRepaymentRate: number  // 0–100, historical rate
+
+  // Lender (absent for open offers)
+  lender?: string
+
+  // Terms
+  amount: number
+  currency: string
+  apy: number
+  duration: number             // days
+
+  // Status (more explicit than ProfileLoan's 'closed')
+  status: 'open' | 'active' | 'repaid' | 'defaulted'
+
+  // Dates (absent for open offers)
+  dueDate?: string             // ISO date
+}
+
 // ── API error ─────────────────────────────────────────────────────────────────
 
 export class ApiError extends Error {
