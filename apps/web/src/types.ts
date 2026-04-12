@@ -13,10 +13,26 @@ export interface Loan {
 }
 
 export interface Attestation {
-  icon: string             // material symbol name, e.g. "account_balance"
+  icon: string         // material symbol name, e.g. "account_balance"
   title: string
-  status: string           // human-readable, e.g. "Verified", "Score: 850"
-  verified?: boolean       // defaults to true when absent
+  status: string       // human-readable, e.g. "Verified", "Score: 850"
+  verified?: boolean   // defaults to true when absent
+
+  // ── Per-claim detail ───────────────────────────────────────────────────────
+  providerId?: string               // references AttestationProvider.id
+  issuedAt?: string                 // ISO date — the only fixed per-claim field
+  onChainRef?: string               // Solana tx signature; links to Solscan
+  metadata?: Record<string, string> // type-specific key/value, shown as details
+}
+
+/** A 3rd-party service that can issue attestations. Returned by GET /api/attestation-providers. */
+export interface AttestationProvider {
+  id: string
+  name: string
+  wallet: string       // signing wallet address — on-chain identity proof
+  website: string
+  claimUrl: string     // URL template; "{address}" is replaced with the subject wallet
+  description: string  // what this provider attests
 }
 
 export interface ProfileLoan {

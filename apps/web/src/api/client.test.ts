@@ -76,6 +76,40 @@ describe('backendClient', () => {
       }
     })
   })
+
+  describe('getAttestationProviders', () => {
+    it('resolves to a non-empty array', async () => {
+      const providers = await backendClient.getAttestationProviders()
+      expect(Array.isArray(providers)).toBe(true)
+      expect(providers.length).toBeGreaterThan(0)
+    })
+
+    it('each provider has all required fields', async () => {
+      const providers = await backendClient.getAttestationProviders()
+      for (const p of providers) {
+        expect(typeof p.id).toBe('string')
+        expect(typeof p.name).toBe('string')
+        expect(typeof p.wallet).toBe('string')
+        expect(typeof p.website).toBe('string')
+        expect(typeof p.claimUrl).toBe('string')
+        expect(typeof p.description).toBe('string')
+      }
+    })
+
+    it('each provider wallet is a valid address', async () => {
+      const providers = await backendClient.getAttestationProviders()
+      for (const p of providers) {
+        expect(p.wallet).toMatch(/^0x[0-9a-fA-F]{40}$/)
+      }
+    })
+
+    it('each claimUrl contains the {address} placeholder', async () => {
+      const providers = await backendClient.getAttestationProviders()
+      for (const p of providers) {
+        expect(p.claimUrl).toContain('{address}')
+      }
+    })
+  })
 })
 
 // Verify ApiError is importable and constructable from this layer

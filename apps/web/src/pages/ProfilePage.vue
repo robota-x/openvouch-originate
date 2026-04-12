@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import type { Profile, ProfileLoan, ContractView } from '../types'
+import type { Profile, ProfileLoan, ContractView, Attestation, AttestationProvider } from '../types'
 import { ApiError } from '../types'
 import { backendClient } from '../api/client'
 import AttestationCard from '../components/AttestationCard.vue'
+import AttestationModal from '../components/AttestationModal.vue'
 import ProfileLoanCard from '../components/ProfileLoanCard.vue'
 import ContractModal from '../components/ContractModal.vue'
 
@@ -12,12 +13,16 @@ const route   = useRoute()
 const address = route.params.address as string
 
 const profile   = ref<Profile | null>(null)
+const providers = ref<AttestationProvider[]>([])
 const loadError = ref<string | null>(null)
 const activeTab = ref<'attestations' | 'loans'>('attestations')
 
 onMounted(async () => {
   try {
-    profile.value = await backendClient.getProfile(address)
+    ;[profile.value, providers.value] = await Promise.all([
+      backendClient.getProfile(address),
+      backendClient.getAttestationProviders(),
+    ])
   } catch (e) {
     loadError.value = e instanceof ApiError ? e.message : 'Failed to load profile'
   }
@@ -53,6 +58,15 @@ const repaymentRate = computed(() => {
   const repaid   = closedLoans.value.reduce((s, l) => s + l.repaid,  0)
   return borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
 })
+
+// ── Attestation modal ──────────────────────────────────────────────────────
+const activeAttestation = ref<Attestation | null>(null)
+const activeProvider    = ref<AttestationProvider | null>(null)
+
+function openAttestation(att: Attestation) {
+  activeAttestation.value = att
+  activeProvider.value    = providers.value.find(p => p.id === att.providerId) ?? null
+}
 
 // ── Contract modal ─────────────────────────────────────────────────────────
 const activeContract = ref<ContractView | null>(null)
@@ -185,6 +199,7 @@ function fmt(n: number) {
             v-for="att in profile.attestations"
             :key="att.title"
             v-bind="att"
+            @view="openAttestation(att)"
           />
         </div>
 
@@ -250,6 +265,15 @@ function fmt(n: number) {
     </template>
 
   </div>
+
+  <!-- Attestation modal -->
+  <AttestationModal
+    v-if="activeAttestation"
+    :attestation="activeAttestation"
+    :provider="activeProvider ?? undefined"
+    :address="address"
+    @close="activeAttestation = null; activeProvider = null"
+  />
 
   <!-- Contract modal -->
   <ContractModal

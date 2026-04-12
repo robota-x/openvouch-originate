@@ -2,11 +2,13 @@
 import type { Attestation } from '../types'
 
 defineProps<Attestation>()
+const emit = defineEmits<{ view: [] }>()
 </script>
 
 <template>
   <div
-    class="glass-panel tilt-card rounded aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 relative cursor-default group"
+    class="glass-panel tilt-card rounded aspect-square p-4 flex flex-col items-center justify-center text-center gap-3 relative cursor-pointer group"
+    @click="emit('view')"
   >
     <!-- Verified checkmark -->
     <div v-if="verified !== false" class="absolute top-3 right-3 text-emerald animate-pulse">

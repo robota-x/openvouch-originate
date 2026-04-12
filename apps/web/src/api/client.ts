@@ -1,5 +1,5 @@
-import type { Loan, Profile } from '../types'
-import { openRequests, profiles } from './fixtures'
+import type { Loan, Profile, AttestationProvider } from '../types'
+import { openRequests, profiles, attestationProviders } from './fixtures'
 
 // ---------------------------------------------------------------------------
 // Backend client
@@ -27,5 +27,10 @@ export const backendClient = {
       attestations: [],
       loans:        [],
     }
+  },
+
+  /** GET /api/attestation-providers — returns all registered attestation providers. */
+  async getAttestationProviders(): Promise<AttestationProvider[]> {
+    return attestationProviders
   },
 }
