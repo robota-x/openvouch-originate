@@ -12,6 +12,7 @@ export const openRequests: Loan[] = [
     duration:         30,
     repaymentRate:    100,
     attestationCount: 12,
+    trustScore:       920,
   },
   {
     borrower:         '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
@@ -22,6 +23,7 @@ export const openRequests: Loan[] = [
     duration:         60,
     repaymentRate:    100,
     attestationCount: 8,
+    trustScore:       875,
   },
   {
     borrower:         '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
@@ -32,6 +34,7 @@ export const openRequests: Loan[] = [
     duration:         30,
     repaymentRate:    94,
     attestationCount: 5,
+    trustScore:       682,
   },
   {
     borrower:         '0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6',
@@ -42,6 +45,7 @@ export const openRequests: Loan[] = [
     duration:         90,
     repaymentRate:    78,
     attestationCount: 2,
+    trustScore:       341,
   },
   {
     borrower:         '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
@@ -52,5 +56,6 @@ export const openRequests: Loan[] = [
     duration:         60,
     repaymentRate:    100,
     attestationCount: 9,
+    trustScore:       810,
   },
 ]

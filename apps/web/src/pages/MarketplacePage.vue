@@ -5,7 +5,8 @@ import { backendClient } from '../api/client'
 import { ApiError, type Loan } from '../types'
 
 type View   = 'grid' | 'list'
-type SortBy = 'apy' | 'repayment' | 'attestations' | 'amount'
+type SortBy  = 'trustScore' | 'apy' | 'repayment' | 'attestations' | 'amount' | 'duration'
+type SortDir = 'desc' | 'asc'
 
 // ── Remote data ──────────────────────────────────────────────────────────────
 const loans     = ref<Loan[]>([])
@@ -20,8 +21,19 @@ onMounted(async () => {
 })
 
 // ── View & sort state ────────────────────────────────────────────────────────
-const view   = ref<View>('grid')
-const sortBy = ref<SortBy>('apy')
+const view    = ref<View>('grid')
+const sortBy  = ref<SortBy>('trustScore')
+const sortDir = ref<SortDir>('desc')
+
+// Clicking the active sort key toggles direction; a new key resets to desc.
+function setSort(key: SortBy) {
+  if (sortBy.value === key) {
+    sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sortBy.value = key
+    sortDir.value = 'desc'
+  }
+}
 
 // ── Exponential scale helpers ────────────────────────────────────────────────
 // slider 0–100  →  1–3650 days  (≈ 1 day to 10 years)
@@ -64,6 +76,7 @@ const DEFAULTS = {
 
   attestationMin:     0,
   repaymentMin:       0,
+  trustScoreMin:      0,
 }
 
 const filters = reactive({ ...DEFAULTS })
@@ -96,15 +109,20 @@ const visibleLoans = computed(() => {
       l.amount           >= amountMin.value                            &&
       (f.amountMaxUnbound   || l.amount   <= amountMax.value)          &&
       l.attestationCount >= f.attestationMin                           &&
-      l.repaymentRate    >= f.repaymentMin
+      l.repaymentRate    >= f.repaymentMin                             &&
+      l.trustScore       >= f.trustScoreMin
     )
     .sort((a, b) => {
+      let diff: number
       switch (sortBy.value) {
-        case 'apy':          return b.apy              - a.apy
-        case 'repayment':    return b.repaymentRate    - a.repaymentRate
-        case 'attestations': return b.attestationCount - a.attestationCount
-        case 'amount':       return b.amount           - a.amount
+        case 'trustScore':   diff = b.trustScore       - a.trustScore;       break
+        case 'apy':          diff = b.apy              - a.apy;              break
+        case 'repayment':    diff = b.repaymentRate    - a.repaymentRate;    break
+        case 'attestations': diff = b.attestationCount - a.attestationCount; break
+        case 'amount':       diff = b.amount           - a.amount;           break
+        case 'duration':     diff = b.duration         - a.duration;         break
       }
+      return sortDir.value === 'desc' ? diff : -diff
     })
 })
 </script>
@@ -122,18 +140,31 @@ const visibleLoans = computed(() => {
           <div class="flex flex-col gap-1">
             <button
               v-for="opt in ([
-                { value: 'apy',          label: 'Highest APY' },
-                { value: 'repayment',    label: 'Best Repayment' },
-                { value: 'attestations', label: 'Most Attestations' },
-                { value: 'amount',       label: 'Largest Amount' },
+                { value: 'trustScore',   label: 'Trust Score',   icon: 'auto_awesome' },
+                { value: 'apy',          label: 'APY',           icon: '' },
+                { value: 'repayment',    label: 'Repayment',     icon: '' },
+                { value: 'attestations', label: 'Attestations',  icon: '' },
+                { value: 'amount',       label: 'Amount',        icon: '' },
+                { value: 'duration',     label: 'Duration',      icon: '' },
               ] as const)"
               :key="opt.value"
-              class="w-full text-left px-3 py-1.5 rounded text-xs transition-colors"
+              class="w-full px-3 py-1.5 rounded text-xs transition-colors flex items-center gap-1.5"
               :class="sortBy === opt.value
                 ? 'bg-primary/20 text-primary font-bold'
                 : 'text-muted hover:text-white hover:bg-white/5'"
-              @click="sortBy = opt.value"
-            >{{ opt.label }}</button>
+              @click="setSort(opt.value)"
+            >
+              <span class="flex-1 text-left">{{ opt.label }}</span>
+              <span
+                v-if="opt.icon"
+                class="material-symbols-outlined text-[11px] leading-none flex-shrink-0"
+                style="font-variation-settings: 'FILL' 1"
+              >{{ opt.icon }}</span>
+              <span
+                v-if="sortBy === opt.value"
+                class="material-symbols-outlined text-[9px] leading-none flex-shrink-0"
+              >{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
+            </button>
           </div>
         </div>
 
@@ -143,6 +174,29 @@ const visibleLoans = computed(() => {
         <div class="flex items-center justify-between">
           <h2 class="font-display font-bold text-white text-sm tracking-tight">Filters</h2>
           <button class="text-xs text-muted hover:text-white transition-colors" @click="reset">Reset</button>
+        </div>
+
+        <!-- Trust Score min -->
+        <div class="flex flex-col gap-3">
+          <p class="text-xs text-muted uppercase tracking-widest flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[11px] leading-none text-primary" style="font-variation-settings: 'FILL' 1">auto_awesome</span>
+            Min Trust Score
+          </p>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-muted">At least</span>
+            <span
+              class="font-mono text-xs font-bold"
+              :class="filters.trustScoreMin >= 700 ? 'text-emerald'
+                    : filters.trustScoreMin >= 400 ? 'text-orange'
+                    : filters.trustScoreMin  >  0  ? 'text-danger'
+                    : 'text-white'"
+            >{{ filters.trustScoreMin }}</span>
+          </div>
+          <input
+            v-model.number="filters.trustScoreMin"
+            type="range" min="0" max="1000" step="10"
+            class="w-full accent-primary"
+          />
         </div>
 
         <!-- APY range -->
@@ -333,13 +387,54 @@ const visibleLoans = computed(() => {
 
       <!-- List view -->
       <div v-else-if="view === 'list'" class="flex flex-col gap-2">
-        <div class="px-5 pb-1 flex items-center gap-4">
+        <div class="px-5 pb-1 flex items-center gap-5">
+          <!-- Non-sortable -->
           <div class="w-56 flex-shrink-0 text-xs text-muted uppercase tracking-widest">Borrower</div>
-          <div class="w-24 flex-shrink-0 text-xs text-muted uppercase tracking-widest">Repaid</div>
-          <div class="w-20 flex-shrink-0 text-xs text-muted uppercase tracking-widest">Attestations</div>
-          <div class="flex-1 text-xs text-muted uppercase tracking-widest">Amount</div>
-          <div class="w-16 flex-shrink-0 text-xs text-muted uppercase tracking-widest">APY</div>
-          <div class="w-20 flex-shrink-0 text-xs text-muted uppercase tracking-widest">Duration</div>
+
+          <!-- Sortable columns — shared style via a local pattern -->
+          <button class="w-20 flex-shrink-0 flex items-center gap-1 text-xs uppercase tracking-widest transition-colors"
+            :class="sortBy === 'trustScore' ? 'text-white' : 'text-muted hover:text-white'"
+            @click="setSort('trustScore')">
+            <span class="material-symbols-outlined text-[11px] leading-none" style="font-variation-settings: 'FILL' 1">auto_awesome</span>
+            Trust
+            <span v-if="sortBy === 'trustScore'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
+          </button>
+
+          <button class="flex-1 min-w-0 flex items-center gap-1 text-xs uppercase tracking-widest transition-colors"
+            :class="sortBy === 'amount' ? 'text-white' : 'text-muted hover:text-white'"
+            @click="setSort('amount')">
+            Amount
+            <span v-if="sortBy === 'amount'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
+          </button>
+
+          <button class="w-20 flex-shrink-0 flex items-center gap-1 text-xs uppercase tracking-widest transition-colors"
+            :class="sortBy === 'apy' ? 'text-white' : 'text-muted hover:text-white'"
+            @click="setSort('apy')">
+            APY
+            <span v-if="sortBy === 'apy'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
+          </button>
+
+          <button class="w-20 flex-shrink-0 flex items-center gap-1 text-xs uppercase tracking-widest transition-colors"
+            :class="sortBy === 'duration' ? 'text-white' : 'text-muted hover:text-white'"
+            @click="setSort('duration')">
+            Duration
+            <span v-if="sortBy === 'duration'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
+          </button>
+
+          <button class="w-24 flex-shrink-0 flex items-center gap-1 text-xs uppercase tracking-widest transition-colors"
+            :class="sortBy === 'attestations' ? 'text-white' : 'text-muted hover:text-white'"
+            @click="setSort('attestations')">
+            Attestations
+            <span v-if="sortBy === 'attestations'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
+          </button>
+
+          <button class="w-24 flex-shrink-0 flex items-center gap-1 text-xs uppercase tracking-widest transition-colors"
+            :class="sortBy === 'repayment' ? 'text-white' : 'text-muted hover:text-white'"
+            @click="setSort('repayment')">
+            Repaid
+            <span v-if="sortBy === 'repayment'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
+          </button>
+
           <div class="w-16 flex-shrink-0" />
         </div>
         <LoanCard v-for="loan in visibleLoans" :key="loan.borrower" v-bind="loan" variant="list" />

@@ -9,6 +9,7 @@ export interface Loan {
   duration: number         // days
   repaymentRate: number    // 0–100 (percentage of past loans repaid)
   attestationCount: number // number of on-chain attestations
+  trustScore: number       // 0–1000, platform-computed credit trust score
 }
 
 export interface Attestation {

@@ -21,6 +21,7 @@ describe('backendClient', () => {
         expect(typeof loan.duration).toBe('number')
         expect(typeof loan.repaymentRate).toBe('number')
         expect(typeof loan.attestationCount).toBe('number')
+        expect(typeof loan.trustScore).toBe('number')
       }
     })
 
@@ -33,6 +34,8 @@ describe('backendClient', () => {
         expect(loan.amount).toBeGreaterThan(0)
         expect(loan.duration).toBeGreaterThan(0)
         expect(loan.attestationCount).toBeGreaterThanOrEqual(0)
+        expect(loan.trustScore).toBeGreaterThanOrEqual(0)
+        expect(loan.trustScore).toBeLessThanOrEqual(1000)
         expect(loan.borrower).toMatch(/^0x[0-9a-fA-F]{40}$/)
       }
     })

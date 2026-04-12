@@ -12,13 +12,27 @@ const repaymentStyle = computed(() => {
   if (props.repaymentRate >= 90)    return 'border-orange/50  bg-orange/10  text-orange'
   return                                   'border-danger/50  bg-danger/10  text-danger'
 })
+
+// ≥ 700 → emerald  ·  ≥ 400 → orange  ·  < 400 → danger
+// trustScoreColor  — plain text, used in card header (no bg)
+// trustScoreMuted  — subtle bg + text, used in list cell (no border, rounded not rounded-full)
+const trustScoreColor = computed(() => {
+  if (props.trustScore >= 700) return 'text-emerald'
+  if (props.trustScore >= 400) return 'text-orange'
+  return 'text-danger'
+})
+const trustScoreMuted = computed(() => {
+  if (props.trustScore >= 700) return 'bg-emerald/10 text-emerald'
+  if (props.trustScore >= 400) return 'bg-orange/10  text-orange'
+  return                              'bg-danger/10  text-danger'
+})
 </script>
 
 <template>
   <!-- ── List row ──────────────────────────────────────────────────── -->
   <div
     v-if="variant === 'list'"
-    class="glass-panel rounded px-5 py-4 flex items-center gap-4 hover:bg-surface-hover transition-colors"
+    class="glass-panel rounded px-5 py-4 flex items-center gap-5 hover:bg-surface-hover transition-colors"
   >
     <!-- Borrower column -->
     <div class="w-56 flex-shrink-0 flex items-center gap-3 min-w-0">
@@ -31,17 +45,10 @@ const repaymentStyle = computed(() => {
       </div>
     </div>
 
-    <!-- Repaid -->
-    <div class="w-24 flex-shrink-0">
-      <span class="px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono" :class="repaymentStyle">
-        {{ repaymentRate }}%
-      </span>
-    </div>
-
-    <!-- Attestations -->
+    <!-- Trust Score — subtle rounded chip, no border, no icon in rows -->
     <div class="w-20 flex-shrink-0">
-      <span class="px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary/80 text-[10px] font-bold font-mono">
-        {{ attestationCount }}
+      <span class="font-mono font-bold text-xs px-1.5 py-0.5 rounded" :class="trustScoreMuted">
+        {{ trustScore }}
       </span>
     </div>
 
@@ -54,13 +61,27 @@ const repaymentStyle = computed(() => {
     </div>
 
     <!-- APY -->
-    <div class="w-16 flex-shrink-0">
+    <div class="w-20 flex-shrink-0">
       <p class="font-mono font-bold text-white">{{ apy }}%</p>
     </div>
 
     <!-- Duration -->
     <div class="w-20 flex-shrink-0">
       <p class="font-mono font-bold text-white">{{ duration }}d</p>
+    </div>
+
+    <!-- Attestations -->
+    <div class="w-24 flex-shrink-0">
+      <span class="px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary/80 text-[10px] font-bold font-mono">
+        {{ attestationCount }}
+      </span>
+    </div>
+
+    <!-- Repaid -->
+    <div class="w-24 flex-shrink-0">
+      <span class="px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono" :class="repaymentStyle">
+        {{ repaymentRate }}%
+      </span>
     </div>
 
     <!-- CTA -->
@@ -75,23 +96,34 @@ const repaymentStyle = computed(() => {
   <!-- ── Card ──────────────────────────────────────────────────────── -->
   <div v-else class="glass-panel rounded p-5 flex flex-col gap-4">
 
-    <!-- Borrower header -->
-    <div class="flex items-start gap-3">
-      <div class="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-        <span class="font-mono text-xs text-primary">0x</span>
-      </div>
-      <div class="min-w-0 flex flex-col gap-1">
-        <span class="text-sm font-bold text-white leading-tight">{{ nickname }}</span>
-        <span class="font-mono text-[10px] text-muted leading-tight break-all">{{ borrower }}</span>
-        <!-- Badges -->
-        <div class="flex items-center gap-1.5 flex-wrap mt-1">
-          <span class="px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono" :class="repaymentStyle">
-            {{ repaymentRate }}% repaid
-          </span>
-          <span class="px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary/80 text-[10px] font-bold font-mono">
-            {{ attestationCount }} attestations
-          </span>
+    <!-- Borrower header — profile left, trust score right -->
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex items-start gap-3 min-w-0 flex-1">
+        <div class="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <span class="font-mono text-xs text-primary">0x</span>
         </div>
+        <div class="min-w-0 flex flex-col gap-1">
+          <span class="text-sm font-bold text-white leading-tight">{{ nickname }}</span>
+          <span class="font-mono text-[10px] text-muted leading-tight break-all">{{ borrower }}</span>
+          <!-- Badges -->
+          <div class="flex items-center gap-1.5 flex-wrap mt-1">
+            <span class="px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono" :class="repaymentStyle">
+              {{ repaymentRate }}% repaid
+            </span>
+            <span class="px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary/80 text-[10px] font-bold font-mono">
+              {{ attestationCount }} attestations
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trust Score — number prominent, icon small and to its right -->
+      <div class="flex-shrink-0 flex flex-col items-end gap-0.5">
+        <div class="flex items-baseline gap-0.5" :class="trustScoreColor">
+          <span class="font-mono font-bold text-xl leading-none">{{ trustScore }}</span>
+          <span class="material-symbols-outlined text-[9px] leading-none" style="font-variation-settings: 'FILL' 1">auto_awesome</span>
+        </div>
+        <span class="text-[9px] text-muted uppercase tracking-widest">Trust</span>
       </div>
     </div>
 
