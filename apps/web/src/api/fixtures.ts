@@ -1,4 +1,4 @@
-import type { Loan, AttestationProvider, Profile } from '../types'
+import type { Loan, AttestationProvider, Profile, LentLoan } from '../types'
 
 // ── Attestation providers ─────────────────────────────────────────────────────
 // Mirrors GET /api/attestation-providers.
@@ -70,6 +70,40 @@ export const profiles: Record<string, Profile> = {
         onChainRef: '2pQrJvNzXkWmYbFsU9TcHdGaLeKioPxAo4Mu7BjCqDnVtE6RfZgS8YhWpL3NkTs1JeXmFvYuIrBwCqDk5PMoNHA',
         metadata: { Scope: 'Lending Contract v2.1', Findings: '0 critical · 1 medium', Resolution: 'All findings resolved' },
       },
+    ],
+    lentLoans: [
+      // vitalik borrowed 2000 from alice — repaid
+      {
+        id: 'vitalik-1', borrower: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        borrowerNickname: 'vitalik.eth', borrowerTrustScore: 875,
+        borrowerAttestationCount: 4, borrowerRepaymentRate: 100,
+        amount: 2000, currency: 'USDC', apy: 9.5, duration: 60,
+        status: 'repaid', dueDate: '2025-08-10',
+      } as LentLoan,
+      // whale borrowed 8000 from alice — defaulted
+      {
+        id: 'whale-1', borrower: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
+        borrowerNickname: 'defi-whale.eth', borrowerTrustScore: 682,
+        borrowerAttestationCount: 3, borrowerRepaymentRate: 62,
+        amount: 8000, currency: 'USDC', apy: 10.0, duration: 30,
+        status: 'defaulted', dueDate: '2025-11-20',
+      } as LentLoan,
+      // cobie borrowed 5000 from alice — repaid
+      {
+        id: 'cobie-1', borrower: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
+        borrowerNickname: 'cobie.base', borrowerTrustScore: 810,
+        borrowerAttestationCount: 4, borrowerRepaymentRate: 100,
+        amount: 5000, currency: 'USDC', apy: 10.0, duration: 730,
+        status: 'repaid', dueDate: '2024-10-05',
+      } as LentLoan,
+      // anon borrowed 1200 from alice — active
+      {
+        id: 'anon-2', borrower: '0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6',
+        borrowerNickname: 'anon-3439', borrowerTrustScore: 341,
+        borrowerAttestationCount: 0, borrowerRepaymentRate: 0,
+        amount: 1200, currency: 'USDC', apy: 13.5, duration: 30,
+        status: 'active', dueDate: '2026-04-24',
+      } as LentLoan,
     ],
     loans: [
       { id: 'alice-1', amount: 3000, currency: 'USDC', apy: 11.0, duration: 365, status: 'closed', repaid: 3000, dueDate: '2025-05-15', counterparty: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },

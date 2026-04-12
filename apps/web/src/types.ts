@@ -47,12 +47,32 @@ export interface ProfileLoan {
   counterparty?: string // lender address; absent for open offers
 }
 
+/** A loan from the lender's perspective. Returned by the lending side of the portfolio. */
+export interface LentLoan {
+  id: string
+  // Borrower info (denormalized — lender cares who has their money)
+  borrower: string
+  borrowerNickname: string
+  borrowerTrustScore: number
+  borrowerAttestationCount: number
+  borrowerRepaymentRate: number   // 0–100, historical
+  // Terms
+  amount: number
+  currency: string
+  apy: number
+  duration: number                // days
+  // Lifecycle — no 'open' state; open offers haven't been funded yet
+  status: 'active' | 'repaid' | 'defaulted'
+  dueDate?: string                // ISO date
+}
+
 export interface Profile {
   address: string
   nickname: string
   trustScore: number
   attestations: Attestation[]
-  loans: ProfileLoan[]
+  loans: ProfileLoan[]            // loans where this address is the borrower
+  lentLoans?: LentLoan[]          // loans where this address is the lender
 }
 
 // ── Contract modal view ────────────────────────────────────────────────────────

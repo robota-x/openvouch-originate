@@ -32,11 +32,11 @@ function isActive(prefix: string) {
           Marketplace
         </RouterLink>
         <RouterLink
-          to="/profile/0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
+          to="/my-loans"
           class="text-sm transition-colors"
-          :class="isActive('/profile') ? 'text-white' : 'text-muted hover:text-white'"
+          :class="isActive('/my-loans') ? 'text-white' : 'text-muted hover:text-white'"
         >
-          Profile
+          My Loans
         </RouterLink>
       </div>
 
