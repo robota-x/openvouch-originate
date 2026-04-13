@@ -1,5 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
+import { eq } from 'drizzle-orm'
 import { authenticate } from '../plugins/auth.js'
+import { authNonces } from '../db/schema.js'
 
 type ChallengeBody = { address: string }
 type VerifyBody    = { address: string; nonce: string; signature: string }
@@ -33,18 +35,47 @@ const verifySchema = {
 } as const
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.post<{ Body: ChallengeBody }>('/challenge', { schema: challengeSchema }, async (_request, reply) => {
-    // TODO: generate a cryptographically random nonce, store it keyed by address (TTL ~5 min), return it
-    reply.code(501).send({ error: 'not_implemented' })
+  fastify.post<{ Body: ChallengeBody }>('/challenge', { schema: challengeSchema }, async (request, reply) => {
+    const db = fastify.db
+    if (!db) { reply.code(501).send({ error: 'not_implemented' }); return }
+
+    const nonce = crypto.randomUUID()
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
+
+    await db
+      .insert(authNonces)
+      .values({ address: request.body.address, nonce, expiresAt })
+      .onConflictDoUpdate({ target: authNonces.address, set: { nonce, expiresAt } })
+
+    reply.send({ nonce })
   })
 
-  fastify.post<{ Body: VerifyBody }>('/verify', { schema: verifySchema }, async (_request, reply) => {
-    // TODO: look up stored nonce for address, verify Solana Ed25519 signature, issue signed JWT / set cookie
+  fastify.post<{ Body: VerifyBody }>('/verify', { schema: verifySchema }, async (request, reply) => {
+    const db = fastify.db
+    if (!db) { reply.code(501).send({ error: 'not_implemented' }); return }
+
+    const { address, signature } = request.body
+    const [row] = await db
+      .select()
+      .from(authNonces)
+      .where(eq(authNonces.address, address))
+
+    if (!row || row.expiresAt < new Date()) {
+      reply.code(401).send({ error: 'invalid_nonce' })
+      return
+    }
+
+    // TODO: verify Ed25519 signature (signature) over row.nonce with address
+    void signature
+
+    await db.delete(authNonces).where(eq(authNonces.address, address))
+
+    // TODO: issue signed JWT or set session cookie
     reply.code(501).send({ error: 'not_implemented' })
   })
 
   fastify.delete('/session', { preHandler: authenticate }, async (_request, reply) => {
-    // TODO: invalidate session (add token to denylist or delete server-side session record)
+    // TODO: invalidate session (JWT denylist or server-side session delete)
     reply.code(501).send({ error: 'not_implemented' })
   })
 }
