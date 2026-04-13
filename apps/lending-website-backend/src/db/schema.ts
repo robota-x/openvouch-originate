@@ -13,12 +13,49 @@ export const authNonces = sqliteTable('auth_nonces', {
 
 /** Public borrower/lender profiles, keyed by wallet address. */
 export const profiles = sqliteTable('profiles', {
-  address:   text('address').primaryKey(),
-  nickname:  text('nickname'),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  address:    text('address').primaryKey(),
+  nickname:   text('nickname'),
+  trustScore: integer('trust_score'),
+  updatedAt:  integer('updated_at', { mode: 'timestamp' }).notNull(),
 })
 
-/** Off-chain loan listing records. On-chain settlement referenced via on_chain_ref. */
+/** Registered third-party attestation providers. Static registry, not user-mutable. */
+export const attestationProviders = sqliteTable('attestation_providers', {
+  id:          text('id').primaryKey(),
+  name:        text('name').notNull(),
+  wallet:      text('wallet').notNull(),
+  website:     text('website').notNull(),
+  claimUrl:    text('claim_url').notNull(),
+  description: text('description').notNull(),
+})
+
+/**
+ * Per-profile attestation claims.
+ * metadata is stored as a JSON string (Record<string, string>).
+ * verified uses integer mode boolean (0/1).
+ */
+export const attestations = sqliteTable('attestations', {
+  id:         text('id').primaryKey(),  // `${address}-${providerId}` or a UUID for multiples
+  address:    text('address').notNull(),
+  providerId: text('provider_id').notNull(),
+  icon:       text('icon').notNull(),
+  title:      text('title').notNull(),
+  status:     text('status').notNull(),
+  verified:   integer('verified', { mode: 'boolean' }).notNull().default(true),
+  issuedAt:   text('issued_at').notNull(),
+  onChainRef: text('on_chain_ref'),
+  metadata:   text('metadata'),  // JSON string: Record<string, string>
+})
+
+/**
+ * Off-chain loan listing records. On-chain settlement referenced via on_chain_ref.
+ *
+ * Status lifecycle: open → active → repaid | defaulted
+ *   open      — borrower's offer, not yet funded
+ *   active    — funded by a lender, repayment ongoing
+ *   repaid    — fully repaid by borrower
+ *   defaulted — overdue and not repaid
+ */
 export const loanListings = sqliteTable('loan_listings', {
   id:         text('id').primaryKey(),
   borrower:   text('borrower').notNull(),
@@ -26,8 +63,10 @@ export const loanListings = sqliteTable('loan_listings', {
   currency:   text('currency').notNull(),
   apy:        real('apy').notNull(),
   duration:   integer('duration').notNull(),
-  status:     text('status', { enum: ['open', 'funded', 'repaid', 'defaulted'] }).notNull().default('open'),
+  status:     text('status', { enum: ['open', 'active', 'repaid', 'defaulted'] }).notNull().default('open'),
+  repaid:     real('repaid').notNull().default(0),
   lender:     text('lender'),
+  dueDate:    text('due_date'),
   onChainRef: text('on_chain_ref'),
   createdAt:  integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt:  integer('updated_at', { mode: 'timestamp' }).notNull(),

@@ -1,6 +1,5 @@
 import type { Loan, Profile, AttestationProvider } from '../types'
 import { ApiError } from '../types'
-import { openRequests, profiles, attestationProviders } from './fixtures'
 
 // ---------------------------------------------------------------------------
 // Backend client
@@ -8,7 +7,7 @@ import { openRequests, profiles, attestationProviders } from './fixtures'
 // VITE_API_BASE_URL controls where API calls go:
 //   - Unset / empty string: same-origin (works when Vite proxy or CF Pages
 //     routes /api/* to the Worker, or when frontend and backend share a domain)
-//   - http://localhost:3000: direct to local backend (used via Vite dev proxy)
+//   - http://localhost:8787: direct to local wrangler dev (used via Vite dev proxy)
 //   - https://openvouch-originate-backend-staging.workers.dev: explicit staging
 //
 // The Vite dev server proxies /api/* to VITE_API_BASE_URL so the browser never
@@ -32,28 +31,23 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
 
 export const backendClient = {
   // ── Public data ──────────────────────────────────────────────────────────
-  // These endpoints are still 501 on the backend (data layer not yet wired).
-  // Fixtures are served locally until the backend implements them.
 
   /** GET /api/loans — returns all currently open loan requests. */
   async getOpenRequests(): Promise<Loan[]> {
-    return openRequests
+    const res = await apiFetch('/api/loans')
+    return res.json() as Promise<Loan[]>
   },
 
   /** GET /api/profiles/:address — returns profile for the given wallet address. */
   async getProfile(address: string): Promise<Profile> {
-    return profiles[address] ?? {
-      address,
-      nickname:     address.slice(0, 8),
-      trustScore:   0,
-      attestations: [],
-      loans:        [],
-    }
+    const res = await apiFetch(`/api/profiles/${encodeURIComponent(address)}`)
+    return res.json() as Promise<Profile>
   },
 
   /** GET /api/attestation-providers — returns all registered attestation providers. */
   async getAttestationProviders(): Promise<AttestationProvider[]> {
-    return attestationProviders
+    const res = await apiFetch('/api/attestation-providers')
+    return res.json() as Promise<AttestationProvider[]>
   },
 
   // ── Auth ─────────────────────────────────────────────────────────────────
