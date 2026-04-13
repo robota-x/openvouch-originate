@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { authenticate } from '../plugins/auth.js'
 
 type AddressParams  = { address: string }
 type PatchProfileBody = { nickname?: string }
@@ -37,7 +36,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.patch<{ Params: AddressParams; Body: PatchProfileBody }>(
     '/:address',
-    { schema: patchProfileSchema, preHandler: authenticate },
+    { schema: patchProfileSchema, preHandler: fastify.authenticate },
     async (_request, reply) => {
       // TODO: verify request.user.address === params.address, apply off-chain field updates
       reply.code(501).send({ error: 'not_implemented' })

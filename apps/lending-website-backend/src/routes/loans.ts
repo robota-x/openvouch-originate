@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { authenticate } from '../plugins/auth.js'
 
 type IdParams       = { id: string }
 type CreateLoanBody = { amount: number; currency: string; apy: number; duration: number }
@@ -82,7 +81,7 @@ const loanRoutes: FastifyPluginAsync = async (fastify) => {
     reply.code(501).send({ error: 'not_implemented' })
   })
 
-  fastify.post<{ Body: CreateLoanBody }>('/', { schema: createLoanSchema, preHandler: authenticate }, async (_request, reply) => {
+  fastify.post<{ Body: CreateLoanBody }>('/', { schema: createLoanSchema, preHandler: fastify.authenticate }, async (_request, reply) => {
     // TODO: create loan listing for request.user.address; persist off-chain
     reply.code(501).send({ error: 'not_implemented' })
   })
@@ -92,17 +91,17 @@ const loanRoutes: FastifyPluginAsync = async (fastify) => {
     reply.code(501).send({ error: 'not_implemented' })
   })
 
-  fastify.patch<{ Params: IdParams; Body: PatchLoanBody }>('/:id', { schema: patchLoanSchema, preHandler: authenticate }, async (_request, reply) => {
+  fastify.patch<{ Params: IdParams; Body: PatchLoanBody }>('/:id', { schema: patchLoanSchema, preHandler: fastify.authenticate }, async (_request, reply) => {
     // TODO: verify request.user.address owns this listing and it is still open; apply partial update
     reply.code(501).send({ error: 'not_implemented' })
   })
 
-  fastify.delete<{ Params: IdParams }>('/:id', { schema: idParamsSchema, preHandler: authenticate }, async (_request, reply) => {
+  fastify.delete<{ Params: IdParams }>('/:id', { schema: idParamsSchema, preHandler: fastify.authenticate }, async (_request, reply) => {
     // TODO: verify ownership and open status; remove listing; 404 if not found
     reply.code(501).send({ error: 'not_implemented' })
   })
 
-  fastify.post<{ Params: IdParams }>('/:id/fund', { schema: idParamsSchema, preHandler: authenticate }, async (_request, reply) => {
+  fastify.post<{ Params: IdParams }>('/:id/fund', { schema: idParamsSchema, preHandler: fastify.authenticate }, async (_request, reply) => {
     // TODO: verify listing is open and request.user is not the borrower; lock listing; initiate on-chain disbursement tx
     reply.code(501).send({ error: 'not_implemented' })
   })

@@ -36,13 +36,13 @@ describe('backendClient', () => {
         expect(loan.attestationCount).toBeGreaterThanOrEqual(0)
         expect(loan.trustScore).toBeGreaterThanOrEqual(0)
         expect(loan.trustScore).toBeLessThanOrEqual(1000)
-        expect(loan.borrower).toMatch(/^0x[0-9a-fA-F]{40}$/)
+        expect(loan.borrower).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
       }
     })
   })
 
   describe('getProfile', () => {
-    const KNOWN = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+    const KNOWN = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'
 
     it('resolves a known address to a full profile', async () => {
       const profile = await backendClient.getProfile(KNOWN)
@@ -56,7 +56,7 @@ describe('backendClient', () => {
     })
 
     it('resolves an unknown address to a fallback without throwing', async () => {
-      const profile = await backendClient.getProfile('0x000000000000000000000000000000000000dead')
+      const profile = await backendClient.getProfile('UnknownAddressXXXXXXXXXXXXXXXXXXXXXXXXX')
       expect(profile.trustScore).toBe(0)
       expect(profile.attestations).toHaveLength(0)
       expect(profile.loans).toHaveLength(0)
@@ -99,7 +99,7 @@ describe('backendClient', () => {
     it('each provider wallet is a valid address', async () => {
       const providers = await backendClient.getAttestationProviders()
       for (const p of providers) {
-        expect(p.wallet).toMatch(/^0x[0-9a-fA-F]{40}$/)
+        expect(p.wallet).toMatch(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)
       }
     })
 

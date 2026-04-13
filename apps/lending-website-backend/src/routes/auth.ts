@@ -1,10 +1,18 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { authenticate } from '../plugins/auth.js'
+import { verify as ed25519Verify } from '@noble/ed25519'
+import { decode as bs58Decode } from 'bs58'
 import { authNonces } from '../db/schema.js'
 
 type ChallengeBody = { address: string }
 type VerifyBody    = { address: string; nonce: string; signature: string }
+
+// Signing message displayed to the user in their wallet. Must match the frontend exactly.
+function buildSignMessage(nonce: string): Uint8Array {
+  return new TextEncoder().encode(
+    `Sign this message to authenticate with OpenVouch Originate.\n\nNonce: ${nonce}`
+  )
+}
 
 /** POST /api/auth/challenge — issue a nonce for a wallet address to sign. */
 const challengeSchema = {
@@ -39,7 +47,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const db = fastify.db
     if (!db) { reply.code(501).send({ error: 'not_implemented' }); return }
 
-    const nonce = crypto.randomUUID()
+    const nonce     = crypto.randomUUID()
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
 
     await db
@@ -55,28 +63,31 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (!db) { reply.code(501).send({ error: 'not_implemented' }); return }
 
     const { address, signature } = request.body
-    const [row] = await db
-      .select()
-      .from(authNonces)
-      .where(eq(authNonces.address, address))
 
+    const [row] = await db.select().from(authNonces).where(eq(authNonces.address, address))
     if (!row || row.expiresAt < new Date()) {
       reply.code(401).send({ error: 'invalid_nonce' })
       return
     }
 
-    // TODO: verify Ed25519 signature (signature) over row.nonce with address
-    void signature
+    const sigBytes    = Buffer.from(signature, 'base64')
+    const pubKeyBytes = bs58Decode(address)
+    const isValid     = await ed25519Verify(sigBytes, buildSignMessage(row.nonce), pubKeyBytes)
+    if (!isValid) {
+      reply.code(401).send({ error: 'invalid_signature' })
+      return
+    }
 
     await db.delete(authNonces).where(eq(authNonces.address, address))
 
-    // TODO: issue signed JWT or set session cookie
-    reply.code(501).send({ error: 'not_implemented' })
+    const token = await fastify.createToken(address)
+    reply.send({ token })
   })
 
-  fastify.delete('/session', { preHandler: authenticate }, async (_request, reply) => {
-    // TODO: invalidate session (JWT denylist or server-side session delete)
-    reply.code(501).send({ error: 'not_implemented' })
+  fastify.delete('/session', { preHandler: fastify.authenticate }, async (_request, reply) => {
+    // NOTE: JWT is stateless — true revocation would require a D1 denylist (deferred).
+    // This endpoint exists for UX completeness. Clients must discard the token on logout.
+    reply.code(204).send()
   })
 }
 

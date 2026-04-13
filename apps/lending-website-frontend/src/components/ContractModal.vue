@@ -75,7 +75,7 @@ function fmtDate(iso: string) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso))
 }
 function truncate(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
+  return `${addr.slice(0, 4)}…${addr.slice(-4)}`
 }
 
 // ── ESC to close ───────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
               <p class="text-[10px] text-muted uppercase tracking-widest">Borrower</p>
               <div class="flex items-center gap-2">
                 <div class="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
-                  <span class="font-mono text-[10px] text-primary">0x</span>
+                  <span class="material-symbols-outlined text-primary text-sm">account_balance_wallet</span>
                 </div>
                 <div class="min-w-0">
                   <p class="text-sm font-bold text-white leading-tight">{{ contract.borrowerNickname }}</p>
@@ -156,7 +156,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
               <template v-if="contract.lender">
                 <div class="flex items-center gap-2">
                   <div class="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
-                    <span class="font-mono text-[10px] text-muted">0x</span>
+                    <span class="material-symbols-outlined text-muted text-sm">account_balance_wallet</span>
                   </div>
                   <div class="min-w-0">
                     <p class="font-mono text-sm font-bold text-white leading-tight">{{ truncate(contract.lender) }}</p>

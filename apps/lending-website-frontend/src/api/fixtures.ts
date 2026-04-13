@@ -8,7 +8,7 @@ export const attestationProviders: AttestationProvider[] = [
   {
     id:          'coinbase-kyc',
     name:        'Coinbase',
-    wallet:      '0xcb0000000000000000000000000000000000cb01',
+    wallet:      'CnbsKYC111111111111111111111111111111111111',
     website:     'https://coinbase.com',
     claimUrl:    'https://coinbase.com/onchain-verify/{address}',
     description: 'Identity verified through Coinbase\'s KYC process, including government-issued ID verification, liveness check, and proof of address.',
@@ -16,7 +16,7 @@ export const attestationProviders: AttestationProvider[] = [
   {
     id:          'cred-protocol',
     name:        'Cred Protocol',
-    wallet:      '0xce0000000000000000000000000000000000ce01',
+    wallet:      'CredScore111111111111111111111111111111111',
     website:     'https://credprotocol.com',
     claimUrl:    'https://credprotocol.com/scores/{address}',
     description: 'On-chain credit score derived from DeFi transaction history, repayment behaviour, wallet age, and cross-protocol activity.',
@@ -24,7 +24,7 @@ export const attestationProviders: AttestationProvider[] = [
   {
     id:          'ens',
     name:        'Ethereum Name Service',
-    wallet:      '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85',
+    wallet:      'ENsregis111111111111111111111111111111111',
     website:     'https://ens.domains',
     claimUrl:    'https://app.ens.domains/{address}',
     description: 'Ownership of an Ethereum Name Service domain name verified directly from the ENS registry contract.',
@@ -32,7 +32,7 @@ export const attestationProviders: AttestationProvider[] = [
   {
     id:          'openzeppelin',
     name:        'OpenZeppelin',
-    wallet:      '0x0a110000000000000000000000000000000a1101',
+    wallet:      'ZAudit111111111111111111111111111111111111',
     website:     'https://openzeppelin.com',
     claimUrl:    'https://openzeppelin.com/audits/{address}',
     description: 'Security audit of smart contracts associated with this wallet, conducted by OpenZeppelin\'s audit team.',
@@ -41,9 +41,9 @@ export const attestationProviders: AttestationProvider[] = [
 
 // ── Profile fixtures ─────────────────────────────────────────────────────────
 export const profiles: Record<string, Profile> = {
-  '0x71C7656EC7ab88b098defB751B7401B5f6d8976F': {
-    address:    '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-    nickname:   'alice.eth',
+  '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU': {
+    address:    '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+    nickname:   'alice.sol',
     trustScore: 920,
     attestations: [
       {
@@ -62,7 +62,7 @@ export const profiles: Record<string, Profile> = {
         icon: 'language', title: 'ENS Domain', status: 'Verified', verified: true,
         providerId: 'ens', issuedAt: '2021-06-12',
         onChainRef: '4mXbKqzPZvL8JfYRtU6NdCwTsVeHpGiAoE3Mx9bDQnKuF7WjBcXrZgP2YhSvN1LkTd5aFmJqEuWi8RoCpHs3YVA',
-        metadata: { Domain: 'alice.eth', Registered: '2021-06-12', Expires: '2026-06-12' },
+        metadata: { Domain: 'alice.sol', Registered: '2021-06-12', Expires: '2026-06-12' },
       },
       {
         icon: 'security', title: 'OpenZeppelin Audit', status: 'Audited 2026', verified: true,
@@ -74,31 +74,31 @@ export const profiles: Record<string, Profile> = {
     lentLoans: [
       // vitalik borrowed 2000 from alice — repaid
       {
-        id: 'vitalik-1', borrower: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-        borrowerNickname: 'vitalik.eth', borrowerTrustScore: 875,
+        id: 'vitalik-1', borrower: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg',
+        borrowerNickname: 'vitalik.sol', borrowerTrustScore: 875,
         borrowerAttestationCount: 4, borrowerRepaymentRate: 100,
         amount: 2000, currency: 'USDC', apy: 9.5, duration: 60,
         status: 'repaid', dueDate: '2025-08-10',
       } as LentLoan,
       // whale borrowed 8000 from alice — defaulted
       {
-        id: 'whale-1', borrower: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
-        borrowerNickname: 'defi-whale.eth', borrowerTrustScore: 682,
+        id: 'whale-1', borrower: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+        borrowerNickname: 'defi-whale.sol', borrowerTrustScore: 682,
         borrowerAttestationCount: 3, borrowerRepaymentRate: 62,
         amount: 8000, currency: 'USDC', apy: 10.0, duration: 30,
         status: 'defaulted', dueDate: '2025-11-20',
       } as LentLoan,
       // cobie borrowed 5000 from alice — repaid
       {
-        id: 'cobie-1', borrower: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
-        borrowerNickname: 'cobie.base', borrowerTrustScore: 810,
+        id: 'cobie-1', borrower: 'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3',
+        borrowerNickname: 'cobie.sol', borrowerTrustScore: 810,
         borrowerAttestationCount: 4, borrowerRepaymentRate: 100,
         amount: 5000, currency: 'USDC', apy: 10.0, duration: 730,
         status: 'repaid', dueDate: '2024-10-05',
       } as LentLoan,
       // anon borrowed 1200 from alice — active
       {
-        id: 'anon-2', borrower: '0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6',
+        id: 'anon-2', borrower: 'HN7cABqLq46Es1jh92dQQisAi18upCMi8bZNUCEXVi3Y',
         borrowerNickname: 'anon-3439', borrowerTrustScore: 341,
         borrowerAttestationCount: 0, borrowerRepaymentRate: 0,
         amount: 1200, currency: 'USDC', apy: 13.5, duration: 30,
@@ -106,15 +106,15 @@ export const profiles: Record<string, Profile> = {
       } as LentLoan,
     ],
     loans: [
-      { id: 'alice-1', amount: 3000, currency: 'USDC', apy: 11.0, duration: 365, status: 'closed', repaid: 3000, dueDate: '2025-05-15', counterparty: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
-      { id: 'alice-2', amount: 4500, currency: 'USDC', apy: 12.0, duration: 180, status: 'closed', repaid: 4500, dueDate: '2025-09-20', counterparty: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4' },
-      { id: 'alice-3', amount: 2000, currency: 'USDC', apy: 10.5, duration:  90, status: 'active', repaid:    0, dueDate: '2026-05-11', counterparty: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B' },
+      { id: 'alice-1', amount: 3000, currency: 'USDC', apy: 11.0, duration: 365, status: 'closed', repaid: 3000, dueDate: '2025-05-15', counterparty: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg' },
+      { id: 'alice-2', amount: 4500, currency: 'USDC', apy: 12.0, duration: 180, status: 'closed', repaid: 4500, dueDate: '2025-09-20', counterparty: 'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3' },
+      { id: 'alice-3', amount: 2000, currency: 'USDC', apy: 10.5, duration:  90, status: 'active', repaid:    0, dueDate: '2026-05-11', counterparty: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
       { id: 'alice-4', amount: 5000, currency: 'USDC', apy: 12.5, duration:  30, status: 'open',   repaid:    0 },
     ],
   },
-  '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045': {
-    address:    '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    nickname:   'vitalik.eth',
+  'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg': {
+    address:    'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg',
+    nickname:   'vitalik.sol',
     trustScore: 875,
     attestations: [
       {
@@ -127,7 +127,7 @@ export const profiles: Record<string, Profile> = {
         icon: 'language', title: 'ENS Domain', status: 'Verified', verified: true,
         providerId: 'ens', issuedAt: '2019-04-30',
         onChainRef: '8nBcKpzRXvL2JfWqU5TdGwMsVfHaGiAoE7Mx4bDQmKuF3YjCcXrZgP6NhSvN9LkTd1aFmJqEuWi2RoCpHs5YVB',
-        metadata: { Domain: 'vitalik.eth', Registered: '2019-04-30', Expires: '2027-04-30' },
+        metadata: { Domain: 'vitalik.sol', Registered: '2019-04-30', Expires: '2027-04-30' },
       },
       {
         icon: 'monitoring', title: 'Cred Protocol', status: 'Score: 810', verified: true,
@@ -143,14 +143,14 @@ export const profiles: Record<string, Profile> = {
       },
     ],
     loans: [
-      { id: 'vitalik-1', amount: 2000, currency: 'USDC', apy:  9.5, duration:  60, status: 'closed', repaid: 2000, dueDate: '2025-08-10', counterparty: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F' },
-      { id: 'vitalik-2', amount: 8000, currency: 'USDC', apy:  8.0, duration: 730, status: 'active', repaid:    0, dueDate: '2027-02-20', counterparty: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B' },
+      { id: 'vitalik-1', amount: 2000, currency: 'USDC', apy:  9.5, duration:  60, status: 'closed', repaid: 2000, dueDate: '2025-08-10', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
+      { id: 'vitalik-2', amount: 8000, currency: 'USDC', apy:  8.0, duration: 730, status: 'active', repaid:    0, dueDate: '2027-02-20', counterparty: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
       { id: 'vitalik-3', amount: 2500, currency: 'USDC', apy:  9.0, duration: 730, status: 'open',   repaid:    0 },
     ],
   },
-  '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B': {
-    address:    '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
-    nickname:   'defi-whale.eth',
+  'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': {
+    address:    'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+    nickname:   'defi-whale.sol',
     trustScore: 682,
     attestations: [
       {
@@ -163,7 +163,7 @@ export const profiles: Record<string, Profile> = {
         icon: 'language', title: 'ENS Domain', status: 'Verified', verified: true,
         providerId: 'ens', issuedAt: '2022-11-03',
         onChainRef: 'CsNeLqzUXkWmZbGsV8TcNdFaLeKioPxCo5Mu7DjCqDnVtE3RfZgS6YhWpL4NkTs2JeXmFvYuIrBwCqDkCPMoNHD',
-        metadata: { Domain: 'defi-whale.eth', Registered: '2022-11-03', Expires: '2025-11-03' },
+        metadata: { Domain: 'defi-whale.sol', Registered: '2022-11-03', Expires: '2025-11-03' },
       },
       {
         icon: 'security', title: 'OpenZeppelin Audit', status: 'Audited 2025', verified: true,
@@ -173,13 +173,13 @@ export const profiles: Record<string, Profile> = {
       },
     ],
     loans: [
-      { id: 'whale-1', amount:  8000, currency: 'USDC', apy: 10.0, duration:  30, status: 'closed', repaid:    0, dueDate: '2025-11-20', counterparty: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F' },
-      { id: 'whale-2', amount:  5000, currency: 'USDC', apy: 11.5, duration: 120, status: 'closed', repaid: 5000, dueDate: '2025-07-05', counterparty: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4' },
+      { id: 'whale-1', amount:  8000, currency: 'USDC', apy: 10.0, duration:  30, status: 'closed', repaid:    0, dueDate: '2025-11-20', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
+      { id: 'whale-2', amount:  5000, currency: 'USDC', apy: 11.5, duration: 120, status: 'closed', repaid: 5000, dueDate: '2025-07-05', counterparty: 'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3' },
       { id: 'whale-3', amount: 10000, currency: 'USDC', apy: 11.0, duration: 120, status: 'open',   repaid:    0 },
     ],
   },
-  '0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6': {
-    address:    '0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6',
+  'HN7cABqLq46Es1jh92dQQisAi18upCMi8bZNUCEXVi3Y': {
+    address:    'HN7cABqLq46Es1jh92dQQisAi18upCMi8bZNUCEXVi3Y',
     nickname:   'anon-3439',
     trustScore: 341,
     attestations: [
@@ -195,14 +195,14 @@ export const profiles: Record<string, Profile> = {
       },
     ],
     loans: [
-      { id: 'anon-1', amount: 1000, currency: 'USDC', apy: 15.0, duration:  90, status: 'closed', repaid:    0, dueDate: '2025-06-15', counterparty: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
-      { id: 'anon-2', amount: 1200, currency: 'USDC', apy: 13.5, duration:  30, status: 'active', repaid:    0, dueDate: '2026-04-24', counterparty: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F' },
+      { id: 'anon-1', amount: 1000, currency: 'USDC', apy: 15.0, duration:  90, status: 'closed', repaid:    0, dueDate: '2025-06-15', counterparty: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg' },
+      { id: 'anon-2', amount: 1200, currency: 'USDC', apy: 13.5, duration:  30, status: 'active', repaid:    0, dueDate: '2026-04-24', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
       { id: 'anon-3', amount: 1500, currency: 'USDC', apy: 14.0, duration:   7, status: 'open',   repaid:    0 },
     ],
   },
-  '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4': {
-    address:    '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
-    nickname:   'cobie.base',
+  'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3': {
+    address:    'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3',
+    nickname:   'cobie.sol',
     trustScore: 810,
     attestations: [
       {
@@ -215,7 +215,7 @@ export const profiles: Record<string, Profile> = {
         icon: 'language', title: 'ENS Domain', status: 'Verified', verified: true,
         providerId: 'ens', issuedAt: '2023-02-18',
         onChainRef: 'FvQhOtBXAnZpBbJuY9WfPgIdOiNlRASfd8Px9GmFtEqYvH6UiCvV9BkZsO7QnWu5MhApIyBxLuDzFtGnFROkG',
-        metadata: { Domain: 'cobie.base', Registered: '2023-02-18', Expires: '2028-02-18' },
+        metadata: { Domain: 'cobie.sol', Registered: '2023-02-18', Expires: '2028-02-18' },
       },
       {
         icon: 'monitoring', title: 'Cred Protocol', status: 'Score: 790', verified: true,
@@ -231,8 +231,8 @@ export const profiles: Record<string, Profile> = {
       },
     ],
     loans: [
-      { id: 'cobie-1', amount: 5000, currency: 'USDC', apy: 10.0, duration: 730, status: 'closed', repaid: 5000, dueDate: '2024-10-05', counterparty: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F' },
-      { id: 'cobie-2', amount: 6000, currency: 'USDC', apy: 10.5, duration: 180, status: 'active', repaid:    0, dueDate: '2026-05-30', counterparty: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      { id: 'cobie-1', amount: 5000, currency: 'USDC', apy: 10.0, duration: 730, status: 'closed', repaid: 5000, dueDate: '2024-10-05', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
+      { id: 'cobie-2', amount: 6000, currency: 'USDC', apy: 10.5, duration: 180, status: 'active', repaid:    0, dueDate: '2026-05-30', counterparty: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg' },
       { id: 'cobie-3', amount: 7500, currency: 'USDC', apy: 10.5, duration: 365, status: 'open',   repaid:    0 },
     ],
   },
@@ -255,58 +255,58 @@ function computeAttestationCount(address: string): number {
 // ── Open loan requests (marketplace listing) ─────────────────────────────────
 export const openRequests: Loan[] = [
   {
-    borrower:         '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
-    nickname:         'alice.eth',
+    borrower:         '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+    nickname:         'alice.sol',
     amount:           5000,
     currency:         'USDC',
     apy:              12.5,
     duration:         30,
     trustScore:       920,
-    repaymentRate:    computeRepaymentRate('0x71C7656EC7ab88b098defB751B7401B5f6d8976F'),
-    attestationCount: computeAttestationCount('0x71C7656EC7ab88b098defB751B7401B5f6d8976F'),
+    repaymentRate:    computeRepaymentRate('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'),
+    attestationCount: computeAttestationCount('7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'),
   },
   {
-    borrower:         '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    nickname:         'vitalik.eth',
+    borrower:         'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg',
+    nickname:         'vitalik.sol',
     amount:           2500,
     currency:         'USDC',
     apy:              9.0,
     duration:         730,
     trustScore:       875,
-    repaymentRate:    computeRepaymentRate('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'),
-    attestationCount: computeAttestationCount('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'),
+    repaymentRate:    computeRepaymentRate('vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg'),
+    attestationCount: computeAttestationCount('vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg'),
   },
   {
-    borrower:         '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
-    nickname:         'defi-whale.eth',
+    borrower:         'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+    nickname:         'defi-whale.sol',
     amount:           10000,
     currency:         'USDC',
     apy:              11.0,
     duration:         120,
     trustScore:       682,
-    repaymentRate:    computeRepaymentRate('0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B'),
-    attestationCount: computeAttestationCount('0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B'),
+    repaymentRate:    computeRepaymentRate('DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'),
+    attestationCount: computeAttestationCount('DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'),
   },
   {
-    borrower:         '0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6',
+    borrower:         'HN7cABqLq46Es1jh92dQQisAi18upCMi8bZNUCEXVi3Y',
     nickname:         'anon-3439',
     amount:           1500,
     currency:         'USDC',
     apy:              14.0,
     duration:         7,
     trustScore:       341,
-    repaymentRate:    computeRepaymentRate('0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6'),
-    attestationCount: computeAttestationCount('0x1Db3439a222C519ab44bb1144fC28167b4Fa6EE6'),
+    repaymentRate:    computeRepaymentRate('HN7cABqLq46Es1jh92dQQisAi18upCMi8bZNUCEXVi3Y'),
+    attestationCount: computeAttestationCount('HN7cABqLq46Es1jh92dQQisAi18upCMi8bZNUCEXVi3Y'),
   },
   {
-    borrower:         '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
-    nickname:         'cobie.base',
+    borrower:         'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3',
+    nickname:         'cobie.sol',
     amount:           7500,
     currency:         'USDC',
     apy:              10.5,
     duration:         365,
     trustScore:       810,
-    repaymentRate:    computeRepaymentRate('0x5B38Da6a701c568545dCfcB03FcB875f56beddC4'),
-    attestationCount: computeAttestationCount('0x5B38Da6a701c568545dCfcB03FcB875f56beddC4'),
+    repaymentRate:    computeRepaymentRate('GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3'),
+    attestationCount: computeAttestationCount('GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3'),
   },
 ]

@@ -2,8 +2,10 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import LoanCard from '../components/LoanCard.vue'
 import ContractModal from '../components/ContractModal.vue'
+import WalletConnectModal from '../components/WalletConnectModal.vue'
 import { backendClient } from '../api/client'
 import { ApiError, type Loan, type ContractView } from '../types'
+import { useAuth } from '../composables/useAuth'
 
 type View   = 'grid' | 'list'
 type SortBy  = 'trustScore' | 'apy' | 'repaymentRate' | 'attestationCount' | 'amount' | 'duration'
@@ -21,8 +23,13 @@ onMounted(async () => {
   }
 })
 
+const auth = useAuth()
+
 // ── Contract modal ────────────────────────────────────────────────────────────
-const activeContract = ref<ContractView | null>(null)
+const activeContract     = ref<ContractView | null>(null)
+const showConnectModal   = ref(false)
+// Held while the user completes auth, then the fund action resumes automatically.
+const pendingFundBorrower = ref<string | null>(null)
 
 function openContract(loan: Loan) {
   activeContract.value = {
@@ -36,6 +43,26 @@ function openContract(loan: Loan) {
     apy:      loan.apy,
     duration: loan.duration,
     status:   'open',
+  }
+}
+
+// ── Fund action ───────────────────────────────────────────────────────────────
+// NOTE: auth intercept here is an intentional UX funnel, not a security boundary.
+// A non-authed user could fund directly on-chain. We intercept to drive wallet adoption.
+function handleFund(borrower: string) {
+  activeContract.value = null
+  if (!auth.isConnected) {
+    pendingFundBorrower.value = borrower
+    showConnectModal.value    = true
+    return
+  }
+  // TODO: proceed with on-chain funding action for borrower
+}
+
+function onConnected() {
+  if (pendingFundBorrower.value) {
+    // TODO: resume fund action for pendingFundBorrower.value
+    pendingFundBorrower.value = null
   }
 }
 
@@ -467,6 +494,9 @@ const visibleLoans = computed(() => {
     v-if="activeContract"
     :contract="activeContract"
     @close="activeContract = null"
-    @fund="activeContract = null"
+    @fund="handleFund"
   />
+
+  <!-- Auth intercept modal for unauthenticated fund attempts -->
+  <WalletConnectModal v-model="showConnectModal" @connected="onConnected" />
 </template>

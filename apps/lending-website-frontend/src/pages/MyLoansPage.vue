@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
 import type { Profile, LentLoan, ProfileLoan, ContractView } from '../types'
 import { ApiError } from '../types'
 import { backendClient } from '../api/client'
@@ -8,8 +9,9 @@ import BorrowedLoanCard from '../components/BorrowedLoanCard.vue'
 import LentLoanCard from '../components/LentLoanCard.vue'
 import ContractModal from '../components/ContractModal.vue'
 
-// ── Current user (hardcoded until wallet connection is wired) ─────────────
-const MY_ADDRESS = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+// ── Current user — loaded from auth store, falls back to alice.sol fixture ──
+const auth       = useAuth()
+const MY_ADDRESS = auth.address ?? '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'
 
 const profile   = ref<Profile | null>(null)
 const loadError = ref<string | null>(null)
