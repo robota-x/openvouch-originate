@@ -27,7 +27,7 @@ const depthLayers = [
 
     <!-- ── Header ────────────────────────────────────────────────── -->
     <header class="border-b border-border pb-8">
-      <p class="font-mono text-xs text-muted uppercase tracking-widest mb-3">defi-hack</p>
+      <p class="font-mono text-xs text-muted uppercase tracking-widest mb-3">OpenVouch Originate</p>
       <h1 class="font-display text-4xl font-bold text-white tracking-tight">Design System</h1>
       <p class="text-muted mt-2 text-sm">Glassmorphic Void — token reference</p>
     </header>

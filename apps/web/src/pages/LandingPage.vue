@@ -34,7 +34,7 @@
 
     <!-- ── Features ──────────────────────────────────────────────── -->
     <section>
-      <h2 class="font-display font-bold text-white text-2xl tracking-tight text-center mb-10">Why defi-hack?</h2>
+      <h2 class="font-display font-bold text-white text-2xl tracking-tight text-center mb-10">Why OpenVouch Originate?</h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <div class="glass-panel rounded p-6 flex flex-col gap-3">
           <div class="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
