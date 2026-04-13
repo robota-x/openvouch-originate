@@ -1,9 +1,11 @@
 {
-  "name": "@defi-hack/lending-api",
+  "name": "@openvouch/lending-website-backend",
   "version": "0.0.1",
   "private": true,
   "scripts": {
     "build": "tsc",
+    "deploy:staging": "wrangler deploy --config wrangler.staging.jsonc",
+    "deploy:production": "wrangler deploy --config wrangler.production.jsonc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "echo \"No linter configured yet\"",
@@ -16,7 +18,8 @@
     "@types/node": "^22.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "wrangler": "^3"
   },
   "engines": { "node": ">=22" }
 }

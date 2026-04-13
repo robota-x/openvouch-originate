@@ -1,24 +1,50 @@
 name: CD Staging
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-    branches:
+  push:
+    branches-ignore:
       - main
+  pull_request:
   workflow_dispatch:
     inputs:
-      sha:
-        description: "Full commit SHA of the image to deploy"
-        required: true
+      ref:
+        description: 'Git ref to deploy (branch, tag, or SHA)'
+        required: false
+        default: ''
+
+# Cancel any in-progress staging deploy for the same ref.
+# When pushing to a branch that has an open PR, both push and pull_request
+# events fire. This ensures only one deploy runs — the second cancels the first.
+concurrency:
+  group: cd-staging-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy-staging:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    env:
-      # workflow_run provides head_sha; workflow_dispatch requires the caller to pass the full SHA
-      IMAGE_SHA: ${{ github.event.workflow_run.head_sha || inputs.sha }}
     steps:
-      - run: echo "Deploying defi-hack/lending-api:${{ env.IMAGE_SHA }} to staging"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+      - name: Deploy frontend (staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/lending-website-frontend
+          command: deploy --config wrangler.staging.jsonc
+
+      - name: Deploy backend (staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/lending-website-backend
+          command: deploy --config wrangler.staging.jsonc

@@ -3,8 +3,6 @@ name: CI
 on:
   pull_request:
   push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       ref:
@@ -52,15 +50,3 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
-      - name: Build lending-api Docker image
-        # Tag with full SHA (immutable) and latest (floating) for convenience
-        run: |
-          docker build \
-            -t defi-hack/lending-api:${{ github.sha }} \
-            -t defi-hack/lending-api:latest \
-            -f apps/lending-api/Dockerfile apps/lending-api
-      - name: Push lending-api Docker image
-        # SHA tag is the deploy target; latest is a convenience alias
-        run: |
-          echo "docker push defi-hack/lending-api:${{ github.sha }}"
-          echo "docker push defi-hack/lending-api:latest"

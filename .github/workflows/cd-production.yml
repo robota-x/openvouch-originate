@@ -1,20 +1,42 @@
 name: CD Production
 
 on:
-  release:
-    types:
-      - published
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
-      sha:
-        description: "Full commit SHA of the image to deploy"
-        required: true
+      ref:
+        description: 'Git ref to deploy (branch, tag, or SHA)'
+        required: false
+        default: ''
 
 jobs:
   deploy-production:
     runs-on: ubuntu-latest
-    env:
-      # release trigger pins to the tagged commit; workflow_dispatch requires the caller to pass the full SHA
-      IMAGE_SHA: ${{ github.sha || inputs.sha }}
     steps:
-      - run: echo "Deploying defi-hack/lending-api:${{ env.IMAGE_SHA }} to production"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+      - name: Deploy frontend (production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/lending-website-frontend
+          command: deploy --config wrangler.production.jsonc
+
+      - name: Deploy backend (production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/lending-website-backend
+          command: deploy --config wrangler.production.jsonc
