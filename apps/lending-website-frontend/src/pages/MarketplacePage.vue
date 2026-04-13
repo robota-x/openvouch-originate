@@ -6,7 +6,7 @@ import { backendClient } from '../api/client'
 import { ApiError, type Loan, type ContractView } from '../types'
 
 type View   = 'grid' | 'list'
-type SortBy  = 'trustScore' | 'apy' | 'repayment' | 'attestations' | 'amount' | 'duration'
+type SortBy  = 'trustScore' | 'apy' | 'repaymentRate' | 'attestationCount' | 'amount' | 'duration'
 type SortDir = 'desc' | 'asc'
 
 // ── Remote data ──────────────────────────────────────────────────────────────
@@ -136,8 +136,8 @@ const visibleLoans = computed(() => {
       switch (sortBy.value) {
         case 'trustScore':   diff = b.trustScore       - a.trustScore;       break
         case 'apy':          diff = b.apy              - a.apy;              break
-        case 'repayment':    diff = b.repaymentRate    - a.repaymentRate;    break
-        case 'attestations': diff = b.attestationCount - a.attestationCount; break
+        case 'repaymentRate':    diff = b.repaymentRate    - a.repaymentRate;    break
+        case 'attestationCount': diff = b.attestationCount - a.attestationCount; break
         case 'amount':       diff = b.amount           - a.amount;           break
         case 'duration':     diff = b.duration         - a.duration;         break
       }
@@ -161,8 +161,8 @@ const visibleLoans = computed(() => {
               v-for="opt in ([
                 { value: 'trustScore',   label: 'Trust Score',   icon: 'auto_awesome' },
                 { value: 'apy',          label: 'APY',           icon: '' },
-                { value: 'repayment',    label: 'Repayment',     icon: '' },
-                { value: 'attestations', label: 'Attestations',  icon: '' },
+                { value: 'repaymentRate',    label: 'Repayment',     icon: '' },
+                { value: 'attestationCount', label: 'Attestations',  icon: '' },
                 { value: 'amount',       label: 'Amount',        icon: '' },
                 { value: 'duration',     label: 'Duration',      icon: '' },
               ] as const)"
@@ -441,17 +441,17 @@ const visibleLoans = computed(() => {
           </button>
 
           <button class="w-24 flex-shrink-0 flex items-center gap-1 text-xs uppercase tracking-widest transition-colors"
-            :class="sortBy === 'attestations' ? 'text-white' : 'text-muted hover:text-white'"
-            @click="setSort('attestations')">
+            :class="sortBy === 'attestationCount' ? 'text-white' : 'text-muted hover:text-white'"
+            @click="setSort('attestationCount')">
             Attestations
-            <span v-if="sortBy === 'attestations'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
+            <span v-if="sortBy === 'attestationCount'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
           </button>
 
           <button class="w-24 flex-shrink-0 flex items-center gap-1 text-xs uppercase tracking-widest transition-colors"
-            :class="sortBy === 'repayment' ? 'text-white' : 'text-muted hover:text-white'"
-            @click="setSort('repayment')">
+            :class="sortBy === 'repaymentRate' ? 'text-white' : 'text-muted hover:text-white'"
+            @click="setSort('repaymentRate')">
             Repaid
-            <span v-if="sortBy === 'repayment'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
+            <span v-if="sortBy === 'repaymentRate'" class="material-symbols-outlined text-[9px] leading-none ml-0.5">{{ sortDir === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</span>
           </button>
 
           <div class="w-16 flex-shrink-0" />
