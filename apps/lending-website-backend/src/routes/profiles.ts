@@ -1,47 +1,19 @@
-import type { FastifyPluginAsync } from 'fastify'
+import { Hono } from 'hono'
+import { authenticate } from '../middleware/session.js'
+import type { AppEnv } from '../types.js'
 
-type AddressParams  = { address: string }
-type PatchProfileBody = { nickname?: string }
+const profileRoutes = new Hono<AppEnv>()
 
 /** GET /api/profiles/:address — full public profile (chain-derived + off-chain fields). */
-const getProfileSchema = {
-  params: {
-    type: 'object',
-    required: ['address'],
-    properties: { address: { type: 'string' } },
-  },
-} as const
+profileRoutes.get('/:address', async (c) => {
+  // TODO: derive attestation PDA + loan PDA from address, hydrate from chain cache, merge off-chain fields
+  return c.json({ error: 'not_implemented' }, 501)
+})
 
 /** PATCH /api/profiles/:address — update off-chain fields (own profile only). */
-const patchProfileSchema = {
-  params: {
-    type: 'object',
-    required: ['address'],
-    properties: { address: { type: 'string' } },
-  },
-  body: {
-    type: 'object',
-    properties: {
-      nickname: { type: 'string', minLength: 1, maxLength: 64 },
-    },
-    additionalProperties: false,
-  },
-} as const
-
-const profileRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get<{ Params: AddressParams }>('/:address', { schema: getProfileSchema }, async (_request, reply) => {
-    // TODO: derive attestation PDA + loan PDA from address, hydrate from chain cache, merge off-chain fields
-    reply.code(501).send({ error: 'not_implemented' })
-  })
-
-  fastify.patch<{ Params: AddressParams; Body: PatchProfileBody }>(
-    '/:address',
-    { schema: patchProfileSchema, preHandler: fastify.authenticate },
-    async (_request, reply) => {
-      // TODO: verify request.user.address === params.address, apply off-chain field updates
-      reply.code(501).send({ error: 'not_implemented' })
-    },
-  )
-}
+profileRoutes.patch('/:address', authenticate, async (c) => {
+  // TODO: verify c.var.user.address === c.req.param('address'), apply off-chain field updates
+  return c.json({ error: 'not_implemented' }, 501)
+})
 
 export default profileRoutes

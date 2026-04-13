@@ -72,7 +72,7 @@ async function connect(wallet: DetectedWallet): Promise<void> {
 }
 
 async function disconnect(): Promise<void> {
-  if (token.value) await backendClient.logout().catch(() => {})
+  if (token.value) await backendClient.logout(token.value).catch(() => {})
   address.value = null
   token.value   = null
 }

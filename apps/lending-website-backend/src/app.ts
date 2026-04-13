@@ -1,23 +1,41 @@
-import Fastify, { FastifyInstance } from 'fastify'
-import dbPlugin from './plugins/db.js'
-import sessionPlugin from './plugins/session.js'
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { dbMiddleware } from './middleware/db.js'
 import authRoutes from './routes/auth.js'
 import profileRoutes from './routes/profiles.js'
 import attestationProviderRoutes from './routes/attestationProviders.js'
 import loanRoutes from './routes/loans.js'
+import type { AppEnv } from './types.js'
 
-export function buildApp(d1?: D1Database, jwtSecret?: string): FastifyInstance {
-  const fastify = Fastify({ logger: true })
+export type { AppEnv }
 
-  fastify.register(dbPlugin, { d1 })
-  fastify.register(sessionPlugin, { jwtSecret })
+const app = new Hono<AppEnv>()
 
-  fastify.get('/', async () => ({ status: 'ok' }))
+// ── Global middleware ────────────────────────────────────────────────────────
 
-  fastify.register(authRoutes,                { prefix: '/api/auth' })
-  fastify.register(profileRoutes,             { prefix: '/api/profiles' })
-  fastify.register(attestationProviderRoutes, { prefix: '/api/attestation-providers' })
-  fastify.register(loanRoutes,                { prefix: '/api/loans' })
+// CORS: allow all origins. This is intentional — read routes are public by
+// design, and write routes are protected by JWT auth. An origin restriction
+// here would add no meaningful security while breaking legitimate API access.
+app.use('*', cors({
+  origin:         '*',
+  allowMethods:   ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowHeaders:   ['Content-Type', 'Authorization'],
+  exposeHeaders:  ['Content-Type'],
+  maxAge:         86400,
+}))
 
-  return fastify
-}
+// DB client is initialised per-request and stored in c.var.db.
+// When the DB binding is absent (tests, local dev without D1), c.var.db is
+// undefined and routes return 501.
+app.use('*', dbMiddleware)
+
+// ── Health check ─────────────────────────────────────────────────────────────
+app.get('/', (c) => c.json({ status: 'ok' }))
+
+// ── Route groups ─────────────────────────────────────────────────────────────
+app.route('/api/auth',                  authRoutes)
+app.route('/api/profiles',             profileRoutes)
+app.route('/api/attestation-providers', attestationProviderRoutes)
+app.route('/api/loans',                loanRoutes)
+
+export default app

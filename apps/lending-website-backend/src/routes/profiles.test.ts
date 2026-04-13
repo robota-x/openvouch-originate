@@ -1,29 +1,29 @@
 import { describe, it, expect } from 'vitest'
-import { buildApp } from '../app.js'
+import app from '../app.js'
 
 describe('GET /api/profiles/:address', () => {
   it('returns 501 (not yet implemented)', async () => {
-    const app = buildApp()
-    const response = await app.inject({ method: 'GET', url: '/api/profiles/0xabc' })
-    expect(response.statusCode).toBe(501)
+    const res = await app.request('/api/profiles/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU')
+    expect(res.status).toBe(501)
   })
 })
 
 describe('PATCH /api/profiles/:address', () => {
   it('returns 401 without a session', async () => {
-    const app = buildApp()
-    const response = await app.inject({ method: 'PATCH', url: '/api/profiles/0xabc', payload: { nickname: 'alice' } })
-    expect(response.statusCode).toBe(401)
+    const res = await app.request('/api/profiles/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ nickname: 'alice' }),
+    })
+    expect(res.status).toBe(401)
   })
 
-  it('strips unknown body fields and returns 401 (auth runs after AJV removal)', async () => {
-    const app = buildApp()
-    const response = await app.inject({
+  it('returns 401 for unknown body fields (auth fires before handler)', async () => {
+    const res = await app.request('/api/profiles/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', {
       method:  'PATCH',
-      url:     '/api/profiles/0xabc',
-      payload: { unknownField: 'value' },
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ unknownField: 'value' }),
     })
-    // Fastify strips additionalProperties before preHandler — body becomes {}; authenticate fires and rejects
-    expect(response.statusCode).toBe(401)
+    expect(res.status).toBe(401)
   })
 })

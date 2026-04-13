@@ -1,0 +1,5 @@
+# Wrangler local dev secrets — copy to .dev.vars and fill in values.
+# .dev.vars is gitignored. These values are injected as c.env.* during `wrangler dev`.
+# For production/staging, set secrets with: wrangler secret put JWT_SECRET
+
+JWT_SECRET=local-dev-secret-replace-with-32-random-chars

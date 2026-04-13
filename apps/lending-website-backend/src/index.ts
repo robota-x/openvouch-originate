@@ -1,11 +1,10 @@
-import { buildApp } from './app.js'
+// Local development entry point — NOT deployed to Cloudflare Workers.
+// Uses @hono/node-server to run the Hono app on a standard Node.js HTTP server.
+import { serve } from '@hono/node-server'
+import app from './app.js'
 
-const fastify = buildApp()
 const port = Number(process.env.PORT) || 3000
 
-fastify.listen({ port, host: '0.0.0.0' }, (err) => {
-  if (err) {
-    fastify.log.error(err)
-    process.exit(1)
-  }
+serve({ fetch: app.fetch, port }, () => {
+  console.log(`Backend running on http://localhost:${port}`)
 })

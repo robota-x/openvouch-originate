@@ -1,11 +1,12 @@
-import type { FastifyPluginAsync } from 'fastify'
+import { Hono } from 'hono'
+import type { AppEnv } from '../types.js'
+
+const attestationProviderRoutes = new Hono<AppEnv>()
 
 /** GET /api/attestation-providers — list all registered attestation providers. */
-const attestationProviderRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/', async (_request, reply) => {
-    // TODO: return the registry of known attestation providers (static config or DB)
-    reply.code(501).send({ error: 'not_implemented' })
-  })
-}
+attestationProviderRoutes.get('/', async (c) => {
+  // TODO: return the registry of known attestation providers (static config or DB)
+  return c.json({ error: 'not_implemented' }, 501)
+})
 
 export default attestationProviderRoutes
