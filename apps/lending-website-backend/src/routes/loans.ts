@@ -106,7 +106,8 @@ function toContractView(r: EnrichedRow) {
 loanRoutes.get('/', async (c) => {
   if (c.env?.FIXTURES_ENABLED === 'true') return c.json(fixtureOpenLoans)
 
-  const db   = c.var.db
+  const db = c.var.db
+  if (!db) return c.json({ error: 'not_implemented' }, 501)
   const rows = await enrichedQuery(db).where(eq(loanListings.status, 'open'))
   return c.json(rows.map(toListItem))
 })
@@ -121,8 +122,9 @@ loanRoutes.get('/:id', async (c) => {
     return c.json(contract)
   }
 
-  const db     = c.var.db
-  const [row]  = await enrichedQuery(db).where(eq(loanListings.id, id))
+  const db = c.var.db
+  if (!db) return c.json({ error: 'not_implemented' }, 501)
+  const [row] = await enrichedQuery(db).where(eq(loanListings.id, id))
   if (!row) return c.json({ error: 'not_found' }, 404)
   return c.json(toContractView(row))
 })

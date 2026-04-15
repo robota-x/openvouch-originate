@@ -23,6 +23,7 @@ profileRoutes.get('/:address', async (c) => {
   }
 
   const db = c.var.db
+  if (!db) return c.json({ error: 'not_implemented' }, 501)
   const [row] = await db.select().from(profilesTable).where(eq(profilesTable.address, address))
   if (!row) {
     return c.json({
