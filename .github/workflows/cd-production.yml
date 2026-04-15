@@ -77,6 +77,13 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-frontend
           command: deploy --config wrangler.production.jsonc
+      - name: Migrate database (production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/lending-website-backend
+          command: d1 migrations apply openvouch-originate-db-production --remote --config wrangler.production.jsonc
       - name: Deploy backend (production)
         uses: cloudflare/wrangler-action@v3
         with:

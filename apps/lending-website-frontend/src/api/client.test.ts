@@ -1,118 +1,65 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { backendClient } from './client'
 import { ApiError } from '../types'
 
-describe('backendClient', () => {
-  describe('getOpenRequests', () => {
-    it('resolves to a non-empty array', async () => {
-      const loans = await backendClient.getOpenRequests()
-      expect(Array.isArray(loans)).toBe(true)
-      expect(loans.length).toBeGreaterThan(0)
-    })
+// ── apiFetch error handling ───────────────────────────────────────────────────
+// apiFetch is the only non-trivial logic in client.ts: it catches non-2xx
+// responses and throws ApiError, extracting the message from the JSON body
+// when available. All tests go through a public backendClient method as a
+// stand-in — the specific method chosen doesn't matter.
 
-    it('each loan has all required fields with correct types', async () => {
-      const loans = await backendClient.getOpenRequests()
-      for (const loan of loans) {
-        expect(typeof loan.borrower).toBe('string')
-        expect(typeof loan.nickname).toBe('string')
-        expect(typeof loan.amount).toBe('number')
-        expect(typeof loan.currency).toBe('string')
-        expect(typeof loan.apy).toBe('number')
-        expect(typeof loan.duration).toBe('number')
-        expect(typeof loan.repaymentRate).toBe('number')
-        expect(typeof loan.attestationCount).toBe('number')
-        expect(typeof loan.trustScore).toBe('number')
-      }
-    })
+describe('apiFetch', () => {
+  afterEach(() => vi.unstubAllGlobals())
 
-    it('each loan satisfies domain constraints', async () => {
-      const loans = await backendClient.getOpenRequests()
-      for (const loan of loans) {
-        expect(loan.repaymentRate).toBeGreaterThanOrEqual(0)
-        expect(loan.repaymentRate).toBeLessThanOrEqual(100)
-        expect(loan.apy).toBeGreaterThan(0)
-        expect(loan.amount).toBeGreaterThan(0)
-        expect(loan.duration).toBeGreaterThan(0)
-        expect(loan.attestationCount).toBeGreaterThanOrEqual(0)
-        expect(loan.trustScore).toBeGreaterThanOrEqual(0)
-        expect(loan.trustScore).toBeLessThanOrEqual(1000)
-        expect(loan.borrower).toMatch(/^0x[0-9a-fA-F]{40}$/)
-      }
+  it('throws ApiError with HTTP_{status} code and correct status on non-2xx', async () => {
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(new Response('', { status: 404, statusText: 'Not Found' })),
+    )
+    await expect(backendClient.getOpenRequests()).rejects.toMatchObject({
+      name: 'ApiError', code: 'HTTP_404', status: 404,
     })
   })
 
-  describe('getProfile', () => {
-    const KNOWN = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
-
-    it('resolves a known address to a full profile', async () => {
-      const profile = await backendClient.getProfile(KNOWN)
-      expect(profile.address).toBe(KNOWN)
-      expect(typeof profile.nickname).toBe('string')
-      expect(profile.trustScore).toBeGreaterThan(0)
-      expect(Array.isArray(profile.attestations)).toBe(true)
-      expect(Array.isArray(profile.loans)).toBe(true)
-      expect(profile.attestations.length).toBeGreaterThan(0)
-      expect(profile.loans.length).toBeGreaterThan(0)
-    })
-
-    it('resolves an unknown address to a fallback without throwing', async () => {
-      const profile = await backendClient.getProfile('0x000000000000000000000000000000000000dead')
-      expect(profile.trustScore).toBe(0)
-      expect(profile.attestations).toHaveLength(0)
-      expect(profile.loans).toHaveLength(0)
-    })
-
-    it('each loan has required fields and a valid status', async () => {
-      const profile = await backendClient.getProfile(KNOWN)
-      for (const loan of profile.loans) {
-        expect(typeof loan.id).toBe('string')
-        expect(typeof loan.amount).toBe('number')
-        expect(typeof loan.currency).toBe('string')
-        expect(typeof loan.apy).toBe('number')
-        expect(typeof loan.duration).toBe('number')
-        expect(typeof loan.repaid).toBe('number')
-        expect(['open', 'active', 'closed']).toContain(loan.status)
-        expect(loan.repaid).toBeGreaterThanOrEqual(0)
-      }
+  it('uses the JSON error field as the message when present', async () => {
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: 'listing_not_open' }), {
+          status: 409, statusText: 'Conflict',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    )
+    await expect(backendClient.getOpenRequests()).rejects.toMatchObject({
+      message: 'listing_not_open',
     })
   })
 
-  describe('getAttestationProviders', () => {
-    it('resolves to a non-empty array', async () => {
-      const providers = await backendClient.getAttestationProviders()
-      expect(Array.isArray(providers)).toBe(true)
-      expect(providers.length).toBeGreaterThan(0)
+  it('falls back to statusText when the body is not JSON', async () => {
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(new Response('Bad Gateway', { status: 502, statusText: 'Bad Gateway' })),
+    )
+    await expect(backendClient.getOpenRequests()).rejects.toMatchObject({
+      message: 'Bad Gateway',
     })
+  })
 
-    it('each provider has all required fields', async () => {
-      const providers = await backendClient.getAttestationProviders()
-      for (const p of providers) {
-        expect(typeof p.id).toBe('string')
-        expect(typeof p.name).toBe('string')
-        expect(typeof p.wallet).toBe('string')
-        expect(typeof p.website).toBe('string')
-        expect(typeof p.claimUrl).toBe('string')
-        expect(typeof p.description).toBe('string')
-      }
-    })
-
-    it('each provider wallet is a valid address', async () => {
-      const providers = await backendClient.getAttestationProviders()
-      for (const p of providers) {
-        expect(p.wallet).toMatch(/^0x[0-9a-fA-F]{40}$/)
-      }
-    })
-
-    it('each claimUrl contains the {address} placeholder', async () => {
-      const providers = await backendClient.getAttestationProviders()
-      for (const p of providers) {
-        expect(p.claimUrl).toContain('{address}')
-      }
+  it('falls back to statusText when JSON body has no error field', async () => {
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ message: 'unexpected shape' }), {
+          status: 400, statusText: 'Bad Request',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    )
+    await expect(backendClient.getOpenRequests()).rejects.toMatchObject({
+      message: 'Bad Request',
     })
   })
 })
 
-// Verify ApiError is importable and constructable from this layer
+// ── ApiError class ────────────────────────────────────────────────────────────
+
 describe('ApiError', () => {
   it('carries code, status, and message', () => {
     const err = new ApiError('not found', 'LOANS_NOT_FOUND', 404)

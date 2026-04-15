@@ -1,15 +1,6 @@
 // Cloudflare Workers entry point.
-// Mirrors the routes defined in app.ts.
-// For local development, use `npm run dev` which runs the Fastify server.
+// Hono's fetch handler IS the CF Workers fetch handler — no bridge or adapter needed.
+// Bindings (DB, JWT_SECRET) are injected by the Workers runtime and available via c.env.
+import app from './app.js'
 
-export default {
-  async fetch(request: Request): Promise<Response> {
-    const url = new URL(request.url)
-
-    if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '')) {
-      return Response.json({ status: 'ok' })
-    }
-
-    return new Response('Not Found', { status: 404 })
-  },
-}
+export default app

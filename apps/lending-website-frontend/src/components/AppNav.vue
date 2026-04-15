@@ -1,10 +1,23 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
+import { truncate } from '../utils/format'
+import WalletConnectModal from './WalletConnectModal.vue'
 
-const route = useRoute()
+const route  = useRoute()
+const router = useRouter()
+const auth   = useAuth()
+
+const showConnectModal = ref(false)
 
 function isActive(prefix: string) {
   return route.path.startsWith(prefix)
+}
+
+async function disconnect() {
+  await auth.disconnect()
+  router.push('/')
 }
 </script>
 
@@ -32,6 +45,7 @@ function isActive(prefix: string) {
           Marketplace
         </RouterLink>
         <RouterLink
+          v-if="auth.isConnected"
           to="/my-loans"
           class="text-sm transition-colors"
           :class="isActive('/my-loans') ? 'text-white' : 'text-muted hover:text-white'"
@@ -40,14 +54,37 @@ function isActive(prefix: string) {
         </RouterLink>
       </div>
 
-      <!-- Wallet button -->
-      <RouterLink
-        to="/profile/0x71C7656EC7ab88b098defB751B7401B5f6d8976F"
-        class="h-8 px-4 rounded-full border border-primary/50 bg-primary/10 text-primary font-mono text-xs font-bold hover:bg-primary/20 transition-colors inline-flex items-center"
-      >
-        0x71C...976F
-      </RouterLink>
+      <!-- Wallet area -->
+      <div class="flex items-center gap-2">
+        <!-- Connected: address + disconnect -->
+        <template v-if="auth.isConnected && auth.address">
+          <RouterLink
+            to="/my-profile"
+            class="h-8 px-4 rounded-full border border-primary/50 bg-primary/10 text-primary font-mono text-xs font-bold hover:bg-primary/20 transition-colors inline-flex items-center"
+          >
+            {{ truncate(auth.address) }}
+          </RouterLink>
+          <button
+            class="h-8 w-8 rounded-full border border-border text-muted hover:text-white hover:border-border-hover transition-colors inline-flex items-center justify-center"
+            title="Disconnect wallet"
+            @click="disconnect"
+          >
+            <span class="material-symbols-outlined text-base leading-none">logout</span>
+          </button>
+        </template>
+
+        <!-- Disconnected: connect button -->
+        <button
+          v-else
+          class="h-8 px-4 rounded-full border border-primary/50 bg-primary/10 text-primary font-mono text-xs font-bold hover:bg-primary/20 transition-colors inline-flex items-center"
+          @click="showConnectModal = true"
+        >
+          Connect Wallet
+        </button>
+      </div>
 
     </div>
   </nav>
+
+  <WalletConnectModal v-model="showConnectModal" />
 </template>

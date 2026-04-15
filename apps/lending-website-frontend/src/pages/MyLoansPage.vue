@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
 import type { Profile, LentLoan, ProfileLoan, ContractView } from '../types'
 import { ApiError } from '../types'
 import { backendClient } from '../api/client'
+import { fmt } from '../utils/format'
+import { profileLoanToContractView } from '../utils/loans'
 import BorrowedLoanCard from '../components/BorrowedLoanCard.vue'
 import LentLoanCard from '../components/LentLoanCard.vue'
 import ContractModal from '../components/ContractModal.vue'
 
-// ── Current user (hardcoded until wallet connection is wired) ─────────────
-const MY_ADDRESS = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F'
+// Route is auth-guarded — auth.address is always set when this component mounts.
+const auth       = useAuth()
+const MY_ADDRESS = auth.address!
 
 const profile   = ref<Profile | null>(null)
 const loadError = ref<string | null>(null)
@@ -35,9 +39,9 @@ const lentLoans = computed(() => profile.value?.lentLoans ?? [])
 
 // ── Recap stats ────────────────────────────────────────────────────────────
 const borrowRepaymentRate = computed(() => {
-  const closed = borrowedLoans.value.filter(l => l.status === 'closed')
-  const borrowed = closed.reduce((s, l) => s + l.amount, 0)
-  const repaid   = closed.reduce((s, l) => s + l.repaid, 0)
+  const settled = borrowedLoans.value.filter(l => l.status === 'repaid' || l.status === 'defaulted')
+  const borrowed = settled.reduce((s, l) => s + l.amount, 0)
+  const repaid   = settled.reduce((s, l) => s + l.repaid, 0)
   return borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
 })
 
@@ -57,39 +61,12 @@ const lendOutstanding = computed(() =>
     .reduce((s, l) => s + l.amount, 0)
 )
 
-function fmt(n: number) {
-  if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`
-  return `$${n.toFixed(0)}`
-}
-
 // ── Contract modal ─────────────────────────────────────────────────────────
 const activeContract = ref<ContractView | null>(null)
 
 function openBorrowedContract(loan: ProfileLoan) {
   if (!profile.value) return
-  const p = profile.value
-  const closed = p.loans.filter(l => l.status === 'closed')
-  const borrowed = closed.reduce((s, l) => s + l.amount, 0)
-  const repaid   = closed.reduce((s, l) => s + l.repaid,  0)
-  const repaymentRate = borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
-
-  let status: ContractView['status']
-  if (loan.status === 'open')          status = 'open'
-  else if (loan.status === 'active')   status = 'active'
-  else if (loan.repaid >= loan.amount) status = 'repaid'
-  else                                 status = 'defaulted'
-
-  activeContract.value = {
-    id: loan.id,
-    borrower: p.address, borrowerNickname: p.nickname,
-    borrowerTrustScore: p.trustScore,
-    borrowerAttestationCount: p.attestations.filter(a => a.verified !== false).length,
-    borrowerRepaymentRate: repaymentRate,
-    lender:   loan.counterparty,
-    amount:   loan.amount, currency: loan.currency,
-    apy:      loan.apy,    duration: loan.duration,
-    status,   dueDate: loan.dueDate,
-  }
+  activeContract.value = profileLoanToContractView(loan, profile.value)
 }
 
 function openLentContract(loan: LentLoan) {

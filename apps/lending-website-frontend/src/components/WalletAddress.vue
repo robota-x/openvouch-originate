@@ -5,10 +5,11 @@ import { computed } from 'vue'
 // casting (absent boolean prop → false), which would invert the default behaviour.
 const props = defineProps<{ address: string; full?: boolean }>()
 
+// Solana addresses are base58 (no 0x prefix). Show first 4 + last 4 chars.
 const display = computed(() =>
   props.full
     ? props.address
-    : `${props.address.slice(0, 6)}...${props.address.slice(-4)}`
+    : `${props.address.slice(0, 4)}...${props.address.slice(-4)}`
 )
 </script>
 

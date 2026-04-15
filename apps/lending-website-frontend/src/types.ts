@@ -1,8 +1,9 @@
 // ── Domain types ──────────────────────────────────────────────────────────────
 
 export interface Loan {
-  borrower: string         // wallet address, e.g. "0x71C7..."
-  nickname: string         // ENS / display name, e.g. "alice.eth"
+  id: string               // server-assigned UUID (or fixture id)
+  borrower: string         // wallet address, e.g. "7xKX..."
+  nickname: string         // ENS / display name, e.g. "alice.sol"
   amount: number           // in `currency` units
   currency: string         // e.g. "USDC"
   apy: number              // percentage, e.g. 12.5
@@ -41,9 +42,9 @@ export interface ProfileLoan {
   currency: string
   apy: number
   duration: number      // days
-  status: 'open' | 'active' | 'closed'
-  repaid: number        // 0 (unpaid/defaulted) or full amount (repaid); no partials
-  dueDate?: string      // ISO date; present for active and closed loans
+  status: 'open' | 'active' | 'repaid' | 'defaulted'
+  repaid: number        // 0 when unpaid/defaulted, full amount when repaid; no partials
+  dueDate?: string      // ISO date; present for active/repaid/defaulted loans
   counterparty?: string // lender address; absent for open offers
 }
 
@@ -97,7 +98,6 @@ export interface ContractView {
   apy: number
   duration: number             // days
 
-  // Status (more explicit than ProfileLoan's 'closed')
   status: 'open' | 'active' | 'repaid' | 'defaulted'
 
   // Dates (absent for open offers)

@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import type { Profile, ProfileLoan, ContractView, Attestation, AttestationProvider } from '../types'
 import { ApiError } from '../types'
 import { backendClient } from '../api/client'
+import { fmt } from '../utils/format'
+import { profileLoanToContractView } from '../utils/loans'
 import AttestationCard from '../components/AttestationCard.vue'
 import AttestationModal from '../components/AttestationModal.vue'
 import ProfileLoanCard from '../components/ProfileLoanCard.vue'
@@ -37,9 +39,9 @@ const trustColor = computed(() => {
 })
 
 // ── Loan groups ────────────────────────────────────────────────────────────
-const openLoans   = computed(() => profile.value?.loans.filter(l => l.status === 'open')   ?? [])
-const activeLoans = computed(() => profile.value?.loans.filter(l => l.status === 'active') ?? [])
-const closedLoans = computed(() => profile.value?.loans.filter(l => l.status === 'closed') ?? [])
+const openLoans    = computed(() => profile.value?.loans.filter(l => l.status === 'open')                                       ?? [])
+const activeLoans  = computed(() => profile.value?.loans.filter(l => l.status === 'active')                                     ?? [])
+const settledLoans = computed(() => profile.value?.loans.filter(l => l.status === 'repaid' || l.status === 'defaulted')         ?? [])
 
 // ── Loan recap stats ───────────────────────────────────────────────────────
 const totalRepaid = computed(() =>
@@ -52,10 +54,10 @@ const totalRequested = computed(() =>
 const totalOutstanding = computed(() =>
   activeLoans.value.reduce((s, l) => s + l.amount, 0)
 )
-// Repayment rate is computed only over closed loans (active loans are still pending)
+// Repayment rate is computed only over settled loans (active loans are still pending)
 const repaymentRate = computed(() => {
-  const borrowed = closedLoans.value.reduce((s, l) => s + l.amount, 0)
-  const repaid   = closedLoans.value.reduce((s, l) => s + l.repaid,  0)
+  const borrowed = settledLoans.value.reduce((s, l) => s + l.amount, 0)
+  const repaid   = settledLoans.value.reduce((s, l) => s + l.repaid,  0)
   return borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
 })
 
@@ -73,33 +75,7 @@ const activeContract = ref<ContractView | null>(null)
 
 function openContract(loan: ProfileLoan) {
   if (!profile.value) return
-  const p = profile.value
-  const closedLoans = p.loans.filter(l => l.status === 'closed')
-  const borrowed    = closedLoans.reduce((s, l) => s + l.amount, 0)
-  const repaid      = closedLoans.reduce((s, l) => s + l.repaid, 0)
-  const repaymentRate = borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
-
-  let status: ContractView['status']
-  if (loan.status === 'open')                status = 'open'
-  else if (loan.status === 'active')         status = 'active'
-  else if (loan.repaid >= loan.amount)       status = 'repaid'
-  else                                       status = 'defaulted'
-
-  activeContract.value = {
-    id:                      loan.id,
-    borrower:                p.address,
-    borrowerNickname:        p.nickname,
-    borrowerTrustScore:      p.trustScore,
-    borrowerAttestationCount: p.attestations.filter(a => a.verified !== false).length,
-    borrowerRepaymentRate:   repaymentRate,
-    lender:   loan.counterparty,
-    amount:   loan.amount,
-    currency: loan.currency,
-    apy:      loan.apy,
-    duration: loan.duration,
-    status,
-    dueDate:  loan.dueDate,
-  }
+  activeContract.value = profileLoanToContractView(loan, profile.value)
 }
 
 // ── Attestation recap ──────────────────────────────────────────────────────
@@ -110,10 +86,6 @@ const pendingCount = computed(() =>
   profile.value?.attestations.filter(a => a.verified === false).length ?? 0
 )
 
-function fmt(n: number) {
-  if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`
-  return `$${n}`
-}
 </script>
 
 <template>
@@ -240,11 +212,11 @@ function fmt(n: number) {
           </div>
         </template>
 
-        <!-- Closed loans -->
-        <template v-if="closedLoans.length">
+        <!-- Settled loans (repaid or defaulted) -->
+        <template v-if="settledLoans.length">
           <p class="text-xs uppercase tracking-widest text-muted">Closed loans</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <ProfileLoanCard v-for="loan in closedLoans" :key="loan.id" v-bind="loan" @view="openContract(loan)" />
+            <ProfileLoanCard v-for="loan in settledLoans" :key="loan.id" v-bind="loan" @view="openContract(loan)" />
           </div>
         </template>
 

@@ -24,6 +24,7 @@
         >
           Browse Loans
         </RouterLink>
+        <!-- Login CTA is a conversion funnel: drives wallet adoption for prospective borrowers/lenders -->
         <RouterLink
           to="/login"
           class="px-6 py-3 rounded border border-border text-muted hover:text-white hover:border-border-hover transition-colors"

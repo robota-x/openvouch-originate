@@ -80,6 +80,13 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-frontend
           command: deploy --config wrangler.staging.jsonc
+      - name: Migrate database (staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/lending-website-backend
+          command: d1 migrations apply openvouch-originate-db-staging --remote --config wrangler.staging.jsonc
       - name: Deploy backend (staging)
         uses: cloudflare/wrangler-action@v3
         with:
