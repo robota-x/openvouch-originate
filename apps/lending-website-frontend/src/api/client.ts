@@ -21,11 +21,33 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
 
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${API_BASE}${path}`, init)
+
   if (!res.ok) {
     let message = res.statusText
-    try { message = ((await res.json()) as { error?: string }).error ?? message } catch { /* non-JSON body */ }
-    throw new ApiError(message, `HTTP_${res.status}`, res.status)
+    try {
+      const body = await res.json() as { error?: string }
+      message = body.error ?? message
+    } catch {
+      /* non-JSON body */
+    }
+    const error = new ApiError(message, `HTTP_${res.status}`, res.status)
+    console.error(`[apiFetch] Error ${res.status} on ${path}:`, error)
+    throw error
   }
+
+  // Check if we actually got JSON back. If we got HTML (e.g. 404/SPA fallback),
+  // res.json() will throw a confusing "Unexpected token <" error.
+  const contentType = res.headers.get('Content-Type')
+  if (contentType && !contentType.includes('application/json')) {
+    const error = new ApiError(
+      `Expected JSON but received ${contentType.split(';')[0]}. The API route might be missing or misconfigured.`,
+      'INVALID_RESPONSE_TYPE',
+      res.status
+    )
+    console.error(`[apiFetch] Type Mismatch on ${path}:`, error)
+    throw error
+  }
+
   return res
 }
 

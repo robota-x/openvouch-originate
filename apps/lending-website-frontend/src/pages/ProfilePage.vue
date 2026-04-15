@@ -26,6 +26,7 @@ onMounted(async () => {
       backendClient.getAttestationProviders(),
     ])
   } catch (e) {
+    console.error('[ProfilePage] Failed to load data:', e)
     loadError.value = e instanceof ApiError ? e.message : 'Failed to load profile'
   }
 })

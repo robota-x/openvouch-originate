@@ -22,6 +22,7 @@ onMounted(async () => {
   try {
     profile.value = await backendClient.getProfile(MY_ADDRESS)
   } catch (e) {
+    console.error('[MyLoansPage] Failed to load loans:', e)
     loadError.value = e instanceof ApiError ? e.message : 'Failed to load loans'
   }
 })
