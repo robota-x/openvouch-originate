@@ -15,6 +15,13 @@
       "when": 1776093032069,
       "tag": "0001_lonely_thaddeus_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1776270159103,
+      "tag": "0002_dusty_albert_cleary",
+      "breakpoints": true
     }
   ]
 }

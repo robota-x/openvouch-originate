@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
 import { verifyAsync as ed25519Verify } from '@noble/ed25519'
 import bs58 from 'bs58'
-import { authNonces } from '../db/schema.js'
+import { authNonces, profiles } from '../db/schema.js'
 import { authenticate, createToken } from '../middleware/session.js'
 import type { AppEnv } from '../types.js'
 
@@ -65,6 +65,14 @@ authRoutes.post('/verify', async (c) => {
   if (!isValid) return c.json({ error: 'invalid_signature' }, 401)
 
   await db.delete(authNonces).where(eq(authNonces.address, address))
+
+  // Ensure a profile row exists for this address. Uses INSERT OR IGNORE semantics
+  // (onConflictDoNothing) so repeat logins never overwrite existing profile data.
+  const now = new Date()
+  await db
+    .insert(profiles)
+    .values({ address, createdAt: now, updatedAt: now })
+    .onConflictDoNothing()
 
   const secret = c.env.JWT_SECRET
   if (!secret) return c.json({ error: 'not_implemented' }, 501)

@@ -112,7 +112,18 @@ profileRoutes.get('/:address', async (c) => {
   })
 })
 
-/** PATCH /api/profiles/:address — update user-editable off-chain fields (own profile only). */
+/**
+ * PATCH /api/profiles/:address — update user-editable off-chain fields (own profile only).
+ *
+ * No POST endpoint exists: profiles are created automatically on first login
+ * (POST /api/auth/verify) via INSERT OR IGNORE, so the row always exists by the
+ * time a user can reach this endpoint.
+ *
+ * Fields that are NEVER accepted from external input:
+ *   - trustScore  — platform-computed; has no write path through the public API
+ *   - updatedAt   — always set to server time on every write
+ *   - createdAt   — set once at profile creation, never changes
+ */
 profileRoutes.patch('/:address', authenticate, async (c) => {
   const address = c.req.param('address')
   if (c.var.user.address !== address) {
@@ -120,14 +131,25 @@ profileRoutes.patch('/:address', authenticate, async (c) => {
   }
 
   const db = c.var.db
-  // NOTE: trustScore is platform-computed, not user-settable. Only nickname is exposed here.
-  const body = await c.req.json<{ nickname?: string }>()
+  const raw = await c.req.json<Record<string, unknown>>()
+
+  // Explicit guard: reject any attempt to set protected fields, even if sent accidentally.
+  // This is defence-in-depth — the type below already excludes them, but we don't want
+  // a future refactor silently opening a write path for platform-managed fields.
+  const forbidden = ['trustScore', 'trust_score', 'updatedAt', 'updated_at', 'createdAt', 'created_at']
+  const attempted = forbidden.filter(k => k in raw)
+  if (attempted.length > 0) {
+    return c.json({ error: `fields not settable via API: ${attempted.join(', ')}` }, 400)
+  }
+
+  // Only nickname is user-editable at this time.
+  const body = raw as { nickname?: string }
   const updates: Partial<typeof profilesTable.$inferInsert> = { updatedAt: new Date() }
   if (body.nickname !== undefined) updates.nickname = body.nickname
 
   await db
     .insert(profilesTable)
-    .values({ address, updatedAt: new Date(), ...updates })
+    .values({ address, createdAt: new Date(), updatedAt: new Date(), ...updates })
     .onConflictDoUpdate({ target: profilesTable.address, set: updates })
 
   return c.json({ ok: true })

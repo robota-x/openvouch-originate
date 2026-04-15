@@ -302,6 +302,7 @@ export const fixtureProfiles: Record<string, FixtureProfile> = {
 // Derived from profiles: open loans enriched with computed borrower stats.
 
 export interface FixtureLoan {
+  id:               string
   borrower:         string
   nickname:         string
   amount:           number
@@ -327,6 +328,7 @@ function computeAttestationCount(address: string): number {
 
 export const fixtureOpenLoans: FixtureLoan[] = Object.values(fixtureProfiles)
   .flatMap(p => p.loans.filter(l => l.status === 'open').map(l => ({
+    id:               l.id,
     borrower:         p.address,
     nickname:         p.nickname,
     amount:           l.amount,
@@ -337,3 +339,45 @@ export const fixtureOpenLoans: FixtureLoan[] = Object.values(fixtureProfiles)
     repaymentRate:    computeRepaymentRate(p.address),
     attestationCount: computeAttestationCount(p.address),
   })))
+
+// ── Contract detail view (single loan) ───────────────────────────────────────
+
+export interface FixtureContractView {
+  id:                       string
+  borrower:                 string
+  borrowerNickname:         string
+  borrowerTrustScore:       number
+  borrowerAttestationCount: number
+  borrowerRepaymentRate:    number
+  lender?:                  string
+  amount:                   number
+  currency:                 string
+  apy:                      number
+  duration:                 number
+  status:                   'open' | 'active' | 'repaid' | 'defaulted'
+  dueDate?:                 string
+}
+
+/** Look up a loan by id across all fixture profiles and return the ContractView shape. */
+export function fixtureContractView(id: string): FixtureContractView | null {
+  for (const p of Object.values(fixtureProfiles)) {
+    const loan = p.loans.find(l => l.id === id)
+    if (!loan) continue
+    return {
+      id:                       loan.id,
+      borrower:                 p.address,
+      borrowerNickname:         p.nickname,
+      borrowerTrustScore:       p.trustScore,
+      borrowerAttestationCount: computeAttestationCount(p.address),
+      borrowerRepaymentRate:    computeRepaymentRate(p.address),
+      lender:                   loan.counterparty,
+      amount:                   loan.amount,
+      currency:                 loan.currency,
+      apy:                      loan.apy,
+      duration:                 loan.duration,
+      status:                   loan.status,
+      dueDate:                  loan.dueDate,
+    }
+  }
+  return null
+}

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { truncate } from '../utils/format'
 import WalletConnectModal from './WalletConnectModal.vue'
 
 const route  = useRoute()
@@ -12,10 +13,6 @@ const showConnectModal = ref(false)
 
 function isActive(prefix: string) {
   return route.path.startsWith(prefix)
-}
-
-function truncate(addr: string) {
-  return `${addr.slice(0, 4)}...${addr.slice(-4)}`
 }
 
 async function disconnect() {

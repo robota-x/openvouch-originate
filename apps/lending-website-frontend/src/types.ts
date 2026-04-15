@@ -1,8 +1,9 @@
 // ── Domain types ──────────────────────────────────────────────────────────────
 
 export interface Loan {
-  borrower: string         // wallet address, e.g. "0x71C7..."
-  nickname: string         // ENS / display name, e.g. "alice.eth"
+  id: string               // server-assigned UUID (or fixture id)
+  borrower: string         // wallet address, e.g. "7xKX..."
+  nickname: string         // ENS / display name, e.g. "alice.sol"
   amount: number           // in `currency` units
   currency: string         // e.g. "USDC"
   apy: number              // percentage, e.g. 12.5

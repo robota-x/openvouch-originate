@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import type { ContractView } from '../types'
+import { truncate } from '../utils/format'
 
 const props = defineProps<{ contract: ContractView }>()
 const emit  = defineEmits<{ close: []; fund: [borrower: string] }>()
@@ -62,9 +63,8 @@ const startDate = computed(() => {
 
 const daysRemaining = computed(() => {
   if (!props.contract.dueDate) return null
-  const due   = new Date(props.contract.dueDate).getTime()
-  const today = new Date('2026-04-12').getTime()
-  return Math.ceil((due - today) / 86_400_000)
+  const due = new Date(props.contract.dueDate).getTime()
+  return Math.ceil((due - Date.now()) / 86_400_000)
 })
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -73,9 +73,6 @@ function fmt(n: number) {
 }
 function fmtDate(iso: string) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso))
-}
-function truncate(addr: string) {
-  return `${addr.slice(0, 4)}…${addr.slice(-4)}`
 }
 
 // ── ESC to close ───────────────────────────────────────────────────────────

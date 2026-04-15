@@ -11,11 +11,20 @@ export const authNonces = sqliteTable('auth_nonces', {
   expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
 })
 
-/** Public borrower/lender profiles, keyed by wallet address. */
+/**
+ * Public borrower/lender profiles, keyed by wallet address.
+ *
+ * Lifecycle: created automatically on first successful wallet login (POST /api/auth/verify).
+ * No POST endpoint — use PATCH /api/profiles/:address to update user-editable fields.
+ *
+ * trustScore is platform-computed only. It is never accepted from external input.
+ * updatedAt is set server-side on every write. Neither field is user-settable via the API.
+ */
 export const profiles = sqliteTable('profiles', {
   address:    text('address').primaryKey(),
   nickname:   text('nickname'),
   trustScore: integer('trust_score'),
+  createdAt:  integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt:  integer('updated_at', { mode: 'timestamp' }).notNull(),
 })
 

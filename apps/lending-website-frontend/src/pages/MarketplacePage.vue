@@ -33,6 +33,7 @@ const pendingFundBorrower = ref<string | null>(null)
 
 function openContract(loan: Loan) {
   activeContract.value = {
+    id:                      loan.id,
     borrower:                loan.borrower,
     borrowerNickname:        loan.nickname,
     borrowerTrustScore:      loan.trustScore,
