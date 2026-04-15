@@ -1,4 +1,4 @@
-import type { Loan, Profile, AttestationProvider } from '../types'
+import type { Loan, Profile, AttestationProvider, ProfileLoan } from '../types'
 import { ApiError } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -48,6 +48,61 @@ export const backendClient = {
   async getAttestationProviders(): Promise<AttestationProvider[]> {
     const res = await apiFetch('/api/attestation-providers')
     return res.json() as Promise<AttestationProvider[]>
+  },
+
+  // ── Loan CRUD (authenticated) ─────────────────────────────────────────────
+
+  /** POST /api/loans — borrower posts a new open loan offer. */
+  async createLoan(
+    token: string,
+    offer: { amount: number; currency: string; apy: number; duration: number },
+  ): Promise<ProfileLoan> {
+    const res = await apiFetch('/api/loans', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify(offer),
+    })
+    return res.json() as Promise<ProfileLoan>
+  },
+
+  /** GET /api/loans/:id — single loan listing. */
+  async getLoan(id: string): Promise<ProfileLoan> {
+    const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}`)
+    return res.json() as Promise<ProfileLoan>
+  },
+
+  /** PATCH /api/loans/:id — update terms of an open offer (borrower only). */
+  async updateLoan(
+    token: string,
+    id: string,
+    patch: Partial<{ amount: number; currency: string; apy: number; duration: number }>,
+  ): Promise<ProfileLoan> {
+    const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify(patch),
+    })
+    return res.json() as Promise<ProfileLoan>
+  },
+
+  /** DELETE /api/loans/:id — cancel an open offer (borrower only). */
+  async cancelLoan(token: string, id: string): Promise<void> {
+    await apiFetch(`/api/loans/${encodeURIComponent(id)}`, {
+      method:  'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
+
+  /**
+   * POST /api/loans/:id/fund — notify the backend that a lending contract was
+   * signed on-chain. The backend will verify against the chain before updating
+   * the listing status. Returns 204; poll GET /api/loans/:id to see the update.
+   */
+  async notifyFund(token: string, id: string): Promise<void> {
+    await apiFetch(`/api/loans/${encodeURIComponent(id)}/fund`, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
   },
 
   // ── Auth ─────────────────────────────────────────────────────────────────

@@ -10,9 +10,8 @@ const profileRoutes = new Hono<AppEnv>()
 /** GET /api/profiles/:address — full public profile (off-chain fields + attestations + loans). */
 profileRoutes.get('/:address', async (c) => {
   const address = c.req.param('address')
-  const db = c.var.db
 
-  if (!db) {
+  if (c.env?.FIXTURES_ENABLED === 'true') {
     const profile = fixtureProfiles[address] ?? {
       address,
       nickname:     address.slice(0, 8),
@@ -23,6 +22,7 @@ profileRoutes.get('/:address', async (c) => {
     return c.json(profile)
   }
 
+  const db = c.var.db
   const [row] = await db.select().from(profilesTable).where(eq(profilesTable.address, address))
   if (!row) {
     return c.json({
@@ -34,15 +34,54 @@ profileRoutes.get('/:address', async (c) => {
     })
   }
 
-  const attestationRows = await db
-    .select()
-    .from(attestationsTable)
-    .where(eq(attestationsTable.address, address))
+  const [attestationRows, borrowedRows, lentRows] = await Promise.all([
+    db.select().from(attestationsTable).where(eq(attestationsTable.address, address)),
+    db.select().from(loanListings).where(eq(loanListings.borrower, address)),
+    db.select().from(loanListings).where(eq(loanListings.lender, address)),
+  ])
 
-  const loanRows = await db
-    .select()
-    .from(loanListings)
-    .where(eq(loanListings.borrower, address))
+  // For each lent loan, look up the borrower profile to denormalize borrower stats.
+  // NOTE: this is an N+1 — one extra query per lent loan. Acceptable at current scale;
+  // replace with a JOIN or a batched IN query if lentLoans lists grow large.
+  const lentLoans = await Promise.all(lentRows.map(async l => {
+    const [borrowerProfile] = await db
+      .select()
+      .from(profilesTable)
+      .where(eq(profilesTable.address, l.borrower))
+
+    const borrowerSettledLoans = await db
+      .select()
+      .from(loanListings)
+      .where(eq(loanListings.borrower, l.borrower))
+      .then(rows => rows.filter(r => r.status !== 'open'))
+
+    const totalBorrowed = borrowerSettledLoans.reduce((s, r) => s + r.amount, 0)
+    const totalRepaid   = borrowerSettledLoans.reduce((s, r) => s + r.repaid,  0)
+    const repaymentRate = borrowerSettledLoans.length
+      ? Math.round(totalRepaid / totalBorrowed * 100)
+      : 100
+
+    const borrowerAttestationCount = await db
+      .select()
+      .from(attestationsTable)
+      .where(eq(attestationsTable.address, l.borrower))
+      .then(rows => rows.filter(r => r.verified).length)
+
+    return {
+      id:                       l.id,
+      borrower:                 l.borrower,
+      borrowerNickname:         borrowerProfile?.nickname ?? l.borrower.slice(0, 8),
+      borrowerTrustScore:       borrowerProfile?.trustScore ?? 0,
+      borrowerAttestationCount,
+      borrowerRepaymentRate:    repaymentRate,
+      amount:                   l.amount,
+      currency:                 l.currency,
+      apy:                      l.apy,
+      duration:                 l.duration,
+      status:                   l.status as 'active' | 'repaid' | 'defaulted',
+      dueDate:                  l.dueDate ?? undefined,
+    }
+  }))
 
   return c.json({
     address:    row.address,
@@ -58,7 +97,7 @@ profileRoutes.get('/:address', async (c) => {
       onChainRef: a.onChainRef ?? undefined,
       metadata:   a.metadata ? JSON.parse(a.metadata) as Record<string, string> : undefined,
     })),
-    loans: loanRows.map(l => ({
+    loans: borrowedRows.map(l => ({
       id:           l.id,
       amount:       l.amount,
       currency:     l.currency,
@@ -69,10 +108,11 @@ profileRoutes.get('/:address', async (c) => {
       dueDate:      l.dueDate ?? undefined,
       counterparty: l.lender ?? undefined,
     })),
+    lentLoans,
   })
 })
 
-/** PATCH /api/profiles/:address — update off-chain fields (own profile only). */
+/** PATCH /api/profiles/:address — update user-editable off-chain fields (own profile only). */
 profileRoutes.patch('/:address', authenticate, async (c) => {
   const address = c.req.param('address')
   if (c.var.user.address !== address) {
@@ -80,12 +120,10 @@ profileRoutes.patch('/:address', authenticate, async (c) => {
   }
 
   const db = c.var.db
-  if (!db) return c.json({ error: 'not_implemented' }, 501)
-
-  const body = await c.req.json<{ nickname?: string; trustScore?: number }>()
+  // NOTE: trustScore is platform-computed, not user-settable. Only nickname is exposed here.
+  const body = await c.req.json<{ nickname?: string }>()
   const updates: Partial<typeof profilesTable.$inferInsert> = { updatedAt: new Date() }
-  if (body.nickname   !== undefined) updates.nickname   = body.nickname
-  if (body.trustScore !== undefined) updates.trustScore = body.trustScore
+  if (body.nickname !== undefined) updates.nickname = body.nickname
 
   await db
     .insert(profilesTable)

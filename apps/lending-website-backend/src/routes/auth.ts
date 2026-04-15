@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
-import { verify as ed25519Verify } from '@noble/ed25519'
+import { verifyAsync as ed25519Verify } from '@noble/ed25519'
 import bs58 from 'bs58'
 import { authNonces } from '../db/schema.js'
 import { authenticate, createToken } from '../middleware/session.js'
