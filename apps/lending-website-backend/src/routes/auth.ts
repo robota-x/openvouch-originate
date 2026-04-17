@@ -74,7 +74,7 @@ authRoutes.post('/verify', async (c) => {
     .values({ address, createdAt: now, updatedAt: now })
     .onConflictDoNothing()
 
-  const secret = c.env.JWT_SECRET
+  const secret = c.get('config').jwtSecret
   if (!secret) return c.json({ error: 'not_implemented' }, 501)
 
   const token = await createToken(secret, address)

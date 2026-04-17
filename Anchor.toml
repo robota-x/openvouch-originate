@@ -4,9 +4,11 @@ skip-lint = false
 
 [programs.devnet]
 dblt_lending = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+generic_record = "11111111111111111111111111111112"
 
 [programs.localnet]
 dblt_lending = "AXdWprPxpre9hbCJpryiwktSYgBKKaoFHHTufwGRTfLQ"
+generic_record = "11111111111111111111111111111112"
 
 [provider]
 cluster = "localnet"
