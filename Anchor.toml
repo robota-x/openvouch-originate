@@ -1,0 +1,20 @@
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+dblt_lending = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+
+[programs.localnet]
+dblt_lending = "AXdWprPxpre9hbCJpryiwktSYgBKKaoFHHTufwGRTfLQ"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[toolchain]
+anchor_version = "1.0.0"
+solana_version = "3.1.10"
+
+[scripts]
+test = "make anchor-test"
