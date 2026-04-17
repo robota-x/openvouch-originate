@@ -1,0 +1,15 @@
+{
+  // JWT_SECRET must be set as a Cloudflare secret: wrangler secret put JWT_SECRET --config wrangler.production.jsonc
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "openvouch-originate-backend-production",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-04-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "openvouch-originate-db-production",
+      "database_id": "a54b958f-1d29-4a52-9440-402e3568a3fd"
+    }
+  ]
+}

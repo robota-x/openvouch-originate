@@ -1,0 +1,15 @@
+{
+  // JWT_SECRET must be set as a Cloudflare secret: wrangler secret put JWT_SECRET --config wrangler.staging.jsonc
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "openvouch-originate-backend-staging",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-04-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "openvouch-originate-db-staging",
+      "database_id": "ed5f0a6e-7b54-4bd8-86f0-ac83bfb0932d"
+    }
+  ]
+}

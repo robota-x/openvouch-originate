@@ -1,7 +1,7 @@
 {
-  "name": "defi-hack",
+  "name": "openvouch",
   "private": true,
-  "workspaces": ["apps/web", "apps/lending-api", "packages/*"],
+  "workspaces": ["apps/lending-website-frontend", "apps/lending-website-backend", "packages/*"],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",

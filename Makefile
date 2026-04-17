@@ -1,6 +1,4 @@
-# Local dev hierarchy: Make is the entrypoint. It invokes npm/turbo for the Node
-# workspaces only; it invokes anchor/cargo for Rust programs. Root package.json
-# does not call Make or Rust — use `make <target>` from the repo root.
+.PHONY: help install build dev test lint build-java
 
 .DEFAULT_GOAL := help
 
@@ -52,12 +50,3 @@ anchor-keys-sync: ## Align declare_id! and Anchor.toml with target/deploy keypai
 
 clean-anchor: ## Remove Anchor build outputs (local only)
 	rm -rf target/deploy target/idl target/verifiable .anchor
-
-docker-build: ## lending-api image
-	docker build -t defi-hack/lending-api:local -f apps/lending-api/Dockerfile apps/lending-api
-
-build-java: ## Placeholder
-	@echo "Java build not configured yet"
-
-deploy-infra: ## Placeholder
-	@echo "Infra deploy not wired in Makefile"

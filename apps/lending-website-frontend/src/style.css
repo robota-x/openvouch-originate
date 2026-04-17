@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Palette ──────────────────────────────────────────────────────────────
+     Depth overlays use built-in Tailwind opacity modifiers (no custom token needed):
+       bg-black/40 → sticky nav / headers
+       bg-black/20 → inset data rows inside cards
+       bg-black/10 → skeleton / loading placeholder fills              */
+
+  --color-primary:        #8c51f0;
+  --color-background:     #0A0B0E;
+  --color-surface:        rgba(255, 255, 255, 0.03);
+  --color-surface-hover:  rgba(255, 255, 255, 0.06);
+  --color-border:         rgba(255, 255, 255, 0.08);
+  --color-border-hover:   rgba(255, 255, 255, 0.15);
+  --color-emerald:        #10B981;
+  --color-muted:          #94A3B8;
+  --color-orange:         #F97316;
+  --color-danger:         #EF4444;
+  --color-fg:             #F8FAFC;
+
+  /* ── Typography ─────────────────────────────────────────────────────────── */
+  --font-display: 'Outfit', sans-serif;       /* headings */
+  --font-body:    'Plus Jakarta Sans', sans-serif;  /* body copy, labels */
+  --font-mono:    'Space Grotesk', monospace; /* numbers, wallet addresses, data */
+
+  /* ── Border radius — 4px everywhere, full for pills/circles ─────────────── */
+  --radius-xs:   2px;
+  --radius-sm:   2px;
+  --radius:      4px;
+  --radius-md:   4px;
+  --radius-lg:   4px;
+  --radius-xl:   4px;
+  --radius-2xl:  4px;
+  --radius-3xl:  4px;
+  --radius-full: 9999px;
+
+  /* ── Glow shadows ────────────────────────────────────────────────────────
+     Primary: CTA buttons   Emerald: trust badges / active filters         */
+  --shadow-glow-primary:        0 0 20px rgba(140, 81, 240, 0.30);
+  --shadow-glow-primary-strong: 0 0 25px rgba(140, 81, 240, 0.50);
+  --shadow-glow-emerald:        0 0 10px rgba(16, 185, 129, 0.10);
+  --shadow-glow-emerald-strong: 0 0 15px rgba(16, 185, 129, 0.15);
+}
+
+/* ── Utilities ────────────────────────────────────────────────────────────── */
+
+/* Ambient background glows — apply to a fixed, pointer-events-none layer behind content */
+@utility ambient-glows {
+  background-image:
+    radial-gradient(circle at top left,     rgba(140, 81, 240, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.10) 0%, transparent 50%);
+}
+
+/* Frosted glass panel — primary surface component across all screens */
+@utility glass-panel {
+  background: var(--color-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--color-border);
+}
+
+/* 3D tilt — used on square attestation cards */
+@utility tilt-card {
+  transition: transform 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+  transform-style: preserve-3d;
+}
+
+.tilt-card:hover {
+  transform: perspective(1000px) rotateX(2deg) rotateY(2deg) scale(1.02);
+  border-color: var(--color-border-hover);
+  background: var(--color-surface-hover);
+}
