@@ -26,6 +26,11 @@ target/
 .anchor/
 .gradle/
 
+# Solana program keypairs — these are private keys that control upgrade authority.
+# Back them up out-of-band (password manager / secrets vault). Never commit.
+# target/deploy/ is already covered by target/ above; this line is explicit documentation.
+target/deploy/*-keypair.json
+
 # IDE
 .idea/
 .vscode/

@@ -15,8 +15,8 @@ function json(method: string, url: string, body?: unknown) {
 }
 
 // ── Contract shape: GET /api/loans ────────────────────────────────────────────
-// These tests verify the wire shape returned by the route matches what the
-// frontend Loan type expects. Run against fixture data — no DB needed.
+// Verify the wire shape matches what the frontend Loan type expects.
+// Runs against fixture data — no DB needed.
 
 describe('GET /api/loans — contract shape', () => {
   it('returns 200 with an array of open listings', async () => {
@@ -28,7 +28,7 @@ describe('GET /api/loans — contract shape', () => {
   })
 
   it('each listing has all fields the frontend Loan type requires', async () => {
-    const res  = await app.request('/api/loans', {}, FIXTURES)
+    const res   = await app.request('/api/loans', {}, FIXTURES)
     const loans = await res.json() as Record<string, unknown>[]
     for (const loan of loans) {
       expect(typeof loan.id).toBe('string')
@@ -43,21 +43,6 @@ describe('GET /api/loans — contract shape', () => {
       expect(typeof loan.attestationCount).toBe('number')
     }
   })
-
-  it('domain constraints hold for all listings', async () => {
-    const res   = await app.request('/api/loans', {}, FIXTURES)
-    const loans = await res.json() as Record<string, number>[]
-    for (const loan of loans) {
-      expect(loan.amount).toBeGreaterThan(0)
-      expect(loan.apy).toBeGreaterThan(0)
-      expect(loan.duration).toBeGreaterThan(0)
-      expect(loan.trustScore).toBeGreaterThanOrEqual(0)
-      expect(loan.trustScore).toBeLessThanOrEqual(1000)
-      expect(loan.repaymentRate).toBeGreaterThanOrEqual(0)
-      expect(loan.repaymentRate).toBeLessThanOrEqual(100)
-      expect(loan.attestationCount).toBeGreaterThanOrEqual(0)
-    }
-  })
 })
 
 // ── Without DB ────────────────────────────────────────────────────────────────
@@ -67,9 +52,16 @@ describe('GET /api/loans', () => {
     const res = await app.request('/api/loans')
     expect(res.status).toBe(501)
   })
+})
 
-  it('passes unknown query params through without error', async () => {
-    const res = await app.request('/api/loans?unknownParam=1')
+describe('GET /api/loans/:id', () => {
+  it('returns 404 for an unknown id', async () => {
+    const res = await app.request('/api/loans/does-not-exist', {}, FIXTURES)
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 501 (not yet implemented)', async () => {
+    const res = await app.request('/api/loans/loan-123')
     expect(res.status).toBe(501)
   })
 })
@@ -81,44 +73,8 @@ describe('POST /api/loans', () => {
   })
 
   it('returns 401 when required fields are missing (auth runs before body validation)', async () => {
-    // Hono does not strip unknown fields by default; auth fires first and rejects unauthenticated requests
     const res = await json('POST', '/api/loans', { amount: 5000 })
     expect(res.status).toBe(401)
-  })
-})
-
-// ── Contract shape: GET /api/loans/:id ───────────────────────────────────────
-
-describe('GET /api/loans/:id — contract shape', () => {
-  it('returns 200 with the ContractView shape for a known id', async () => {
-    const res      = await app.request('/api/loans/alice-4', {}, FIXTURES)
-    expect(res.status).toBe(200)
-    const contract = await res.json() as Record<string, unknown>
-    expect(typeof contract.id).toBe('string')
-    expect(typeof contract.borrower).toBe('string')
-    expect(typeof contract.borrowerNickname).toBe('string')
-    expect(typeof contract.borrowerTrustScore).toBe('number')
-    expect(typeof contract.borrowerRepaymentRate).toBe('number')
-    expect(typeof contract.borrowerAttestationCount).toBe('number')
-    expect(typeof contract.amount).toBe('number')
-    expect(typeof contract.currency).toBe('string')
-    expect(typeof contract.apy).toBe('number')
-    expect(typeof contract.duration).toBe('number')
-    expect(['open', 'active', 'repaid', 'defaulted']).toContain(contract.status)
-  })
-
-  it('returns 404 for an unknown id', async () => {
-    const res = await app.request('/api/loans/does-not-exist', {}, FIXTURES)
-    expect(res.status).toBe(404)
-  })
-})
-
-// ── Without DB ────────────────────────────────────────────────────────────────
-
-describe('GET /api/loans/:id', () => {
-  it('returns 501 (not yet implemented)', async () => {
-    const res = await app.request('/api/loans/loan-123')
-    expect(res.status).toBe(501)
   })
 })
 

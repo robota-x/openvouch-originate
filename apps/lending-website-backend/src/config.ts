@@ -33,7 +33,7 @@ export function buildConfig(env: Bindings | undefined): AppConfig {
     programs: {
       // Default matches the placeholder in Anchor.toml.
       // Override via GENERIC_RECORD_PROGRAM_ID after `anchor keys sync` + deployment.
-      genericRecord: env?.GENERIC_RECORD_PROGRAM_ID ?? '11111111111111111111111111111112',
+      genericRecord: env?.GENERIC_RECORD_PROGRAM_ID ?? 'HoDHdk8dsDqbALi3ZPGxe8imvZa68Ys9y34FXoKpDHzV',
     },
   }
 }

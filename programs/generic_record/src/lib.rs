@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("11111111111111111111111111111112");
+declare_id!("EL1vHbKVUwHDneBhwqC28o1xrzNSx2Dk2AmxytfQpote");
 
 #[program]
 pub mod generic_record {
@@ -61,13 +61,13 @@ pub struct CreateRecord<'info> {
 #[account]
 #[derive(InitSpace)]
 pub struct RecordEntry {
-    pub signer1: Pubkey,        // 32
-    pub signer2: Pubkey,        // 32
+    pub signer1: Pubkey, // 32
+    pub signer2: Pubkey, // 32
     #[max_len(100)]
     pub tx_link: Option<String>,
     #[max_len(200)]
     pub external_url: Option<String>,
-    pub timestamp: i64,         // Unix timestamp from Clock::get()
+    pub timestamp: i64, // Unix timestamp from Clock::get()
     #[max_len(256)]
     pub text: String,
 }

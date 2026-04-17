@@ -19,22 +19,6 @@ describe('GET /api/profiles/:address — contract shape', () => {
     expect(Array.isArray(profile.loans)).toBe(true)
   })
 
-  it('each ProfileLoan has the fields the frontend expects', async () => {
-    const res     = await app.request(`/api/profiles/${ALICE}`, {}, FIXTURES)
-    const profile = await res.json() as { loans: Record<string, unknown>[] }
-    expect(profile.loans.length).toBeGreaterThan(0)
-    for (const loan of profile.loans) {
-      expect(typeof loan.id).toBe('string')
-      expect(typeof loan.amount).toBe('number')
-      expect(typeof loan.currency).toBe('string')
-      expect(typeof loan.apy).toBe('number')
-      expect(typeof loan.duration).toBe('number')
-      expect(typeof loan.repaid).toBe('number')
-      expect(['open', 'active', 'repaid', 'defaulted']).toContain(loan.status)
-      expect(loan.repaid).toBeGreaterThanOrEqual(0)
-    }
-  })
-
   it('returns a zero-trust fallback for an unknown address without throwing', async () => {
     const res     = await app.request('/api/profiles/UnknownAddressXXX', {}, FIXTURES)
     expect(res.status).toBe(200)

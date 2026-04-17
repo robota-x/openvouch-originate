@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
 
-declare_id!("AXdWprPxpre9hbCJpryiwktSYgBKKaoFHHTufwGRTfLQ");
+declare_id!("22bmZ5cp4DdUitMt8okSwygWP1f9oWpG6zXGkVBrgCtV");
 
 pub mod constants;
 pub mod error;
