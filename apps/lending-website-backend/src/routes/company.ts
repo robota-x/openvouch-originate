@@ -13,19 +13,22 @@ export async function companyRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'invalid_company_number' })
     }
 
-    try {
-      const company = await getCompany(number)
-      return reply.send({
-        companyNumber: company.companyNumber,
-        name: company.companyName,
-        status: company.status,
-        registeredOfficeAddress: company.registeredOfficeAddress,
-        directors: company.directors,
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'unknown_error'
-      if (message === 'company_not_found') return reply.status(404).send({ error: message })
-      return reply.status(502).send({ error: 'ch_api_unavailable' })
-    }
-  })
-}
+  try {
+    const company = await getCompany(number)
+    return c.json({
+      companyNumber: company.companyNumber,
+      name: company.companyName,
+      status: company.status,
+      registeredOfficeAddress: company.registeredOfficeAddress,
+      directors: company.directors,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'unknown_error'
+    if (message === 'company_not_found') return c.json({ error: message }, 404)
+    return c.json({ error: 'ch_api_unavailable' }, 502)
+  }
+})
+
+export default app
+
+
