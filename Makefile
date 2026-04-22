@@ -1,70 +1,63 @@
-.PHONY: help \
-	install install-js install-all \
-	build build-js build-programs build-programs-devnet \
-	dev \
-	test test-js test-programs \
-	lint \
-	clean-anchor \
-	localnet playground \
-	docker-build build-java
+# Local dev hierarchy: Make is the entrypoint. It invokes npm/turbo for the Node
+# workspaces only; it invokes anchor/cargo for Rust programs. Root package.json
+# does not call Make or Rust — use `make <target>` from the repo root.
 
 .DEFAULT_GOAL := help
 
-help: ## List targets
+.PHONY: help install install-js install-all \
+	build build-js build-programs \
+	dev test test-js test-programs \
+	lint anchor-build anchor-test anchor-keys-sync clean-anchor docker-build
+
+help: ## List targets (start here: Make drives npm and Anchor/cargo)
 	@grep -E '^[a-zA-Z0-9_.-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-	  awk 'BEGIN {FS = ":.*?## "}; {printf "  %-26s %s\n", $$1, $$2}'
+	  awk 'BEGIN {FS = ":.*?## "}; {printf "  %-22s %s\n", $$1, $$2}'
 
-# ── Dependencies ──────────────────────────────────────────────────────────────
+install: install-js ## Install Node dependencies (npm workspaces)
 
-install: ## Install Node dependencies (npm workspaces)
+install-js:
 	npm install
 
-install-all: install ## JS deps + reminder for Solana/Anchor CLI
-	@echo "Requires Anchor 1.0.0 and Solana 3.1.x — see Anchor.toml [toolchain]."
-	@echo "Install: avm install 1.0.0 && avm use 1.0.0"
+install-all: install-js ## JS deps + reminder for Solana/Anchor CLI
+	@echo "Use Anchor 1.0.0 and Solana 3.1.x (see Anchor.toml [toolchain], .anchor-version). Example: avm install 1.0.0 && avm use 1.0.0"
 
-# ── Build ─────────────────────────────────────────────────────────────────────
+build: build-js build-programs ## Turbo/JS build, then Anchor programs
 
-build: build-js build-programs ## Full build: JS packages + Anchor programs (localnet)
-
-build-js: ## JS/TS packages only (Turbo)
+build-js: ## TS/Vite/API packages only
 	npm run build
 
-build-programs: ## Build Anchor programs for localnet: sync keypairs, compile, copy IDLs
-	bash programs/build-sync.sh --env localnet
+build-programs: anchor-build ## On-chain artifacts (IDL, .so)
 
-build-programs-devnet: ## Build Anchor programs for devnet (keypairs must exist in keys/devnet/)
-	bash programs/build-sync.sh --env devnet
-
-# ── Dev & test ────────────────────────────────────────────────────────────────
+anchor-build: ## anchor build (from repo root; requires Anchor CLI 1.0.x)
+	anchor build
 
 dev: ## Start dev servers (Turbo)
 	npm run dev
 
-test: test-js test-programs ## All tests: JS workspaces + Rust program crates
+test: test-js test-programs ## All tests: JS workspaces then Rust program crate
 
 test-js: ## Frontend/API tests (Turbo)
 	npm run test
 
-test-programs: ## Rust unit/integration tests for all program crates
+test-programs: ## Rust integration tests for dblt_lending
 	cargo test -p dblt_lending
+
+anchor-test: anchor-build test-programs ## Used by Anchor.toml [scripts].test
 
 lint: ## Lint JS/TS workspaces
 	npm run lint
 
-# ── Anchor utilities ──────────────────────────────────────────────────────────
+anchor-keys-sync: ## Align declare_id! and Anchor.toml with target/deploy keypair
+	anchor keys sync
 
-clean-anchor: ## Delete Anchor build outputs (target/deploy, target/idl, .anchor)
+clean-anchor: ## Remove Anchor build outputs (local only)
 	rm -rf target/deploy target/idl target/verifiable .anchor
 
-# ── Playground ────────────────────────────────────────────────────────────────
+docker-build: ## lending-api image
+	docker build -t defi-hack/lending-api:local -f apps/lending-api/Dockerfile apps/lending-api
 
-localnet: ## Start a local Solana validator with Anchor
-	anchor localnet
+build-java: ## Placeholder
+	@echo "Java build not configured yet"
 
-playground: ## Run the interactive playground CLI
-	npm run playground --workspace=@openvouch/playground -- $(filter-out $@, $(MAKECMDGOALS))
-
-# Catch-all to allow passing arguments to playground
-%:
-	@:
+deploy-infra: ## Placeholder
+	@echo "Infra deploy not wired in Makefile"

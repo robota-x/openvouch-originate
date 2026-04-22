@@ -44,88 +44,49 @@
 
 ## Color Palette
 
-- **Primary:** `#8c51f0` - CTA buttons, active states, logo accent, interactive glows
-- **Background:** `#0A0B0E` - Page background (the void)
-- **Surface:** `rgba(255, 255, 255, 0.03)` - Frosted glass panel base
-- **Surface Hover:** `rgba(255, 255, 255, 0.06)` - Glass panel hover state
-- **Border:** `rgba(255, 255, 255, 0.08)` - Panel borders (resting)
-- **Border Hover:** `rgba(255, 255, 255, 0.15)` - Panel borders on hover/active
+- **Primary:** `#4C1D95` - Deeper, darker purple glows, primary actions
+- **Background:** `#0A0B0E` - Void void
+- **Surface:** `rgba(255, 255, 255, 0.03)` - Frosted glass base
+- **Surface Highlight:** `rgba(255, 255, 255, 0.08)` - Card hovers, active tabs
 - **Text:** `#F8FAFC` - Primary text
-- **Muted:** `#94A3B8` - Secondary labels, timestamps, filter text
-- **Emerald:** `#10B981` - Trust scores, verified attestations, success states
-- **Orange:** `#F97316` - Moderate failure rates (>0–1%), secondary icon accent
-- **Danger:** `#EF4444` - High failure rates (>1%), error states
-
-**Depth overlays** — layered on `background` to create panel depth; use Tailwind `black/X` utilities:
-- `rgba(0, 0, 0, 0.40)` (`black/40`) — sticky nav / header backgrounds
-- `rgba(0, 0, 0, 0.20)` (`black/20`) — inset data rows inside cards
-- `rgba(0, 0, 0, 0.10)` (`black/10`) — skeleton / loading placeholder fills
-
-**Ambient glows** — fixed radial gradients on the page root, non-interactive:
-- Purple: `radial-gradient(circle at top left, rgba(140, 81, 240, 0.15) 0%, transparent 50%)`
-- Emerald: `radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.10) 0%, transparent 50%)`
-
-**Element glows** — `box-shadow` on interactive elements; use named Tailwind shadow tokens:
-- `glow-primary` → `0 0 20px rgba(140, 81, 240, 0.30)` — CTA button resting
-- `glow-primary-strong` → `0 0 25px rgba(140, 81, 240, 0.50)` — CTA button hover
-- `glow-emerald` → `0 0 10px rgba(16, 185, 129, 0.10)` — trust badge resting
-- `glow-emerald-strong` → `0 0 15px rgba(16, 185, 129, 0.15)` — active filter / trust highlight
+- **Muted:** `#94A3B8` - Secondary text, borders (`rgba(255,255,255,0.1)`)
+- **Accent/Success:** `#10B981` - Emerald glows, funded status, high trust scores
+- **Accent/Warning:** `#F97316` - Orange-ish accent for moderate failure rates and secondary highlights
+- **Danger:** `#EF4444` - High failure rates
 
 ## Typography
 
 - **Headings:** `Outfit`, 700, 20-40px, tight tracking (`-0.02em`)
 - **Body:** `Plus Jakarta Sans`, 400, 14px, open line-height (`1.5`)
-- **Small / label text:** `Plus Jakarta Sans`, 500, 12px, uppercase tracking (`0.05em`)
-- **Data / numbers:** `Space Grotesk`, 500, 14-24px (APY, USDC amounts, wallet addresses)
+- **Small text:** `Plus Jakarta Sans`, 500, 12px, uppercase tracking (`0.05em`)
+- **Data/Numbers:** `Space Grotesk`, 500, 14-24px (for APY, USDC amounts)
 
-**Style notes:**
-- `backdrop-filter: blur(24px)` on all glass surface elements
-- `1px` borders using `rgba(255,255,255,0.08)` resting, `rgba(255,255,255,0.15)` on hover
-- Ambient radial gradients fixed to the viewport: purple top-left, emerald bottom-right
-- **4px border radius** across all cards, buttons, and badges — sharp, institutional feel
-- Compact spacing: 12px to 24px padding for a dense, data-rich UI
-- Depth created with `black/40` (nav), `black/20` (inset rows), `black/10` (skeletons) over background
+**Style notes:** 
+- `backdrop-filter: blur(24px)` on all surface elements
+- `1px` borders using `rgba(255,255,255,0.08)`
+- Large, diffuse radial gradients fixed to the viewport background (Purple top-left, Emerald bottom-right)
+- 8px border radius on primary cards, 8px on buttons and badges (less rounded, structured corners)
+- Compact spacing: Use tighter padding (12px to 24px) to create a denser, data-rich UI
 
 ## Design Tokens
 
 ```css
 :root {
-  /* Colour */
-  --color-primary:        #8c51f0;
-  --color-bg:             #0A0B0E;
-  --color-surface:        rgba(255, 255, 255, 0.03);
-  --color-surface-hover:  rgba(255, 255, 255, 0.06);
-  --color-border:         rgba(255, 255, 255, 0.08);
-  --color-border-hover:   rgba(255, 255, 255, 0.15);
-  --color-text:           #F8FAFC;
-  --color-muted:          #94A3B8;
-  --color-emerald:        #10B981;
-  --color-orange:         #F97316;
-  --color-danger:         #EF4444;
-
-  /* Depth overlays — stack on background for panel hierarchy */
-  --depth-nav:      rgba(0, 0, 0, 0.40);
-  --depth-inset:    rgba(0, 0, 0, 0.20);
-  --depth-skeleton: rgba(0, 0, 0, 0.10);
-
-  /* Typography */
+  --color-primary: #4C1D95;
+  --color-bg: #0A0B0E;
+  --color-surface: rgba(255, 255, 255, 0.03);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-text: #F8FAFC;
+  --color-muted: #94A3B8;
+  --color-emerald: #10B981;
+  --color-orange: #F97316;
+  --color-danger: #EF4444;
   --font-display: 'Outfit', sans-serif;
-  --font-body:    'Plus Jakarta Sans', sans-serif;
-  --font-mono:    'Space Grotesk', monospace;
-
-  /* Shape */
-  --radius:       4px;
-  --blur-heavy:   blur(24px);
-
-  /* Ambient glows (fixed to viewport, pointer-events-none) */
-  --glow-ambient-purple:  radial-gradient(circle at top left,  rgba(140, 81, 240, 0.15) 0%, transparent 50%);
-  --glow-ambient-emerald: radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.10) 0%, transparent 50%);
-
-  /* Element glows (box-shadow) */
-  --glow-primary:         0 0 20px rgba(140, 81, 240, 0.30);
-  --glow-primary-strong:  0 0 25px rgba(140, 81, 240, 0.50);
-  --glow-emerald:         0 0 10px rgba(16, 185, 129, 0.10);
-  --glow-emerald-strong:  0 0 15px rgba(16, 185, 129, 0.15);
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'Space Grotesk', monospace;
+  --radius-card: 8px;
+  --radius-button: 8px;
+  --blur-heavy: blur(24px);
 }
 ```
 
@@ -144,7 +105,7 @@
 
 **Key Elements:**
 - **Logo:** `Outfit`, 28px, stark white, centered top
-- **Connect Button:** 100% width, 48px height, primary background `#8c51f0`, 14px `Plus Jakarta Sans`, bold, 4px radius
+- **Connect Button:** 100% width, 48px height, deep purple background `#4C1D95`, 14px `Plus Jakarta Sans`, bold, 8px radius
 - **Glow Rings:** Absolute positioned, `blur(120px)`, `-z-10` behind the card
 
 **States:**
@@ -168,14 +129,14 @@
 **States:**
 - **Failure Rate Strip:** 
   - `0%`: Neutral/muted text
-  - `>0% to 1%`: Warning state, orange text/border (`#F97316`)
+  - `>0% to 1%`: Warning state, orange-ish accent text/border (`#F97316`)
   - `>1%`: Danger state, red text/border (`#EF4444`)
 - **Empty:** "No matching requests" in center, muted text, ghost icon
-- **Loading:** Skeleton pulses using `black/10` depth overlay on glass panels
+- **Loading:** Skeleton pulses using `rgba(255,255,255,0.05)`
 
 **Components:**
-- **Trust Score Badge:** 4px radius, emerald border + `glow-emerald` shadow, emerald text, 12px `Space Grotesk`
-- **Search Input:** 4px radius, frosted glass background, muted search icon, tight 12px padding
+- **Trust Score Badge:** 8px radius shape, emerald border, emerald text, 12px font
+- **Search Input:** 8px radius, frosted glass background, muted search icon, tight 12px padding
 
 ### Borrower Dashboard
 
@@ -185,7 +146,7 @@
 
 **Key Elements:**
 - **Total Debt Widget:** Compact glass card, deep purple glow, `Space Grotesk` 40px for total amount
-- **New Request Button:** Floating top right, 40px height, solid white text, primary background, 4px radius
+- **New Request Button:** Floating top right, 40px height, solid white text, purple background, 8px radius
 - **Repayment Timeline:** Vertical timeline component, muted gray lines, emerald dots for paid, hollow dots for upcoming
 
 **Components:**
@@ -206,7 +167,7 @@
 - **Empty:** "No attestations linked." Prominent CTA to "Connect Identity Provider".
 
 **Interactions:**
-- **Hover Attestation:** 3D tilt effect (`transform: perspective(1000px) rotateX(2deg) rotateY(2deg)`), border brightens to `rgba(255,255,255,0.15)` (canonical `border-hover`), background to `rgba(255,255,255,0.06)` (canonical `surface-hover`).
+- **Hover Attestation:** 3D tilt effect (`transform: perspective(1000px) rotateX(2deg) rotateY(2deg)`), border highlight brightens to `rgba(255,255,255,0.2)`.
 
 </details>
 
@@ -215,7 +176,7 @@
 <details>
 <summary>Build Guide</summary>
 
-**Stack:** HTML + Tailwind CSS v3 (CDN) for design prototypes. Production app (`apps/web`) uses Tailwind v4 via native Vite plugin — same token values, different setup.
+**Stack:** HTML + Tailwind CSS v3
 
 **Build Order:**
 1. **Connect** - Establishes the core glassmorphic UI, dense padding structures, background glows, and typography hierarchy.
