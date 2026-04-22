@@ -37,3 +37,5 @@ export async function createToken(secret: string, address: string): Promise<stri
     .setExpirationTime('7d')
     .sign(key)
 }
+
+

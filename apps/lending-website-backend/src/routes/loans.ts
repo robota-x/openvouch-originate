@@ -262,3 +262,5 @@ loanRoutes.post('/:id/fund', authenticate, async (c) => {
 })
 
 export default loanRoutes
+
+

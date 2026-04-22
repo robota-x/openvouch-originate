@@ -54,3 +54,5 @@ export async function issueAttestation(params: {
 export function getAttestation(walletAddress: string): Attestation | undefined {
   return attestationStore.getByWallet(walletAddress)
 }
+
+

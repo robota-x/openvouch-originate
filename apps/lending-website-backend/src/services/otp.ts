@@ -42,3 +42,5 @@ export async function sendOtpEmail(to: string, otp: string, companyName: string)
     text: `Your one-time verification code for ${companyName} is: ${otp}\n\nThis code expires in 15 minutes.`,
   })
 }
+
+

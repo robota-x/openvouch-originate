@@ -11,3 +11,5 @@ const kp = nacl.sign.keyPair()
 
 console.log('WALLET:', bs58.encode(kp.publicKey))
 console.log('SECRET:', bs58.encode(kp.secretKey))
+
+

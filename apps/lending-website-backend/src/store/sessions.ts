@@ -33,3 +33,5 @@ export const attestationStore = {
     return attestations.has(walletAddress)
   },
 }
+
+

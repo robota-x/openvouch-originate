@@ -53,3 +53,5 @@ export function directorNameMatches(claimedName: string, directors: Director[]):
   const claimed = normalise(claimedName)
   return directors.some((d) => normalise(d.name).includes(claimed) || claimed.includes(normalise(d.name)))
 }
+
+

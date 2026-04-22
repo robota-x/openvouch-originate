@@ -97,3 +97,5 @@ export const loanListings = sqliteTable('loan_listings', {
   createdAt:  integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt:  integer('updated_at', { mode: 'timestamp' }).notNull(),
 })
+
+

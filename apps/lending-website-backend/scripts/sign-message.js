@@ -21,3 +21,5 @@ const msgBytes = Buffer.from(message, 'utf8')
 const sig = nacl.sign.detached(msgBytes, secretKey)
 
 console.log('SIG:', Buffer.from(sig).toString('base64'))
+
+

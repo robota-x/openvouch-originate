@@ -42,7 +42,7 @@ export interface Session {
   status: SessionStatus
   createdAt: number // unix ms
 }
-
+ 
 // ── Attestation ───────────────────────────────────────────────────────────────
 
 export interface Attestation {
