@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
 import { verifyAsync as ed25519Verify } from '@noble/ed25519'
 import bs58 from 'bs58'
+import { createAppDb } from '../db/client.js'
 import { authNonces, profiles } from '../db/schema.js'
 import { authenticate, createToken } from '../middleware/session.js'
 import type { AppEnv } from '../types.js'
@@ -20,8 +21,9 @@ authRoutes.post('/challenge', async (c) => {
   const { address } = await c.req.json<{ address?: string }>()
   if (!address) return c.json({ error: 'address is required' }, 400)
 
-  const db = c.var.db
-  if (!db) return c.json({ error: 'not_implemented' }, 501)
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
 
   const nonce     = crypto.randomUUID()
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
@@ -44,8 +46,9 @@ authRoutes.post('/verify', async (c) => {
   // from substituting a different nonce value after the challenge was issued.
   if (!address || !_nonce || !signature) return c.json({ error: 'address, nonce and signature are required' }, 400)
 
-  const db = c.var.db
-  if (!db) return c.json({ error: 'not_implemented' }, 501)
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
 
   const [row] = await db.select().from(authNonces).where(eq(authNonces.address, address))
   if (!row || row.expiresAt < new Date()) {

@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { createAppDb } from '../db/client.js'
 import type { AppEnv } from '../types.js'
 import type { HeliusWebhookPayload } from '../webhooks/types.js'
 import { handleGenericRecord } from '../webhooks/generic-record/handler.js'
@@ -35,7 +36,10 @@ webhookRoutes.post('/', async (c) => {
     return c.json({ error: 'payload_must_be_array' }, 400)
   }
 
-  const db = c.get('db')
+  // No DB = skip processing and return 200 so Helius does not retry
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ ok: true }, 200)
+  const db = createAppDb(d1)
 
   for (const tx of payload) {
     if (tx.transactionError) continue

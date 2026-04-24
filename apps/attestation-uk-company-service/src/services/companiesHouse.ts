@@ -2,26 +2,24 @@ import type { CompanyDetails, Director } from '../types.js'
 
 const BASE_URL = 'https://api.company-information.service.gov.uk'
 
-function authHeader(): string {
-  const key = process.env.CH_API_KEY ?? ''
+function authHeader(apiKey: string): string {
   // Companies House uses API key as username with empty password (Basic Auth)
-  return `Basic ${Buffer.from(`${key}:`).toString('base64')}`
+  return `Basic ${btoa(`${apiKey}:`)}`
 }
 
-async function chFetch(path: string): Promise<Response> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { Authorization: authHeader() },
+async function chFetch(path: string, apiKey: string): Promise<Response> {
+  return fetch(`${BASE_URL}${path}`, {
+    headers: { Authorization: authHeader(apiKey) },
   })
-  return res
 }
 
-export async function getCompany(companyNumber: string): Promise<CompanyDetails> {
-  const res = await chFetch(`/company/${companyNumber}`)
+export async function getCompany(companyNumber: string, apiKey: string): Promise<CompanyDetails> {
+  const res = await chFetch(`/company/${companyNumber}`, apiKey)
   if (res.status === 404) throw new Error('company_not_found')
   if (!res.ok) throw new Error(`ch_api_error:${res.status}`)
 
   const data = await res.json() as Record<string, unknown>
-  const directors = await getActiveDirectors(companyNumber)
+  const directors = await getActiveDirectors(companyNumber, apiKey)
 
   return {
     companyNumber,
@@ -32,8 +30,8 @@ export async function getCompany(companyNumber: string): Promise<CompanyDetails>
   }
 }
 
-export async function getActiveDirectors(companyNumber: string): Promise<Director[]> {
-  const res = await chFetch(`/company/${companyNumber}/officers?items_per_page=100`)
+export async function getActiveDirectors(companyNumber: string, apiKey: string): Promise<Director[]> {
+  const res = await chFetch(`/company/${companyNumber}/officers?items_per_page=100`, apiKey)
   if (!res.ok) throw new Error(`ch_api_error:${res.status}`)
 
   const data = await res.json() as { items?: Array<Record<string, unknown>> }
@@ -53,5 +51,3 @@ export function directorNameMatches(claimedName: string, directors: Director[]):
   const claimed = normalise(claimedName)
   return directors.some((d) => normalise(d.name).includes(claimed) || claimed.includes(normalise(d.name)))
 }
-
-

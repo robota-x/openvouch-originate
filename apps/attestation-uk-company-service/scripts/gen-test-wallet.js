@@ -1,5 +1,5 @@
 // Generates a throwaway Solana keypair for local testing.
-// Usage (from the lending-website-backend folder):
+// Usage (from the attestation-uk-company-service folder):
 //   node scripts/gen-test-wallet.js
 //
 // Save the WALLET and SECRET values — you need them for sign-message.js
@@ -11,5 +11,3 @@ const kp = nacl.sign.keyPair()
 
 console.log('WALLET:', bs58.encode(kp.publicKey))
 console.log('SECRET:', bs58.encode(kp.secretKey))
-
-

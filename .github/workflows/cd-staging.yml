@@ -59,7 +59,7 @@ jobs:
           name: frontend-dist-staging-${{ github.run_id }}
           path: apps/lending-website-frontend/dist/
 
-  deploy:
+  deploy-lending:
     runs-on: ubuntu-latest
     needs: [lint, test, build]
     steps:
@@ -71,6 +71,10 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Build workspace packages for bundling (staging)
+        run: |
+          npm run build --workspace=@openvouch/d1-client
+          npm run build --workspace=@openvouch/idl
       - uses: actions/download-artifact@v4
         with:
           name: frontend-dist-staging-${{ github.run_id }}
@@ -82,17 +86,67 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-frontend
           command: deploy --config wrangler.staging.jsonc
-      - name: Migrate database (staging)
+      - name: Migrate lending database (staging)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-backend
           command: d1 migrations apply openvouch-originate-db-staging --remote --config wrangler.staging.jsonc
-      - name: Deploy backend (staging)
+      - name: Deploy lending backend (staging)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-backend
+          command: deploy --config wrangler.staging.jsonc
+
+  deploy-attestation:
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Build workspace packages for bundling (staging)
+        run: |
+          npm run build --workspace=@openvouch/d1-client
+          npm run build --workspace=@openvouch/idl
+      - name: Sync CH API key secret (staging)
+        working-directory: apps/attestation-uk-company-service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          COMPANIES_HOUSE_UK_API_KEY: ${{ secrets.COMPANIES_HOUSE_UK_API_KEY_STAGING }}
+        run: |
+          if [ -z "$COMPANIES_HOUSE_UK_API_KEY" ]; then
+            echo "Missing required GitHub secret: COMPANIES_HOUSE_UK_API_KEY_STAGING"
+            exit 1
+          fi
+          echo "$COMPANIES_HOUSE_UK_API_KEY" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
+      - name: Sync email placeholders (staging)
+        working-directory: apps/attestation-uk-company-service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TODO_EMAIL_PLACEHOLDER: "TODO - gonna be deprecated along email"
+        run: |
+          echo "$TODO_EMAIL_PLACEHOLDER" | npx wrangler secret put SENDGRID_KEY --config wrangler.staging.jsonc
+          echo "$TODO_EMAIL_PLACEHOLDER" | npx wrangler secret put EMAIL_FROM --config wrangler.staging.jsonc
+      - name: Migrate attestation database (staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/attestation-uk-company-service
+          command: d1 migrations apply openvouch-attestation-uk-company-db-staging --remote --config wrangler.staging.jsonc
+      - name: Deploy attestation service (staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/attestation-uk-company-service
           command: deploy --config wrangler.staging.jsonc

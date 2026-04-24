@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { configMiddleware } from './config.js'
-import { dbMiddleware } from './middleware/db.js'
 import authRoutes from './routes/auth.js'
 import profileRoutes from './routes/profiles.js'
 import attestationProviderRoutes from './routes/attestationProviders.js'
@@ -29,11 +28,6 @@ app.use('*', cors({
 // Config is built first (reads env, applies defaults) so all middleware and
 // routes can use c.get('config') without touching c.env directly.
 app.use('*', configMiddleware)
-
-// DB client is initialised per-request and stored in c.var.db.
-// When the DB binding is absent (tests, local dev without D1), c.var.db is
-// undefined and routes return 501.
-app.use('*', dbMiddleware)
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/', (c) => c.json({ status: 'ok' }))

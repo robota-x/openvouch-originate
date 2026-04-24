@@ -1,0 +1,20 @@
+# ── Local dev environment — Cloudflare Workers (replaces .env) ───────────────
+#
+# This file is the equivalent of .env for this service.
+# The service runs inside a Cloudflare Workers runtime simulation (wrangler dev /
+# workerd) rather than a plain Node.js process, so the standard .env / dotenv
+# convention does not apply — there is no process.env. Wrangler reads .dev.vars
+# instead and injects values directly into the CF Workers env object (c.env.*).
+#
+# Copy this file to .dev.vars and fill in values before running `npm run dev`.
+# .dev.vars is gitignored. Never commit it.
+# For deployed staging/production, set secrets with: wrangler secret put <KEY>
+
+# ── Companies House API ───────────────────────────────────────────────────────
+# Register free at https://developer.company-information.service.gov.uk
+COMPANIES_HOUSE_UK_API_KEY=your_companies_house_api_key
+
+# ── Email (OTP) ───────────────────────────────────────────────────────────────
+# Leave blank to log OTP to console instead of sending (dev mode)
+SENDGRID_KEY=
+EMAIL_FROM=noreply@openvouch.io

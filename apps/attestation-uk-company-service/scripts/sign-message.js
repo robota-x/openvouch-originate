@@ -1,8 +1,8 @@
 // Signs a challenge message with a Solana secret key for local testing.
-// Usage (from the lending-website-backend folder):
+// Usage (from the attestation-uk-company-service folder):
 //   SECRET_KEY=<your_secret> CHALLENGE="<exact challenge message>" node scripts/sign-message.js
 //
-// The CHALLENGE must be the exact challengeMessage returned by POST /verify/start.
+// The CHALLENGE must be the exact challengeMessage returned by POST /api/verify/start.
 // Copy it including the timestamp — one character difference invalidates the signature.
 
 import nacl from 'tweetnacl'
@@ -21,5 +21,3 @@ const msgBytes = Buffer.from(message, 'utf8')
 const sig = nacl.sign.detached(msgBytes, secretKey)
 
 console.log('SIG:', Buffer.from(sig).toString('base64'))
-
-

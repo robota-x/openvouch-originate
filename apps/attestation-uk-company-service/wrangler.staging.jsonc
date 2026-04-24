@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "openvouch-attestation-uk-company-service-staging",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-04-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "openvouch-attestation-uk-company-db-staging",
+      "database_id": "45f4717b-7680-474a-af36-6fb69f06fc55"
+    }
+  ]
+  // COMPANIES_HOUSE_UK_API_KEY, SENDGRID_KEY, EMAIL_FROM must be set as wrangler secrets:
+  //   wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
+}
