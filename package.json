@@ -1,7 +1,7 @@
 {
   "name": "openvouch",
   "private": true,
-  "workspaces": ["apps/lending-website-frontend", "apps/lending-website-backend", "apps/playground", "packages/*"],
+  "workspaces": ["apps/lending-website-frontend", "apps/lending-website-backend", "apps/attestation-service", "apps/playground", "packages/*"],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
