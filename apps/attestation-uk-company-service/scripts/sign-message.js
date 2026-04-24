@@ -1,5 +1,5 @@
 // Signs a challenge message with a Solana secret key for local testing.
-// Usage (from the attestation-service folder):
+// Usage (from the attestation-uk-company-service folder):
 //   SECRET_KEY=<your_secret> CHALLENGE="<exact challenge message>" node scripts/sign-message.js
 //
 // The CHALLENGE must be the exact challengeMessage returned by POST /api/verify/start.

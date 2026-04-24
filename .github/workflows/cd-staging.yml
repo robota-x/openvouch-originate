@@ -114,12 +114,12 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/attestation-service
-          command: d1 migrations apply openvouch-attestation-db-staging --remote --config wrangler.staging.jsonc
+          workingDirectory: apps/attestation-uk-company-service
+          command: d1 migrations apply openvouch-attestation-uk-company-db-staging --remote --config wrangler.staging.jsonc
       - name: Deploy attestation service (staging)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/attestation-service
+          workingDirectory: apps/attestation-uk-company-service
           command: deploy --config wrangler.staging.jsonc

@@ -1,14 +1,14 @@
 {
-  "name": "@openvouch/attestation-service",
+  "name": "@openvouch/attestation-uk-company-service",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply openvouch-attestation-db-staging --local --config wrangler.staging.jsonc",
-    "db:migrate:staging": "wrangler d1 migrations apply openvouch-attestation-db-staging --remote --config wrangler.staging.jsonc",
-    "db:migrate:production": "wrangler d1 migrations apply openvouch-attestation-db-production --remote --config wrangler.production.jsonc",
+    "db:migrate:local": "wrangler d1 migrations apply openvouch-attestation-uk-company-db-staging --local --config wrangler.staging.jsonc",
+    "db:migrate:staging": "wrangler d1 migrations apply openvouch-attestation-uk-company-db-staging --remote --config wrangler.staging.jsonc",
+    "db:migrate:production": "wrangler d1 migrations apply openvouch-attestation-uk-company-db-production --remote --config wrangler.production.jsonc",
     "dev": "wrangler dev --config wrangler.staging.jsonc --port 8788 --inspector-port 9230",
     "deploy:staging": "wrangler deploy --config wrangler.staging.jsonc",
     "deploy:production": "wrangler deploy --config wrangler.production.jsonc",

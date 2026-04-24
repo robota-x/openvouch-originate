@@ -111,12 +111,12 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/attestation-service
-          command: d1 migrations apply openvouch-attestation-db-production --remote --config wrangler.production.jsonc
+          workingDirectory: apps/attestation-uk-company-service
+          command: d1 migrations apply openvouch-attestation-uk-company-db-production --remote --config wrangler.production.jsonc
       - name: Deploy attestation service (production)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/attestation-service
+          workingDirectory: apps/attestation-uk-company-service
           command: deploy --config wrangler.production.jsonc

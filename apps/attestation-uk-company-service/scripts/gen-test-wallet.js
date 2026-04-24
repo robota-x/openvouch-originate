@@ -1,5 +1,5 @@
 // Generates a throwaway Solana keypair for local testing.
-// Usage (from the attestation-service folder):
+// Usage (from the attestation-uk-company-service folder):
 //   node scripts/gen-test-wallet.js
 //
 // Save the WALLET and SECRET values — you need them for sign-message.js

@@ -24,7 +24,7 @@ export interface AppConfig {
 export function buildConfig(env: Bindings | undefined): AppConfig {
   const chApiKey = env?.CH_API_KEY
   if (!chApiKey) {
-    throw new Error('[attestation-service] CH_API_KEY binding is required')
+    throw new Error('[attestation-uk-company-service] CH_API_KEY binding is required')
   }
 
   return {
