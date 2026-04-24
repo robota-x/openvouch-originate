@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit",
-    "dev": "wrangler dev --config wrangler.staging.jsonc",
+    "dev": "wrangler dev --config wrangler.staging.jsonc --port 8788 --inspector-port 9230",
     "deploy:staging": "wrangler deploy --config wrangler.staging.jsonc",
     "deploy:production": "wrangler deploy --config wrangler.production.jsonc",
     "lint": "echo \"No linter configured yet\"",

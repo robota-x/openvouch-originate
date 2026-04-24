@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import nacl from 'tweetnacl'
+import bs58 from 'bs58'
 import { buildChallengeMessage, verifyWalletSignature } from './walletVerifier.js'
 
 describe('buildChallengeMessage', () => {
@@ -21,13 +23,27 @@ describe('buildChallengeMessage', () => {
 })
 
 describe('verifyWalletSignature', () => {
+  it('returns true for a valid signature', () => {
+    const keypair = nacl.sign.keyPair()
+    const wallet = bs58.encode(keypair.publicKey)
+    const message = buildChallengeMessage('12345678', wallet)
+    const msgBytes = new TextEncoder().encode(message)
+    const sig = nacl.sign.detached(msgBytes, keypair.secretKey)
+    const signature = Buffer.from(sig).toString('base64')
+    expect(verifyWalletSignature(message, signature, wallet)).toBe(true)
+  })
+
+  it('returns false for a signature from a different keypair', () => {
+    const keypair1 = nacl.sign.keyPair()
+    const keypair2 = nacl.sign.keyPair()
+    const message = buildChallengeMessage('12345678', bs58.encode(keypair1.publicKey))
+    const msgBytes = new TextEncoder().encode(message)
+    const sig = nacl.sign.detached(msgBytes, keypair2.secretKey)
+    expect(verifyWalletSignature(message, Buffer.from(sig).toString('base64'), bs58.encode(keypair1.publicKey))).toBe(false)
+  })
+
   it('returns false for a garbage signature without throwing', () => {
-    const result = verifyWalletSignature(
-      'some message',
-      'bm90YXJlYWxzaWduYXR1cmU=', // base64 of "notarealsignature"
-      '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
-    )
-    expect(result).toBe(false)
+    expect(verifyWalletSignature('some message', 'bm90YXJlYWxzaWduYXR1cmU=', '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU')).toBe(false)
   })
 
   it('returns false for malformed base64 without throwing', () => {

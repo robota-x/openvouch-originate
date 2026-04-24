@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import { randomUUID } from 'crypto'
 import { getCompany, directorNameMatches } from '../services/companiesHouse.js'
 import { generateOtp, otpExpiry, isOtpValid, sendOtpEmail } from '../services/otp.js'
 import { buildChallengeMessage, verifyWalletSignature } from '../services/walletVerifier.js'
@@ -50,7 +49,7 @@ app.post('/start', async (c) => {
   const otp = generateOtp()
   const challengeMessage = buildChallengeMessage(companyNumber, walletAddress)
   const session = {
-    id: randomUUID(),
+    id: crypto.randomUUID(),
     walletAddress,
     companyNumber,
     directorName,

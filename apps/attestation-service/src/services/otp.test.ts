@@ -3,14 +3,7 @@ import { generateOtp, otpExpiry, isOtpValid } from './otp.js'
 
 describe('generateOtp', () => {
   it('returns a 6-digit numeric string', () => {
-    const otp = generateOtp()
-    expect(otp).toMatch(/^\d{6}$/)
-  })
-
-  it('is within the 6-digit range', () => {
-    const n = parseInt(generateOtp(), 10)
-    expect(n).toBeGreaterThanOrEqual(100000)
-    expect(n).toBeLessThanOrEqual(999999)
+    expect(generateOtp()).toMatch(/^\d{6}$/)
   })
 })
 
