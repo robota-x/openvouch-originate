@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
+import { createAppDb } from '../db/client.js'
 import { profiles as profilesTable, attestations as attestationsTable, loanListings } from '../db/schema.js'
 import { authenticate } from '../middleware/session.js'
 import { fixtureProfiles } from '../fixtures.js'
@@ -22,8 +23,9 @@ profileRoutes.get('/:address', async (c) => {
     return c.json(profile)
   }
 
-  const db = c.var.db
-  if (!db) return c.json({ error: 'not_implemented' }, 501)
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
   const [row] = await db.select().from(profilesTable).where(eq(profilesTable.address, address))
   if (!row) {
     return c.json({
@@ -131,7 +133,9 @@ profileRoutes.patch('/:address', authenticate, async (c) => {
     return c.json({ error: 'forbidden' }, 403)
   }
 
-  const db = c.var.db
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
   const raw = await c.req.json<Record<string, unknown>>()
 
   // Explicit guard: reject any attempt to set protected fields, even if sent accidentally.

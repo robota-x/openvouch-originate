@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { generateOtp, otpExpiry, isOtpValid } from './otp.js'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { generateOtp, isOtpValid, otpExpiry, sendOtpEmail } from './otp.js'
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('generateOtp', () => {
   it('returns a 6-digit numeric string', () => {
@@ -28,5 +30,27 @@ describe('isOtpValid', () => {
 
   it('returns false when expired', () => {
     expect(isOtpValid('123456', '123456', Date.now() - 1)).toBe(false)
+  })
+})
+
+describe('sendOtpEmail', () => {
+  it('does not throw in dev mode (no SendGrid key)', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    await expect(
+      sendOtpEmail('user@example.com', '123456', 'Acme', {
+        sendgridKey: undefined,
+        emailFrom: 'noreply@openvouch.io',
+      }),
+    ).resolves.toBeUndefined()
+    expect(logSpy).toHaveBeenCalled()
+  })
+
+  it('throws when SendGrid key exists (production path not implemented yet)', async () => {
+    await expect(
+      sendOtpEmail('user@example.com', '123456', 'Acme', {
+        sendgridKey: 'sg-key',
+        emailFrom: 'noreply@openvouch.io',
+      }),
+    ).rejects.toThrow(/not yet implemented/)
   })
 })

@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { configMiddleware } from './config.js'
 import verifyRoutes from './routes/verify.js'
 import companyRoutes from './routes/company.js'
 import type { AppEnv } from './types.js'
@@ -12,6 +13,8 @@ app.use('*', cors({
   allowHeaders: ['Content-Type'],
   maxAge:       86400,
 }))
+
+app.use('*', configMiddleware)
 
 app.get('/', (c) => c.json({ status: 'ok' }))
 

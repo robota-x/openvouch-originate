@@ -1,13 +1,22 @@
+import type { AppConfig } from './config.js'
+
 /** Cloudflare Workers bindings available via c.env */
 export type Bindings = {
+  DB:            D1Database
   CH_API_KEY?:   string
   SENDGRID_KEY?: string
   EMAIL_FROM?:   string
 }
 
+/** Per-request context variables set by middleware and read by handlers */
+export type Variables = {
+  config: AppConfig
+}
+
 /** Hono environment type threaded through the entire app */
 export type AppEnv = {
-  Bindings: Bindings
+  Bindings:  Bindings
+  Variables: Variables
 }
 
 // ── Session ───────────────────────────────────────────────────────────────────

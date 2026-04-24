@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm'
 import { loanListings, profiles as profilesTable, attestations as attestationsTable } from '../db/schema.js'
 import { authenticate } from '../middleware/session.js'
 import { fixtureOpenLoans, fixtureContractView } from '../fixtures.js'
-import type { Db } from '../db/client.js'
+import { createAppDb, type Db } from '../db/client.js'
 import type { AppEnv } from '../types.js'
 
 const loanRoutes = new Hono<AppEnv>()
@@ -106,8 +106,9 @@ function toContractView(r: EnrichedRow) {
 loanRoutes.get('/', async (c) => {
   if (c.get('config').fixturesEnabled) return c.json(fixtureOpenLoans)
 
-  const db = c.var.db
-  if (!db) return c.json({ error: 'not_implemented' }, 501)
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
   const rows = await enrichedQuery(db).where(eq(loanListings.status, 'open'))
   return c.json(rows.map(toListItem))
 })
@@ -122,8 +123,9 @@ loanRoutes.get('/:id', async (c) => {
     return c.json(contract)
   }
 
-  const db = c.var.db
-  if (!db) return c.json({ error: 'not_implemented' }, 501)
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
   const [row] = await enrichedQuery(db).where(eq(loanListings.id, id))
   if (!row) return c.json({ error: 'not_found' }, 404)
   return c.json(toContractView(row))
@@ -131,7 +133,9 @@ loanRoutes.get('/:id', async (c) => {
 
 /** POST /api/loans — borrower posts a new open loan offer. */
 loanRoutes.post('/', authenticate, async (c) => {
-  const db  = c.var.db
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
   const raw = await c.req.json<Record<string, unknown>>()
 
   // id, borrower, status, and all timestamps are set server-side — never from the request.
@@ -183,7 +187,9 @@ loanRoutes.post('/', authenticate, async (c) => {
  *   - onChainRef / on_chain_ref — written by chain sync only
  */
 loanRoutes.patch('/:id', authenticate, async (c) => {
-  const db  = c.var.db
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
   const id  = c.req.param('id')
 
   const [row] = await db.select().from(loanListings).where(eq(loanListings.id, id))
@@ -217,7 +223,9 @@ loanRoutes.patch('/:id', authenticate, async (c) => {
 
 /** DELETE /api/loans/:id — cancel an open offer (borrower only). */
 loanRoutes.delete('/:id', authenticate, async (c) => {
-  const db  = c.var.db
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
   const id  = c.req.param('id')
 
   const [row] = await db.select().from(loanListings).where(eq(loanListings.id, id))
@@ -248,7 +256,9 @@ loanRoutes.delete('/:id', authenticate, async (c) => {
  * instead and this endpoint becomes a no-op or is removed.
  */
 loanRoutes.post('/:id/fund', authenticate, async (c) => {
-  const db  = c.var.db
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
   const id  = c.req.param('id')
 
   const [row] = await db.select().from(loanListings).where(eq(loanListings.id, id))

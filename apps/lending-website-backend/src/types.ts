@@ -1,4 +1,3 @@
-import type { Db } from './db/client.js'
 import type { AppConfig } from './config.js'
 
 /** Cloudflare Workers bindings available via c.env */
@@ -17,7 +16,6 @@ export type Bindings = {
 
 /** Per-request context variables set by middleware and read by handlers */
 export type Variables = {
-  db:     Db
   user:   { address: string }
   config: AppConfig
 }
