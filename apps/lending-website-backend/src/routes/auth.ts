@@ -89,5 +89,3 @@ authRoutes.delete('/session', authenticate, async (c) => {
 })
 
 export default authRoutes
-
-

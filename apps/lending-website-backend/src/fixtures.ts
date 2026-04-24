@@ -381,5 +381,3 @@ export function fixtureContractView(id: string): FixtureContractView | null {
   }
   return null
 }
-
-
