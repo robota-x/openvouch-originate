@@ -56,7 +56,7 @@ jobs:
           name: frontend-dist-production-${{ github.run_id }}
           path: apps/lending-website-frontend/dist/
 
-  deploy:
+  deploy-lending:
     runs-on: ubuntu-latest
     needs: [lint, test, build]
     steps:
@@ -79,17 +79,44 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-frontend
           command: deploy --config wrangler.production.jsonc
-      - name: Migrate database (production)
+      - name: Migrate lending database (production)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-backend
           command: d1 migrations apply openvouch-originate-db-production --remote --config wrangler.production.jsonc
-      - name: Deploy backend (production)
+      - name: Deploy lending backend (production)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-backend
+          command: deploy --config wrangler.production.jsonc
+
+  deploy-attestation:
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Migrate attestation database (production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/attestation-service
+          command: d1 migrations apply openvouch-attestation-db-production --remote --config wrangler.production.jsonc
+      - name: Deploy attestation service (production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/attestation-service
           command: deploy --config wrangler.production.jsonc

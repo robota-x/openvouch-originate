@@ -59,7 +59,7 @@ jobs:
           name: frontend-dist-staging-${{ github.run_id }}
           path: apps/lending-website-frontend/dist/
 
-  deploy:
+  deploy-lending:
     runs-on: ubuntu-latest
     needs: [lint, test, build]
     steps:
@@ -82,17 +82,44 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-frontend
           command: deploy --config wrangler.staging.jsonc
-      - name: Migrate database (staging)
+      - name: Migrate lending database (staging)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-backend
           command: d1 migrations apply openvouch-originate-db-staging --remote --config wrangler.staging.jsonc
-      - name: Deploy backend (staging)
+      - name: Deploy lending backend (staging)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-backend
+          command: deploy --config wrangler.staging.jsonc
+
+  deploy-attestation:
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Migrate attestation database (staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/attestation-service
+          command: d1 migrations apply openvouch-attestation-db-staging --remote --config wrangler.staging.jsonc
+      - name: Deploy attestation service (staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/attestation-service
           command: deploy --config wrangler.staging.jsonc
