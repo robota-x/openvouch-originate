@@ -1,0 +1,22 @@
+{
+  "type": "module",
+  "name": "@openvouch/identity-service",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "lint": "echo \"No linter configured yet\"",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.83.0"
+  }
+}
