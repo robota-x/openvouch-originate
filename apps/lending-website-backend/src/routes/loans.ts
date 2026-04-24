@@ -104,7 +104,7 @@ function toContractView(r: EnrichedRow) {
 
 /** GET /api/loans — open loan requests enriched with borrower stats (list + card view). */
 loanRoutes.get('/', async (c) => {
-  if (c.env?.FIXTURES_ENABLED === 'true') return c.json(fixtureOpenLoans)
+  if (c.get('config').fixturesEnabled) return c.json(fixtureOpenLoans)
 
   const db = c.var.db
   if (!db) return c.json({ error: 'not_implemented' }, 501)
@@ -116,7 +116,7 @@ loanRoutes.get('/', async (c) => {
 loanRoutes.get('/:id', async (c) => {
   const id = c.req.param('id')
 
-  if (c.env?.FIXTURES_ENABLED === 'true') {
+  if (c.get('config').fixturesEnabled) {
     const contract = fixtureContractView(id)
     if (!contract) return c.json({ error: 'not_found' }, 404)
     return c.json(contract)

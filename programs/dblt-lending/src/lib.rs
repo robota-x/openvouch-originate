@@ -1,12 +1,7 @@
-// updated code with new functions for term offers and loan pools, as well as contribution and finalization of pools.
-
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    token::{self, Token, TokenAccount, Mint},
-    associated_token::AssociatedToken,
-};
+use anchor_spl::token::Mint;
 
-declare_id!("Fg6PaFpoGXkYsidMpW2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("22bmZ5cp4DdUitMt8okSwygWP1f9oWpG6zXGkVBrgCtV");
 
 pub mod constants;
 pub mod error;
@@ -14,63 +9,90 @@ pub mod handlers;
 pub mod state;
 
 use crate::constants::{SEED_LOAN, SEED_PROFILE};
-use crate::state::{Config, LoanPool, TermOffer, UserProfile};
+use crate::state::{Config, LoanListing, UserProfile};
 
 #[program]
 pub mod dblt_lending {
-    use super::*;
+    use anchor_lang::prelude::*;
 
-    // Keep existing: initialize, register_borrower, register_lender, update_score
-    // Add new functions below:
-    
-    pub fn create_term_offer(
-        ctx: Context<CreateTermOffer>,
-        min_interest_rate_bps: u64,
-        max_duration_days: u64,
-        collateral_required: bool,
-        description: String,
+    use crate::handlers;
+    use crate::{
+        CreateLoan, FundLoan, Initialize, RegisterUser, UpdateScore,
+    };
+
+    pub fn initialize(ctx: Context<Initialize>, admin: Pubkey) -> Result<()> {
+        handlers::initialize(ctx, admin)
+    }
+
+    pub fn register_borrower(ctx: Context<RegisterUser>, company_name: String) -> Result<()> {
+        handlers::register_borrower(ctx, company_name)
+    }
+
+    pub fn register_lender(ctx: Context<RegisterUser>, entity_name: String) -> Result<()> {
+        handlers::register_lender(ctx, entity_name)
+    }
+
+    pub fn update_identity_score(ctx: Context<UpdateScore>, component_type: u8) -> Result<()> {
+        handlers::update_identity_score(ctx, component_type)
+    }
+
+    pub fn update_financial_score(ctx: Context<UpdateScore>, component_type: u8) -> Result<()> {
+        handlers::update_financial_score(ctx, component_type)
+    }
+
+    pub fn create_loan_listing(
+        ctx: Context<CreateLoan>,
+        amount: u64,
+        interest_rate: u64,
     ) -> Result<()> {
-        handlers::create_term_offer(ctx, min_interest_rate_bps, max_duration_days, collateral_required, description)
+        handlers::create_loan_listing(ctx, amount, interest_rate)
     }
 
-    pub fn create_loan_pool(
-        ctx: Context<CreateLoanPool>,
-        target_amount: u64,
-        term_offer_id: Pubkey,
-        years_data_hash: String,
-        years_covered: u8,
-    ) -> Result<()> {
-        handlers::create_loan_pool(ctx, target_amount, term_offer_id, years_data_hash, years_covered)
-    }
-
-    pub fn contribute_to_pool(ctx: Context<ContributeToPool>, amount: u64) -> Result<()> {
-        handlers::contribute_to_pool(ctx, amount)
-    }
-
-    pub fn finalize_pool(ctx: Context<FinalizePool>) -> Result<()> {
-        handlers::finalize_pool(ctx)
+    pub fn fund_loan(ctx: Context<FundLoan>) -> Result<()> {
+        handlers::fund_loan(ctx)
     }
 }
 
-// --- Account Contexts ---
 #[derive(Accounts)]
-pub struct CreateTermOffer<'info> {
+pub struct Initialize<'info> {
+    #[account(init, payer = user, space = 8 + std::mem::size_of::<Config>())]
+    pub config: Account<'info, Config>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+    pub dblt_mint: Account<'info, Mint>,
+}
+
+#[derive(Accounts)]
+pub struct RegisterUser<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(
         init,
         payer = user,
-        space = 8 + std::mem::size_of::<TermOffer>(),
-        seeds = [b"offer", user.key().as_ref(), &min_interest_rate_bps.to_le_bytes()],
+        space = 8 + std::mem::size_of::<UserProfile>(),
+        seeds = [SEED_PROFILE, user.key().as_ref()],
         bump
     )]
-    pub term_offer: Account<'info, TermOffer>,
+    pub borrower: Account<'info, UserProfile>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-#[instruction(target_amount: u64)]
-pub struct CreateLoanPool<'info> {
+pub struct UpdateScore<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [SEED_PROFILE, user.key().as_ref()],
+        bump
+    )]
+    pub user_profile: Account<'info, UserProfile>,
+}
+
+#[derive(Accounts)]
+#[instruction(amount: u64, interest_rate: u64)]
+pub struct CreateLoan<'info> {
     #[account(mut)]
     pub borrower: Signer<'info>,
     #[account(
@@ -82,23 +104,16 @@ pub struct CreateLoanPool<'info> {
     #[account(
         init,
         payer = borrower,
-        space = 8 + std::mem::size_of::<LoanPool>(),
-        seeds = [SEED_LOAN, borrower.key().as_ref(), &target_amount.to_le_bytes()],
+        space = 8 + std::mem::size_of::<LoanListing>(),
+        seeds = [SEED_LOAN, borrower.key().as_ref(), &amount.to_le_bytes()],
         bump
     )]
-    pub pool: Account<'info, LoanPool>,
-    #[account(
-        seeds = [b"offer", term_offer.authority.as_ref(),
-        &term_offer.min_interest_rate_bps.to_le_bytes()],
-        bump
-    )]
-    pub term_offer: Account<'info, TermOffer>,
+    pub listing: Account<'info, LoanListing>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-#[instruction(amount: u64)]
-pub struct ContributeToPool<'info> {
+pub struct FundLoan<'info> {
     #[account(mut)]
     pub lender: Signer<'info>,
     #[account(
@@ -109,21 +124,14 @@ pub struct ContributeToPool<'info> {
     pub lender_profile: Account<'info, UserProfile>,
     #[account(
         mut,
-        seeds = [SEED_LOAN, pool.borrower.as_ref(), &pool.target_amount.to_le_bytes()],
+        seeds = [SEED_LOAN, borrower.key().as_ref(), &listing.amount.to_le_bytes()],
         bump
     )]
-    pub pool: Account<'info, LoanPool>,
-}
-
-#[derive(Accounts)]
-pub struct FinalizePool<'info> {
-    #[account(mut)]
-    pub admin: Signer<'info>,
+    pub listing: Account<'info, LoanListing>,
     #[account(
         mut,
-        seeds = [SEED_LOAN, pool.borrower.as_ref(), &pool.target_amount.to_le_bytes()],
+        seeds = [SEED_PROFILE, borrower.key().as_ref()],
         bump
     )]
-    pub pool: Account<'info, LoanPool>,
+    pub borrower: Account<'info, UserProfile>,
 }
-

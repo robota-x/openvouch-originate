@@ -1,0 +1,162 @@
+{
+  "address": "EL1vHbKVUwHDneBhwqC28o1xrzNSx2Dk2AmxytfQpote",
+  "metadata": {
+    "name": "generic_record",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Generic two-signer record program"
+  },
+  "instructions": [
+    {
+      "name": "create_record",
+      "docs": [
+        "Records a two-signer attestation on-chain.",
+        "",
+        "Both signer1 and signer2 must co-sign the transaction.",
+        "The record is a PDA seeded on [b\"record\", signer1, signer2] so each",
+        "pair can have at most one record; re-initialisation requires closing",
+        "the account first (not implemented — sufficient for the hackathon)."
+      ],
+      "discriminator": [
+        116,
+        124,
+        63,
+        58,
+        126,
+        204,
+        178,
+        10
+      ],
+      "accounts": [
+        {
+          "name": "signer1",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "signer2",
+          "signer": true
+        },
+        {
+          "name": "record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  99,
+                  111,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer1"
+              },
+              {
+                "kind": "account",
+                "path": "signer2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "tx_link",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "external_url",
+          "type": {
+            "option": "string"
+          }
+        },
+        {
+          "name": "text",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "RecordEntry",
+      "discriminator": [
+        50,
+        93,
+        168,
+        211,
+        253,
+        109,
+        83,
+        154
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "TextTooLong",
+      "msg": "text must be 256 characters or fewer"
+    },
+    {
+      "code": 6001,
+      "name": "TxLinkTooLong",
+      "msg": "tx_link must be 100 characters or fewer"
+    },
+    {
+      "code": 6002,
+      "name": "ExternalUrlTooLong",
+      "msg": "external_url must be 200 characters or fewer"
+    }
+  ],
+  "types": [
+    {
+      "name": "RecordEntry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signer1",
+            "type": "pubkey"
+          },
+          {
+            "name": "signer2",
+            "type": "pubkey"
+          },
+          {
+            "name": "tx_link",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "external_url",
+            "type": {
+              "option": "string"
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "text",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ]
+}

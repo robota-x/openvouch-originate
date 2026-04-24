@@ -4,11 +4,11 @@ import type { AppEnv } from '../types.js'
 
 /**
  * Middleware for session-protected routes.
- * Reads JWT_SECRET from c.env, verifies the Bearer token, and sets c.var.user.
- * Returns 401 if the secret is absent (tests/dev without binding) or the token is invalid.
+ * Reads jwtSecret from c.var.config, verifies the Bearer token, sets c.var.user.
+ * Returns 401 if the secret is absent or the token is invalid.
  */
 export const authenticate = createMiddleware<AppEnv>(async (c, next) => {
-  const secret = c.env?.JWT_SECRET
+  const secret = c.get('config').jwtSecret
   if (!secret) {
     return c.json({ error: 'not_authenticated' }, 401)
   }

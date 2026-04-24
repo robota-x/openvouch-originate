@@ -11,7 +11,7 @@ const profileRoutes = new Hono<AppEnv>()
 profileRoutes.get('/:address', async (c) => {
   const address = c.req.param('address')
 
-  if (c.env?.FIXTURES_ENABLED === 'true') {
+  if (c.get('config').fixturesEnabled) {
     const profile = fixtureProfiles[address] ?? {
       address,
       nickname:     address.slice(0, 8),

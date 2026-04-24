@@ -19,6 +19,7 @@ onMounted(async () => {
   try {
     loans.value = await backendClient.getOpenRequests()
   } catch (e) {
+    console.error('[MarketplacePage] Failed to load loans:', e)
     loadError.value = e instanceof ApiError ? e.message : 'Failed to load open requests'
   }
 })

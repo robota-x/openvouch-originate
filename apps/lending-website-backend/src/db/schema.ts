@@ -65,6 +65,23 @@ export const attestations = sqliteTable('attestations', {
  *   repaid    — fully repaid by borrower
  *   defaulted — overdue and not repaid
  */
+/**
+ * Append-only log of on-chain events received via Helius webhooks.
+ *
+ * Each row is one decoded Anchor instruction. txSignature is the primary key —
+ * Solana signatures are globally unique, so it doubles as the idempotency key
+ * for re-delivered webhooks.
+ *
+ * `data` is a JSON string of the fully decoded instruction arguments.
+ */
+export const chainEvents = sqliteTable('chain_events', {
+  txSignature:  text('tx_signature').primaryKey(),
+  blockTime:    integer('block_time', { mode: 'timestamp' }).notNull(),
+  programId:    text('program_id').notNull(),
+  contractType: text('contract_type').notNull(),
+  data:         text('data').notNull(),
+})
+
 export const loanListings = sqliteTable('loan_listings', {
   id:         text('id').primaryKey(),
   borrower:   text('borrower').notNull(),
