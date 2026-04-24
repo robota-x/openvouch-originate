@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "openvouch-identity-service",
+  "name": "openvouch-attestation-identity-service",
   "main": "src/worker.ts",
   "compatibility_date": "2024-04-01",
   "compatibility_flags": [

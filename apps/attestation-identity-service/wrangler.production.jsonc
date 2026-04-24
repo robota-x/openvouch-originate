@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "openvouch-attestation-identity-service-production",
+  "main": "src/worker.ts",
+  "compatibility_date": "2024-04-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "SHUFTI_BASE_URL": "https://api.shuftipro.com",
+    "CALLBACK_URL": "https://openvouch-attestation-identity-service-production.neuronefunzionante.workers.dev/verify/webhook"
+  }
+}

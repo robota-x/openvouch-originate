@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@openvouch/identity-service",
+  "name": "@openvouch/attestation-identity-service",
   "version": "0.0.1",
   "private": true,
   "scripts": {
