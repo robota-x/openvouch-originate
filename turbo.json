@@ -5,6 +5,6 @@
     "deploy": { "dependsOn": ["build"], "cache": false },
     "dev":    { "persistent": true, "cache": false },
     "lint":   {},
-    "test":   {}
+    "test":   { "dependsOn": ["^build"] }
   }
 }
