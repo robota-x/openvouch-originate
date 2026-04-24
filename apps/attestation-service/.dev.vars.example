@@ -1,0 +1,8 @@
+# ── Companies House API ───────────────────────────────────────────────────────
+# Register free at https://developer.company-information.service.gov.uk
+CH_API_KEY=your_companies_house_api_key
+
+# ── Email (OTP) ───────────────────────────────────────────────────────────────
+# Leave blank to log OTP to console instead of sending (dev mode)
+SENDGRID_KEY=
+EMAIL_FROM=noreply@openvouch.io
