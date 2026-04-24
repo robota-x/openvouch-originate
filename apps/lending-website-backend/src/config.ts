@@ -1,3 +1,4 @@
+import { Registry } from '@openvouch/idl'
 import { createMiddleware } from 'hono/factory'
 import type { AppEnv, Bindings } from './types.js'
 
@@ -10,9 +11,10 @@ export interface AppConfig {
   heliusWebhookAuth: string | undefined
   /** When true, routes return fixture data instead of querying D1. */
   fixturesEnabled: boolean
-  /** On-chain program IDs. Defaults to placeholder keypairs until anchor keys sync. */
+  /** On-chain program IDs. */
   programs: {
     genericRecord: string
+    dbltLending: string
   }
 }
 
@@ -26,14 +28,19 @@ export interface AppConfig {
  * `c.env` directly or apply its own defaults.
  */
 export function buildConfig(env: Bindings | undefined): AppConfig {
+  const genericRecord = Registry.getProgramId('generic_record')
+  const dbltLending = Registry.getProgramId('dblt_lending')
+  if (!genericRecord || !dbltLending) {
+    throw new Error('Required program IDs missing from @openvouch/idl registry')
+  }
+
   return {
     jwtSecret:         env?.JWT_SECRET,
     heliusWebhookAuth: env?.HELIUS_WEBHOOK_AUTH,
     fixturesEnabled:   env?.FIXTURES_ENABLED === 'true',
     programs: {
-      // Default matches the placeholder in Anchor.toml.
-      // Override via GENERIC_RECORD_PROGRAM_ID after `anchor keys sync` + deployment.
-      genericRecord: env?.GENERIC_RECORD_PROGRAM_ID ?? 'HoDHdk8dsDqbALi3ZPGxe8imvZa68Ys9y34FXoKpDHzV',
+      genericRecord,
+      dbltLending,
     },
   }
 }

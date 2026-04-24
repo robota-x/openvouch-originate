@@ -13,12 +13,6 @@ export type Bindings = {
    * Set via: wrangler secret put HELIUS_WEBHOOK_AUTH --config wrangler.<env>.jsonc
    */
   HELIUS_WEBHOOK_AUTH?: string
-  /**
-   * On-chain program ID for the generic-record program.
-   * Defaults to the placeholder keypair; override after `anchor keys sync`.
-   * Set via: wrangler secret put GENERIC_RECORD_PROGRAM_ID --config wrangler.<env>.jsonc
-   */
-  GENERIC_RECORD_PROGRAM_ID?: string
 }
 
 /** Per-request context variables set by middleware and read by handlers */

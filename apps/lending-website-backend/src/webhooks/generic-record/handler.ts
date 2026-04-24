@@ -1,5 +1,6 @@
 import { BorshCoder } from '@anchor-lang/core'
-import idl from '../../idl/generic_record.json' assert { type: 'json' }
+import { getGenericRecordIdl } from '@openvouch/idl'
+const idl = getGenericRecordIdl()
 import { chainEvents } from '../../db/schema.js'
 import type { Db } from '../../db/client.js'
 import type { EnhancedTransaction, Instruction } from '../types.js'
@@ -24,12 +25,7 @@ interface CreateRecordArgs {
 }
 
 /**
- * Attempt to decode and persist any recognised instruction from the generic-record
- * program. Returns without error if the instruction is unrecognised or fails to
- * decode — the caller logs and moves on.
- *
- * Idempotent: duplicate txSignature inserts are silently ignored via PRIMARY KEY
- * constraint (Solana signatures are globally unique; re-delivery is safe to skip).
+ * Processes Generic Record events.
  */
 export async function handleGenericRecord(
   tx: EnhancedTransaction,

@@ -16,7 +16,7 @@ dblt_lending = "22bmZ5cp4DdUitMt8okSwygWP1f9oWpG6zXGkVBrgCtV"
 
 [provider]
 cluster = "localnet"
-wallet = "~/.config/solana/id.json"
+wallet = "keys/localnet/authority.json"
 
 [scripts]
 test = "make test-programs"

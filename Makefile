@@ -5,6 +5,7 @@
 	test test-js test-programs \
 	lint \
 	clean-anchor \
+	localnet playground \
 	docker-build build-java
 
 .DEFAULT_GOAL := help
@@ -55,3 +56,15 @@ lint: ## Lint JS/TS workspaces
 
 clean-anchor: ## Delete Anchor build outputs (target/deploy, target/idl, .anchor)
 	rm -rf target/deploy target/idl target/verifiable .anchor
+
+# ── Playground ────────────────────────────────────────────────────────────────
+
+localnet: ## Start a local Solana validator with Anchor
+	anchor localnet
+
+playground: ## Run the interactive playground CLI
+	npm run playground --workspace=@openvouch/playground -- $(filter-out $@, $(MAKECMDGOALS))
+
+# Catch-all to allow passing arguments to playground
+%:
+	@:
