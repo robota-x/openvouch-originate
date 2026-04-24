@@ -33,7 +33,7 @@ app.post('/start', async (c) => {
   const config = c.get('config')
   let company
   try {
-    company = await getCompany(companyNumber, config.chApiKey)
+    company = await getCompany(companyNumber, config.companiesHouseUkApiKey)
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown'
     if (msg === 'company_not_found') return c.json({ error: 'company_not_found' }, 404)
@@ -116,7 +116,7 @@ app.post('/sign', async (c) => {
   const config = c.get('config')
   let companyName = ''
   try {
-    const company = await getCompany(session.companyNumber, config.chApiKey)
+    const company = await getCompany(session.companyNumber, config.companiesHouseUkApiKey)
     companyName = company.companyName
   } catch {
     companyName = `Company ${session.companyNumber}`

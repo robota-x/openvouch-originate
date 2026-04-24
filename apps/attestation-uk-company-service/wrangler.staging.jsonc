@@ -8,9 +8,9 @@
     {
       "binding": "DB",
       "database_name": "openvouch-attestation-uk-company-db-staging",
-      "database_id": "REPLACE_WITH_STAGING_D1_ID"
+      "database_id": "45f4717b-7680-474a-af36-6fb69f06fc55"
     }
   ]
-  // CH_API_KEY, SENDGRID_KEY, EMAIL_FROM must be set as wrangler secrets:
-  //   wrangler secret put CH_API_KEY --config wrangler.staging.jsonc
+  // COMPANIES_HOUSE_UK_API_KEY, SENDGRID_KEY, EMAIL_FROM must be set as wrangler secrets:
+  //   wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
 }

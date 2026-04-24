@@ -3,7 +3,7 @@ import app from '../app.js'
 
 afterEach(() => vi.unstubAllGlobals())
 
-const testEnv = { CH_API_KEY: 'test-key' }
+const testEnv = { COMPANIES_HOUSE_UK_API_KEY: 'test-key' }
 
 describe('GET /api/company/:number — format validation', () => {
   it('returns 400 for a non-numeric short string', async () => {

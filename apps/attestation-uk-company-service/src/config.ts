@@ -5,7 +5,7 @@ import type { AppEnv, Bindings } from './types.js'
 
 export interface AppConfig {
   /** Companies House API key. Required — requests fail fast if absent. */
-  chApiKey: string
+  companiesHouseUkApiKey: string
   /** SendGrid API key. undefined = dev/test mode (OTP printed to console). */
   sendgridKey: string | undefined
   /** From address for outgoing email. */
@@ -22,13 +22,13 @@ export interface AppConfig {
  * from bindings directly or applies its own defaults.
  */
 export function buildConfig(env: Bindings | undefined): AppConfig {
-  const chApiKey = env?.CH_API_KEY
-  if (!chApiKey) {
-    throw new Error('[attestation-uk-company-service] CH_API_KEY binding is required')
+  const companiesHouseUkApiKey = env?.COMPANIES_HOUSE_UK_API_KEY
+  if (!companiesHouseUkApiKey) {
+    throw new Error('[attestation-uk-company-service] COMPANIES_HOUSE_UK_API_KEY binding is required')
   }
 
   return {
-    chApiKey,
+    companiesHouseUkApiKey,
     sendgridKey: env?.SENDGRID_KEY,
     emailFrom:   env?.EMAIL_FROM ?? 'noreply@openvouch.io',
   }

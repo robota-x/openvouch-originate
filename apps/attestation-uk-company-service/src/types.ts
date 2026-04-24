@@ -3,7 +3,7 @@ import type { AppConfig } from './config.js'
 /** Cloudflare Workers bindings available via c.env */
 export type Bindings = {
   DB:            D1Database
-  CH_API_KEY?:   string
+  COMPANIES_HOUSE_UK_API_KEY?: string
   SENDGRID_KEY?: string
   EMAIL_FROM?:   string
 }

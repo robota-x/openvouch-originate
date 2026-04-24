@@ -109,6 +109,25 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Sync CH API key secret (staging)
+        working-directory: apps/attestation-uk-company-service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          COMPANIES_HOUSE_UK_API_KEY: ${{ secrets.COMPANIES_HOUSE_UK_API_KEY_STAGING }}
+        run: |
+          if [ -z "$COMPANIES_HOUSE_UK_API_KEY" ]; then
+            echo "Missing required GitHub secret: COMPANIES_HOUSE_UK_API_KEY_STAGING"
+            exit 1
+          fi
+          echo "$COMPANIES_HOUSE_UK_API_KEY" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
+      - name: Sync email placeholders (staging)
+        working-directory: apps/attestation-uk-company-service
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TODO_EMAIL_PLACEHOLDER: "TODO - gonna be deprecated along email"
+        run: |
+          echo "$TODO_EMAIL_PLACEHOLDER" | npx wrangler secret put SENDGRID_KEY --config wrangler.staging.jsonc
+          echo "$TODO_EMAIL_PLACEHOLDER" | npx wrangler secret put EMAIL_FROM --config wrangler.staging.jsonc
       - name: Migrate attestation database (staging)
         uses: cloudflare/wrangler-action@v3
         with:

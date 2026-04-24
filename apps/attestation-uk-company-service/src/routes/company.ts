@@ -13,7 +13,7 @@ app.get('/:number', async (c) => {
   }
 
   try {
-    const company = await getCompany(number, c.get('config').chApiKey)
+    const company = await getCompany(number, c.get('config').companiesHouseUkApiKey)
     return c.json({
       companyNumber: company.companyNumber,
       name: company.companyName,

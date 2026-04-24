@@ -3,7 +3,7 @@ import app from '../app.js'
 
 afterEach(() => vi.unstubAllGlobals())
 
-const testEnv = { CH_API_KEY: 'test-key' }
+const testEnv = { COMPANIES_HOUSE_UK_API_KEY: 'test-key' }
 
 /**
  * A minimal D1Database stub that always returns empty results.
