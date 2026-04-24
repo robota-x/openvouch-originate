@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "name": "@openvouch/lending-website-frontend",
   "version": "0.0.1",
   "private": true,
@@ -20,11 +21,11 @@
     "@tailwindcss/vite": "^4.1.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.0",
-    "happy-dom": "^15.0.0",
+    "happy-dom": "^20.9.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.0.0",
     "vite": "^6.0.0",
     "vitest": "^3.0.0",
-    "wrangler": "^3"
+    "wrangler": "^4.83.0"
   }
 }
