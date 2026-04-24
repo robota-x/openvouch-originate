@@ -68,6 +68,10 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Build workspace packages for bundling (production)
+        run: |
+          npm run build --workspace=@openvouch/d1-client
+          npm run build --workspace=@openvouch/idl
       - uses: actions/download-artifact@v4
         with:
           name: frontend-dist-production-${{ github.run_id }}
@@ -106,6 +110,10 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Build workspace packages for bundling (production)
+        run: |
+          npm run build --workspace=@openvouch/d1-client
+          npm run build --workspace=@openvouch/idl
       - name: Sync CH API key secret (production)
         working-directory: apps/attestation-uk-company-service
         env:
