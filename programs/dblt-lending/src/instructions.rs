@@ -9,12 +9,9 @@ use crate::constants::*;
 pub struct Initialize<'info> {
     #[account(init, payer = admin, space = 8 + 200)]
     pub config: Account<'info, Config>,
-
     pub dblt_mint: Account<'info, Mint>,
-
     #[account(mut)]
     pub admin: Signer<'info>,
-
     pub system_program: Program<'info, System>,
 }
 
@@ -23,6 +20,15 @@ pub struct Initialize<'info> {
 pub struct RegisterUser<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+    #[account(
+        init,
+        payer = user,
+        space = 8 + std::mem::size_of::<UserProfile>(),
+        seeds = [SEED_PROFILE, user.key().as_ref()],
+        bump
+    )]
+    pub user_profile: Account<'info, UserProfile>,
+    pub system_program: Program<'info, System>,
 }
 
 // ==================== SCORE ====================
@@ -30,6 +36,12 @@ pub struct RegisterUser<'info> {
 pub struct UpdateScore<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [SEED_PROFILE, user.key().as_ref()],
+        bump
+    )]
+    pub user_profile: Account<'info, UserProfile>,
 }
 
 // ==================== TERM OFFER ====================
@@ -51,22 +63,23 @@ pub struct CreateLoanPool<'info> {
 pub struct ContributeToPool<'info> {
     #[account(mut)]
     pub pool: Account<'info, LoanPool>,
-
     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
     pub vault: Account<'info, LoanVault>,
-
     #[account(mut)]
     pub lender: Signer<'info>,
-
+    // Added for potential lender validation
+    #[account(
+        mut,
+        seeds = [SEED_PROFILE, lender.key().as_ref()],
+        bump
+    )]
+    pub lender_profile: Account<'info, UserProfile>,
     #[account(mut)]
     pub lender_token_account: Account<'info, TokenAccount>,
-
     #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
-
     #[account(mut, seeds=[SEED_POSITION, pool.key().as_ref(), lender.key().as_ref()], bump)]
     pub position: Account<'info, LenderPosition>,
-
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -76,19 +89,21 @@ pub struct ContributeToPool<'info> {
 pub struct DisburseLoan<'info> {
     #[account(mut)]
     pub pool: Account<'info, LoanPool>,
-
     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
     pub vault: Account<'info, LoanVault>,
-
     #[account(mut)]
     pub borrower: Signer<'info>,
-
+    // Added for borrower score validation
+    #[account(
+        mut,
+        seeds = [SEED_PROFILE, borrower.key().as_ref()],
+        bump
+    )]
+    pub borrower_profile: Account<'info, UserProfile>,
     #[account(mut)]
     pub borrower_token_account: Account<'info, TokenAccount>,
-
     #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
-
     pub token_program: Program<'info, Token>,
 }
 
@@ -97,7 +112,6 @@ pub struct DisburseLoan<'info> {
 pub struct FinalizePool<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-
     #[account(mut)]
     pub pool: Account<'info, LoanPool>,
 }
@@ -107,22 +121,16 @@ pub struct FinalizePool<'info> {
 pub struct WithdrawFunds<'info> {
     #[account(mut)]
     pub lender: Signer<'info>,
-
     #[account(mut)]
     pub pool: Account<'info, LoanPool>,
-
     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
     pub vault: Account<'info, LoanVault>,
-
     #[account(mut)]
     pub lender_token_account: Account<'info, TokenAccount>,
-
     #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
-
     #[account(mut, seeds=[SEED_POSITION, pool.key().as_ref(), lender.key().as_ref()], bump)]
     pub position: Account<'info, LenderPosition>,
-
     pub token_program: Program<'info, Token>,
 }
 
@@ -131,10 +139,8 @@ pub struct WithdrawFunds<'info> {
 pub struct CreateRepaymentSchedule<'info> {
     #[account(mut)]
     pub borrower: Signer<'info>,
-
     #[account(mut)]
     pub pool: Account<'info, LoanPool>,
-
     #[account(
         init,
         payer = borrower,
@@ -143,7 +149,6 @@ pub struct CreateRepaymentSchedule<'info> {
         bump
     )]
     pub repayment_schedule: Account<'info, RepaymentSchedule>,
-
     pub system_program: Program<'info, System>,
 }
 
@@ -151,26 +156,19 @@ pub struct CreateRepaymentSchedule<'info> {
 pub struct MakeRepayment<'info> {
     #[account(mut)]
     pub borrower: Signer<'info>,
-
     #[account(mut)]
     pub pool: Account<'info, LoanPool>,
-
     #[account(mut, seeds=[b"schedule", pool.key().as_ref()], bump)]
     pub repayment_schedule: Account<'info, RepaymentSchedule>,
-
     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
     pub vault: Account<'info, LoanVault>,
-
     #[account(mut)]
     pub borrower_token_account: Account<'info, TokenAccount>,
-
     #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
-
     pub token_program: Program<'info, Token>,
 }
 
-// ==================== REPAYMENT EXTRA ====================
 #[derive(Accounts)]
 pub struct RecordLatePayment<'info> {
     pub authority: Signer<'info>,
@@ -179,7 +177,6 @@ pub struct RecordLatePayment<'info> {
 #[derive(Accounts)]
 pub struct MarkDefault<'info> {
     pub authority: Signer<'info>,
-
     #[account(mut)]
     pub repayment_schedule: Account<'info, RepaymentSchedule>,
 }
@@ -188,21 +185,15 @@ pub struct MarkDefault<'info> {
 pub struct EarlyRepayAll<'info> {
     #[account(mut)]
     pub borrower: Signer<'info>,
-
     #[account(mut)]
     pub pool: Account<'info, LoanPool>,
-
     #[account(mut)]
     pub repayment_schedule: Account<'info, RepaymentSchedule>,
-
     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
     pub vault: Account<'info, LoanVault>,
-
     #[account(mut)]
     pub borrower_token_account: Account<'info, TokenAccount>,
-
     #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
-
     pub token_program: Program<'info, Token>,
 }
