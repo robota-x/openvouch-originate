@@ -1,5 +1,3 @@
-// code for repayment of a loan
-
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 use crate::instructions::*; 
