@@ -7,18 +7,19 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-generic_record = "EL1vHbKVUwHDneBhwqC28o1xrzNSx2Dk2AmxytfQpote"
-dblt_lending = "22bmZ5cp4DdUitMt8okSwygWP1f9oWpG6zXGkVBrgCtV"
+dblt_lending = "6fXix7yZxeoqyL3wNtAHpPZ8dXAXQe3DXbVPeqcH1Gny"
+generic_record = "BBJJuSKuttQviQxC6C2PoJZu4vpG696fW5efeVWHDcSD"
 
 [programs.localnet]
-generic_record = "EL1vHbKVUwHDneBhwqC28o1xrzNSx2Dk2AmxytfQpote"
 dblt_lending = "22bmZ5cp4DdUitMt8okSwygWP1f9oWpG6zXGkVBrgCtV"
+generic_record = "EL1vHbKVUwHDneBhwqC28o1xrzNSx2Dk2AmxytfQpote"
+
+[registry]
+url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "Localnet"
 wallet = "keys/localnet/authority.json"
 
 [scripts]
 test = "make test-programs"
-
-[hooks]
