@@ -47,11 +47,13 @@ The lending platform sits on top of the attestation framework and is the primary
 
 ## Prerequisites
 
-| Tool        | Version | Install                           |
-|-------------|---------|-----------------------------------|
-| Node.js     | 22 LTS  | https://nodejs.org                |
-| npm         | 10+     | Bundled with Node 22              |
-| Wrangler    | 3+      | `npm install -g wrangler`         |
+| Tool      | Version | Install                                           |
+| --------- | ------- | ------------------------------------------------- |
+| Node.js   | 22 LTS  | https://nodejs.org                                |
+| npm       | 10+     | Bundled with Node 22                              |
+| Java      | 21 LTS  | https://adoptium.net                              |
+| Terraform | >= 1.9  | https://developer.hashicorp.com/terraform/install |
+| Docker    | latest  | https://docs.docker.com/get-docker/               |
 
 ## Getting started
 
@@ -59,57 +61,48 @@ The lending platform sits on top of the attestation framework and is the primary
 git clone <repo-url> defi-hack
 cd defi-hack
 npm install
-
-# Backend — copy env template and start wrangler dev (port 8787)
-cp apps/lending-website-backend/.dev.vars.example apps/lending-website-backend/.dev.vars
-cd apps/lending-website-backend && npm run db:migrate:local && npm run dev
-
-# Frontend — copy env template and start Vite dev (port 5173)
-cp apps/lending-website-frontend/.env.example apps/lending-website-frontend/.env
-cd apps/lending-website-frontend && npm run dev
+make dev
 ```
 
 ## Apps & packages
 
-| Name                              | Description                                                           |
-|-----------------------------------|-----------------------------------------------------------------------|
-| `apps/lending-website-frontend`   | Vue 3 + Vite frontend — wallet-integrated lending platform UI         |
-| `apps/lending-website-backend`    | Hono API on Cloudflare Workers — lending platform backend + D1 store  |
-| `contracts/`                      | On-chain attestation framework + lending contracts (deferred)         |
+| Name                                       | Description                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| `apps/web`                                 | Vue 3 + Vite frontend — wallet-integrated lending platform UI             |
+| `apps/lending-api`                         | Fastify 5 API — lending platform backend, reads attestation contracts     |
+| `apps/gov-uk-company-attestation-demo-app` | Java POC — third-party attestation provider using UK Companies House data |
+| `packages/shared-types`                    | Shared TypeScript types used by web and lending-api                       |
+| `contracts/`                               | On-chain attestation framework + lending contracts (deferred)             |
 
-## Environment files
+## Infrastructure
 
-The two apps use different env file conventions because they run on different runtimes.
+Terraform configuration targets **Google Cloud Platform** (`europe-west2` by default). Resources are not yet defined — see `infra/terraform/main.tf`.
 
-**Frontend** (`apps/lending-website-frontend`) uses the standard Vite / dotenv convention:
+Before applying, configure a GCS backend by uncommenting the `backend "gcs"` block in `infra/terraform/terraform.tf` and setting your state bucket.
 
-```
-.env.example   ← committed, documents required vars
-.env           ← gitignored, your local copy
-```
-
-Values are read by Vite at build time and exposed as `import.meta.env.*`.
-
-**Backend** (`apps/lending-website-backend`) runs inside a Cloudflare Workers runtime
-simulation (`wrangler dev` / workerd) — not a Node.js process. There is no `process.env`,
-so the `.env` / dotenv convention does not apply. Wrangler uses `.dev.vars` instead:
-
-```
-.dev.vars.example   ← committed, documents required vars
-.dev.vars           ← gitignored, your local copy
+```bash
+make deploy-infra
 ```
 
-Values are injected directly into the CF Workers env object and accessed as `c.env.*`
-in handlers. In staging/production, secrets are set with `wrangler secret put <KEY>`.
+## CI/CD
+
+| Workflow            | Trigger                  | Action                                    |
+| ------------------- | ------------------------ | ----------------------------------------- |
+| `ci.yml`            | PR or push to `main`     | lint → test → build + Docker image verify |
+| `cd-staging.yml`    | CI passes on `main`      | build → deploy to staging                 |
+| `cd-production.yml` | GitHub release published | build → deploy to production              |
 
 ## Testing
 
 ```bash
-npm test   # runs Vitest in all packages via Turborepo
+make test
 ```
 
-- `apps/lending-website-backend` — Vitest, uses `app.request()` (no port bound)
-- `apps/lending-website-frontend` — Vitest happy-dom environment, uses `@vue/test-utils`
+Runs `npm run test` via Turborepo, which runs Vitest in each package:
+
+- `apps/lending-api` — Vitest node environment, uses `fastify.inject()` (no port bound)
+- `apps/web` — Vitest happy-dom environment, uses `@vue/test-utils`
+- `packages/shared-types` — no tests (stub script satisfies Turbo pipeline)
 
 ## Architecture decisions
 

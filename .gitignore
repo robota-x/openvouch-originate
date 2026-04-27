@@ -8,7 +8,6 @@ dist/
 .turbo/
 .vite/
 .cache/
-.wrangler/
 
 # Logs
 logs/
@@ -18,21 +17,21 @@ npm-debug.log*
 # Environment files
 .env
 !.env.example
-.dev.vars
-!.dev.vars.example
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
 
 # Rust workspace (Anchor / Cargo) and Java
 target/
 .anchor/
 .gradle/
 
-# Solana program keypairs — these are private keys that control upgrade authority.
-# Back them up out-of-band (password manager / secrets vault). Never commit.
-# target/deploy/ is already covered by target/ above; this line is explicit documentation.
-target/deploy/*-keypair.json
-
 # IDE
 .idea/
 .vscode/
-keys/**/*.json
-keys/**/*.txt
+
+#test-ledger/
+test-ledger/
+target/
