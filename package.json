@@ -1,7 +1,11 @@
 {
   "name": "defi-hack",
   "private": true,
-  "workspaces": ["apps/web", "apps/lending-api", "packages/*"],
+  "workspaces": [
+    "apps/lending-website-frontend",
+    "apps/lending-website-backend",
+    "packages/*"
+  ],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
@@ -12,5 +16,7 @@
     "turbo": "latest"
   },
   "packageManager": "npm@11.4.1",
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }

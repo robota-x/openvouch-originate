@@ -1,17 +1,17 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Connection, PublicKey, Keypair, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { BN } from "bn.js";
-import path from "path";
-import { fileURLToPath } from "url";
-import fs from "fs";
 
-// Load the IDL
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const idlPath = path.join(__dirname, "../idl/dblt_lending.json");
-const idl = JSON.parse(fs.readFileSync(idlPath, "utf-8"));
+// ✅ FIX: use workspace package instead of fs loading
+import idl from "@openvouch/idl";
 
 const PROGRAM_ID = "6fXix7yZxeoqyL3wNtAHpPZ8dXAXQe3DXbVPeqcH1Gny";
 
+/**
+ * ⚠️ NOTE:
+ * This service MUST run in a Node-compatible environment
+ * (NOT Cloudflare Workers runtime).
+ */
 export class BlockchainService {
   private connection: Connection;
   private program: anchor.Program;
@@ -20,6 +20,8 @@ export class BlockchainService {
   constructor(rpcUrl: string, providerWallet: anchor.Wallet) {
     this.connection = new Connection(rpcUrl, "confirmed");
     this.providerWallet = providerWallet;
+
+    // ⚠️ Anchor expects full IDL object (now imported safely)
     this.program = new anchor.Program(
       idl as anchor.Idl,
       PROGRAM_ID,
@@ -30,14 +32,14 @@ export class BlockchainService {
   // ==================== PDA DERIVATION HELPERS ====================
 
   async deriveProfilePDA(userAddress: PublicKey): Promise<[PublicKey, number]> {
-    return await PublicKey.findProgramAddress(
+    return PublicKey.findProgramAddress(
       [Buffer.from("profile"), userAddress.toBuffer()],
       this.program.programId,
     );
   }
 
   async deriveVaultPDA(poolAddress: PublicKey): Promise<[PublicKey, number]> {
-    return await PublicKey.findProgramAddress(
+    return PublicKey.findProgramAddress(
       [Buffer.from("vault"), poolAddress.toBuffer()],
       this.program.programId,
     );
@@ -47,7 +49,7 @@ export class BlockchainService {
     poolAddress: PublicKey,
     lenderAddress: PublicKey,
   ): Promise<[PublicKey, number]> {
-    return await PublicKey.findProgramAddress(
+    return PublicKey.findProgramAddress(
       [
         Buffer.from("position"),
         poolAddress.toBuffer(),
@@ -60,7 +62,7 @@ export class BlockchainService {
   async deriveSchedulePDA(
     poolAddress: PublicKey,
   ): Promise<[PublicKey, number]> {
-    return await PublicKey.findProgramAddress(
+    return PublicKey.findProgramAddress(
       [Buffer.from("schedule"), poolAddress.toBuffer()],
       this.program.programId,
     );
@@ -68,11 +70,6 @@ export class BlockchainService {
 
   // ==================== LOAN POOL OPERATIONS ====================
 
-  /**
-   * Create a new loan pool on-chain
-   * Note: This is a placeholder - you need to implement the actual instruction call
-   * based on your contract's create_loan_pool signature
-   */
   async createLoanPool(
     borrower: PublicKey,
     targetAmount: BN,
@@ -83,7 +80,7 @@ export class BlockchainService {
     country: string,
   ): Promise<string> {
     try {
-      const tx = await this.program.methods
+      return await this.program.methods
         .createLoanPool(
           targetAmount,
           termOfferId,
@@ -96,17 +93,12 @@ export class BlockchainService {
           borrower,
         })
         .rpc();
-
-      return tx;
     } catch (error) {
       console.error("Error creating loan pool:", error);
       throw error;
     }
   }
 
-  /**
-   * Lender contributes to a pool
-   */
   async contributeToPool(
     poolAddress: PublicKey,
     lender: PublicKey,
@@ -119,7 +111,7 @@ export class BlockchainService {
       const [positionPDA] = await this.derivePositionPDA(poolAddress, lender);
       const [lenderProfilePDA] = await this.deriveProfilePDA(lender);
 
-      const tx = await this.program.methods
+      return await this.program.methods
         .contributeToPool(amount)
         .accounts({
           pool: poolAddress,
@@ -132,17 +124,12 @@ export class BlockchainService {
           tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
         })
         .rpc();
-
-      return tx;
     } catch (error) {
       console.error("Error contributing to pool:", error);
       throw error;
     }
   }
 
-  /**
-   * Disburse loan to borrower (after pool is funded)
-   */
   async disburseLoan(
     poolAddress: PublicKey,
     borrower: PublicKey,
@@ -153,7 +140,7 @@ export class BlockchainService {
       const [vaultPDA] = await this.deriveVaultPDA(poolAddress);
       const [borrowerProfilePDA] = await this.deriveProfilePDA(borrower);
 
-      const tx = await this.program.methods
+      return await this.program.methods
         .disburseLoan()
         .accounts({
           pool: poolAddress,
@@ -165,8 +152,6 @@ export class BlockchainService {
           tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
         })
         .rpc();
-
-      return tx;
     } catch (error) {
       console.error("Error disburse loan:", error);
       throw error;
@@ -175,15 +160,10 @@ export class BlockchainService {
 
   // ==================== HELPER METHODS ====================
 
-  /**
-   * Get or create a token account for a given mint
-   */
   async getOrCreateTokenAccount(
     owner: PublicKey,
     mint: PublicKey,
   ): Promise<PublicKey> {
-    // This is a simplified version - you'll need to implement the full logic
-    // to check if the account exists and create it if not
     const [associatedTokenAddress] = await anchor.utils.token.associatedAddress(
       {
         mint,
@@ -191,13 +171,11 @@ export class BlockchainService {
       },
     );
 
-    // Check if account exists
     const accountInfo = await this.connection.getAccountInfo(
       associatedTokenAddress,
     );
+
     if (!accountInfo) {
-      // Account doesn't exist - you'll need to create it via transaction
-      // This is a placeholder - implement proper creation logic
       console.warn(
         `Token account ${associatedTokenAddress.toBase58()} does not exist`,
       );
@@ -206,9 +184,6 @@ export class BlockchainService {
     return associatedTokenAddress;
   }
 
-  /**
-   * Get the balance of a token account
-   */
   async getTokenBalance(tokenAccount: PublicKey): Promise<number> {
     const info = await this.connection.getTokenAccountBalance(tokenAccount);
     return parseFloat(info.value.uiAmount || "0");
