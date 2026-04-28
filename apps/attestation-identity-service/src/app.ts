@@ -3,7 +3,8 @@ import type { Context } from 'hono'
 import { cors } from 'hono/cors'
 import { configMiddleware } from './config.js'
 import { createShuftiSession, verifyShuftiSignature } from './services/shufti.js'
-import { getIdentity, saveIdentity } from './store/file-registry.js'
+import { createAppDb } from './db/client.js'
+import { getIdentity, saveIdentity } from './store/identity-store.js'
 import type { AppEnv } from './types.js'
 
 const app = new Hono<AppEnv>()
@@ -29,8 +30,11 @@ function parseWalletFromReference(reference: unknown): string | null {
 
 // GET /identity/:wallet
 app.get('/identity/:wallet', async (c) => {
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
   const wallet = c.req.param('wallet')
-  const identity = await getIdentity(wallet)
+  const identity = await getIdentity(db, wallet)
   
   if (!identity) {
     return c.json({ verified: false }, 404)
@@ -49,7 +53,13 @@ app.get('/identity/:wallet', async (c) => {
 
 // POST /verify/start
 app.post('/verify/start', async (c) => {
-  const { walletAddress, redirectUrl } = await c.req.json<{ walletAddress: string, redirectUrl?: string }>()
+  const { walletAddress, redirectUrl, fullName, dob, country } = await c.req.json<{
+    walletAddress: string
+    redirectUrl?: string
+    fullName?: string
+    dob?: string
+    country?: string
+  }>()
   const config = c.get('config')
   
   if (!walletAddress) {
@@ -57,7 +67,11 @@ app.post('/verify/start', async (c) => {
   }
 
   // Check if already verified
-  const existing = await getIdentity(walletAddress)
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  const existing = await getIdentity(db, walletAddress)
   if (existing) {
     return c.json({ error: 'already_verified', identity: existing }, 409)
   }
@@ -69,6 +83,9 @@ app.post('/verify/start', async (c) => {
     url.searchParams.set('sessionId', reference)
     url.searchParams.set('walletAddress', walletAddress)
     if (redirectUrl) url.searchParams.set('redirectUrl', redirectUrl)
+    if (fullName) url.searchParams.set('fullName', fullName)
+    if (dob) url.searchParams.set('dob', dob)
+    if (country) url.searchParams.set('country', country)
     return c.json({
       sessionId: reference,
       verificationUrl: url.toString(),
@@ -111,7 +128,11 @@ async function completeVerification(c: Context<AppEnv>) {
     return c.json({ error: 'missing_fields' }, 400)
   }
 
-  await saveIdentity({
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  await saveIdentity(db, {
     walletAddress,
     fullName: fullName.toUpperCase(),
     dob: dob ?? '1990-01-01',
@@ -160,7 +181,11 @@ app.post('/verify/webhook', async (c) => {
         return c.json({ error: 'unknown_reference' }, 400)
     }
 
-    await saveIdentity({
+    const d1 = c.env?.DB
+    if (!d1) return c.json({ error: 'not_implemented' }, 501)
+    const db = createAppDb(d1)
+
+    await saveIdentity(db, {
       walletAddress,
       fullName: `${verificationData.first_name} ${verificationData.last_name}`.toUpperCase(),
       dob: verificationData.dob,

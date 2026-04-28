@@ -9,6 +9,13 @@
   "observability": {
     "enabled": true
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "openvouch-attestation-identity-db-staging",
+      "database_id": "5bee51c1-3a1c-4d9c-aa96-5a840983b89b"
+    }
+  ],
   "vars": {
     "IDENTITY_PROVIDER_MODE": "mock",
     "VERIFY_PORTAL_BASE_URL": "http://localhost:5173",

@@ -59,6 +59,7 @@ jobs:
         env:
           VITE_API_BASE_URL: https://openvouch-originate-backend-staging.neuronefunzionante.workers.dev
           VITE_IDENTITY_API_BASE_URL: https://openvouch-attestation-identity-service-staging.neuronefunzionante.workers.dev
+          VITE_ATTESTATION_API_BASE_URL: https://openvouch-attestation-uk-company-service-staging.neuronefunzionante.workers.dev
       - uses: actions/upload-artifact@v4
         with:
           name: frontend-dist-staging-${{ github.run_id }}

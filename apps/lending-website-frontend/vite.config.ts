@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const lendingApiUrl = env.VITE_API_BASE_URL || 'http://localhost:8787'
+  const attestationApiUrl = env.VITE_ATTESTATION_API_BASE_URL || 'http://localhost:8788'
   const identityApiUrl = env.VITE_IDENTITY_API_BASE_URL || 'http://localhost:8789'
 
   return {
@@ -28,6 +29,11 @@ export default defineConfig(({ mode }) => {
           target:       identityApiUrl,
           changeOrigin: true,
           rewrite:      (p) => p.replace(/^\/identity-api/, ''),
+        },
+        '/attestation-api': {
+          target:       attestationApiUrl,
+          changeOrigin: true,
+          rewrite:      (p) => p.replace(/^\/attestation-api/, ''),
         },
       },
     },

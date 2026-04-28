@@ -21,12 +21,12 @@ vi.mock('../api/client', () => ({
   },
 }))
 
-async function mountPage() {
+async function mountPage(path = '/verify/portal') {
   const router = createRouter({
     history: createWebHistory(),
     routes: [{ path: '/verify/portal', component: VerifyPortalPage }],
   })
-  await router.push('/verify/portal')
+  await router.push(path)
   await router.isReady()
   return mount(VerifyPortalPage, {
     global: { plugins: [router] },
@@ -73,5 +73,26 @@ describe('VerifyPortalPage', () => {
     expect(completeVerification).toHaveBeenCalledTimes(1)
     expect(getIdentity).toHaveBeenCalledTimes(1)
     expect(wrapper.text()).toContain('Verification complete')
+  })
+
+  it('redirects back when redirectUrl is provided in query', async () => {
+    const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {})
+    const wrapper = await mountPage('/verify/portal?sessionId=id_test_123&walletAddress=WalletXYZ&redirectUrl=%2Fverify%2Fcompany%3Fresume%3D1')
+
+    await wrapper.get('[data-testid="full-name-input"]').setValue('Ada Lovelace')
+    await wrapper.get('[data-testid="complete-button"]').trigger('click')
+    await Promise.resolve()
+
+    expect(assign).toHaveBeenCalledTimes(1)
+    expect(assign.mock.calls[0]?.[0]).toContain('/verify/company?resume=1')
+    expect(assign.mock.calls[0]?.[0]).toContain('identityVerified=1')
+  })
+
+  it('locks prefilled identity fields during company handover', async () => {
+    const wrapper = await mountPage('/verify/portal?sessionId=id_test_123&walletAddress=WalletXYZ&fullName=Ada%20Lovelace&dob=1815-12-10&country=GB')
+    const fullNameInput = wrapper.get('[data-testid="full-name-input"]')
+    expect((fullNameInput.element as HTMLInputElement).value).toBe('Ada Lovelace')
+    expect(fullNameInput.attributes('readonly')).toBeDefined()
+    expect(wrapper.text()).toContain('prefilled from the selected company officer')
   })
 })

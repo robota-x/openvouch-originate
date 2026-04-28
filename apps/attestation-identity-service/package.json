@@ -5,16 +5,23 @@
   "private": true,
   "scripts": {
     "build": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply openvouch-attestation-identity-db-staging --local --config wrangler.staging.jsonc",
+    "db:migrate:staging": "wrangler d1 migrations apply openvouch-attestation-identity-db-staging --remote --config wrangler.staging.jsonc",
+    "db:migrate:production": "wrangler d1 migrations apply openvouch-attestation-identity-db-production --remote --config wrangler.production.jsonc",
     "dev": "wrangler dev --config wrangler.jsonc --port 8789 --inspector-port 9231",
     "lint": "echo \"No linter configured yet\"",
     "test": "vitest run"
   },
   "dependencies": {
+    "@openvouch/d1-client": "*",
+    "drizzle-orm": "^0.43.0",
     "hono": "^4.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.0.0",
     "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.31.0",
     "typescript": "^5.0.0",
     "vitest": "^3.0.0",
     "wrangler": "^4.83.0"

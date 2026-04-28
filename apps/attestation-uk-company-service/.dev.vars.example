@@ -14,7 +14,6 @@
 # Register free at https://developer.company-information.service.gov.uk
 COMPANIES_HOUSE_UK_API_KEY=your_companies_house_api_key
 
-# ── Email (OTP) ───────────────────────────────────────────────────────────────
-# Leave blank to log OTP to console instead of sending (dev mode)
-SENDGRID_KEY=
-EMAIL_FROM=noreply@openvouch.io
+# ── Identity service integration ──────────────────────────────────────────────
+# Local deterministic port for attestation-identity-service
+IDENTITY_SERVICE_URL=http://localhost:8789

@@ -7,6 +7,7 @@ import ProfilePage     from '../pages/ProfilePage.vue'
 import MyLoansPage     from '../pages/MyLoansPage.vue'
 import DesignPage      from '../pages/DesignPage.vue'
 import VerifyPortalPage from '../verify/VerifyPortalPage.vue'
+import CompanyAttestationFlowPage from '../verify/CompanyAttestationFlowPage.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -37,7 +38,8 @@ const router = createRouter({
     // Identity verification portal routes.
     // Kept isolated under /verify/* for clear ownership boundaries.
     // -----------------------------------------------------------------------
-    { path: '/verify',           redirect: '/verify/portal', meta: { hideNav: true } },
+    { path: '/verify',           redirect: '/verify/company', meta: { hideNav: true } },
+    { path: '/verify/company',   component: CompanyAttestationFlowPage, meta: { hideNav: true } },
     { path: '/verify/portal',    component: VerifyPortalPage, meta: { hideNav: true } },
   ],
 })

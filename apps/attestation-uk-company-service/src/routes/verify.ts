@@ -1,24 +1,24 @@
 import { Hono } from 'hono'
 import { getCompany, directorNameMatches } from '../services/companiesHouse.js'
-import { generateOtp, otpExpiry, isOtpValid, sendOtpEmail } from '../services/otp.js'
+import { ApiIdentityProvider } from '../services/identity.js'
 import { buildChallengeMessage, verifyWalletSignature } from '../services/walletVerifier.js'
 import { issueAttestation, getAttestation } from '../services/attestation.js'
 import { sessionStore, attestationStore } from '../store/sessions.js'
 import { createAppDb } from '../db/client.js'
 import type { AppEnv } from '../types.js'
 
-interface StartBody        { walletAddress: string; companyNumber: string; directorName: string; companyEmail: string }
-interface EmailConfirmBody { sessionId: string; otp: string }
-interface SignBody         { sessionId: string; signature: string }
+interface StartBody { walletAddress: string; companyNumber: string; directorName: string }
+interface SignBody  { sessionId: string; signature: string }
+interface CompleteBody { sessionId: string }
 
 const app = new Hono<AppEnv>()
 
 // POST /api/verify/start
 app.post('/start', async (c) => {
   const body = await c.req.json<StartBody>()
-  const { walletAddress, companyNumber, directorName, companyEmail } = body
+  const { walletAddress, companyNumber, directorName } = body
 
-  if (!walletAddress || !companyNumber || !directorName || !companyEmail) {
+  if (!walletAddress || !companyNumber || !directorName) {
     return c.json({ error: 'missing_fields' }, 400)
   }
 
@@ -31,6 +31,22 @@ app.post('/start', async (c) => {
   }
 
   const config = c.get('config')
+  
+  // 1. Identity Check Prerequisite
+  const identityProvider = new ApiIdentityProvider(config.identityServiceUrl)
+  let identity
+  try {
+    identity = await identityProvider.getIdentity(walletAddress)
+  } catch (err) {
+    return c.json({ error: 'identity_service_unavailable' }, 502)
+  }
+
+  if (!identity) {
+    // In a real app, we'd provide a link to the identity service KYC flow
+    return c.json({ error: 'identity_required' }, 403)
+  }
+
+  // 2. Companies House Check
   let company
   try {
     company = await getCompany(companyNumber, config.companiesHouseUkApiKey)
@@ -44,51 +60,27 @@ app.post('/start', async (c) => {
     return c.json({ error: 'company_not_active', status: company.status }, 422)
   }
 
-  if (!directorNameMatches(directorName, company.directors)) {
-    return c.json({ error: 'director_not_found' }, 422)
+  // 3. Cross-Referencing (Name check)
+  // We compare the director name from CoHouse with the verified name from Identity service
+  if (!directorNameMatches(identity.fullName, company.directors)) {
+    return c.json({ error: 'director_mismatch_with_identity', details: 'The verified identity name does not match any active director.' }, 422)
   }
 
-  const otp = generateOtp()
+  // Optional: DOB check could be added here if needed, comparing identity.dob with CoHouse partial DOB
+
   const challengeMessage = buildChallengeMessage(companyNumber, walletAddress)
   const session = {
     id: crypto.randomUUID(),
     walletAddress,
     companyNumber,
-    directorName,
-    companyEmail,
+    directorName, // This is the CoHouse version we matched against
     challengeMessage,
-    otp,
-    otpExpiresAt: otpExpiry(),
     status: 'pending' as const,
     createdAt: Date.now(),
   }
   await sessionStore.set(db, session)
-  await sendOtpEmail(companyEmail, otp, company.companyName, config)
 
-  return c.json({ sessionId: session.id, challengeMessage, companyName: company.companyName })
-})
-
-// POST /api/verify/email-confirm — validates the OTP received by email
-app.post('/email-confirm', async (c) => {
-  const body = await c.req.json<EmailConfirmBody>()
-  const { sessionId, otp } = body
-
-  if (!sessionId || !otp) return c.json({ error: 'missing_fields' }, 400)
-
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-
-  const session = await sessionStore.get(db, sessionId)
-  if (!session) return c.json({ error: 'session_not_found' }, 404)
-  if (session.status !== 'pending') return c.json({ error: 'invalid_session_state' }, 409)
-
-  if (!isOtpValid(otp, session.otp, session.otpExpiresAt)) {
-    return c.json({ error: 'invalid_otp' }, 422)
-  }
-
-  await sessionStore.update(db, sessionId, { status: 'email_verified' })
-  return c.json({ success: true })
+  return c.json({ sessionId: session.id, challengeMessage, companyName: company.companyName, verifiedIdentity: identity.fullName })
 })
 
 // POST /api/verify/sign — verifies wallet signature and issues attestation
@@ -105,7 +97,6 @@ app.post('/sign', async (c) => {
   const session = await sessionStore.get(db, sessionId)
   if (!session) return c.json({ error: 'session_not_found' }, 404)
 
-  // Allow skipping email OTP for hackathon demo (if status is still 'pending')
   if (session.status === 'attested') {
     return c.json({ error: 'invalid_session_state' }, 409)
   }
@@ -139,8 +130,47 @@ app.post('/sign', async (c) => {
   })
 })
 
+// POST /api/verify/complete — issues attestation without signature flow (prototype path)
+app.post('/complete', async (c) => {
+  const body = await c.req.json<CompleteBody>()
+  const { sessionId } = body
+  if (!sessionId) return c.json({ error: 'missing_fields' }, 400)
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  const session = await sessionStore.get(db, sessionId)
+  if (!session) return c.json({ error: 'session_not_found' }, 404)
+  if (session.status === 'attested') return c.json({ error: 'invalid_session_state' }, 409)
+
+  const config = c.get('config')
+  let companyName = ''
+  try {
+    const company = await getCompany(session.companyNumber, config.companiesHouseUkApiKey)
+    companyName = company.companyName
+  } catch {
+    companyName = `Company ${session.companyNumber}`
+  }
+
+  const attestation = await issueAttestation(db, {
+    walletAddress: session.walletAddress,
+    companyNumber: session.companyNumber,
+    companyName,
+    directorName: session.directorName,
+  })
+
+  await sessionStore.update(db, sessionId, { status: 'attested' })
+
+  return c.json({
+    success: true,
+    attestationAddress: attestation.attestationAddress,
+    companyName,
+    expiresAt: attestation.expiresAt,
+  })
+})
+
 // GET /api/verify/status/:wallet — returns attestation status for a wallet
-// Returns {verified:false} when DB is absent (consistent with "no attestation found")
 app.get('/status/:wallet', async (c) => {
   const d1 = c.env?.DB
   if (!d1) return c.json({ verified: false })

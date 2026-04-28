@@ -9,6 +9,13 @@
   "observability": {
     "enabled": true
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "openvouch-attestation-identity-db-production",
+      "database_id": "f11c3a74-572f-4a3c-9766-744f98e7ecbd"
+    }
+  ],
   "vars": {
     "IDENTITY_PROVIDER_MODE": "mock",
     "VERIFY_PORTAL_BASE_URL": "https://openvouch-originate-frontend-production.robota.dev",

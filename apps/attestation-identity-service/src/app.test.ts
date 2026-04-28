@@ -12,7 +12,7 @@ const {
   verifyShuftiSignature: vi.fn(),
 }))
 
-vi.mock('./store/file-registry.js', () => ({
+vi.mock('./store/identity-store.js', () => ({
   getIdentity,
   saveIdentity,
 }))
@@ -23,6 +23,24 @@ vi.mock('./services/shufti.js', () => ({
 }))
 
 import app from './app.js'
+
+const emptyD1 = {
+  prepare: (_sql: string) => ({
+    bind: (..._args: unknown[]) => ({
+      all: async () => ({ results: [], success: true, meta: {} }),
+      run: async () => ({ success: true, meta: {} }),
+      first: async () => null,
+      raw: async () => [],
+    }),
+    all: async () => ({ results: [], success: true, meta: {} }),
+    run: async () => ({ success: true, meta: {} }),
+    first: async () => null,
+    raw: async () => [],
+  }),
+  batch: async () => [],
+  exec: async () => ({ count: 0, duration: 0 }),
+  dump: async () => new ArrayBuffer(0),
+} as unknown as D1Database
 
 describe('identity service app', () => {
   beforeEach(() => {
@@ -43,12 +61,37 @@ describe('identity service app', () => {
     }, {
       IDENTITY_PROVIDER_MODE: 'mock',
       VERIFY_PORTAL_BASE_URL: 'https://frontend.example',
+      DB: emptyD1,
     })
 
     expect(res.status).toBe(200)
     const body = await res.json() as { sessionId: string; verificationUrl: string }
     expect(body.sessionId.startsWith('id_')).toBe(true)
     expect(body.verificationUrl.startsWith('https://frontend.example/verify/portal')).toBe(true)
+  })
+
+  it('POST /verify/start forwards provided director identity hints to portal URL in mock mode', async () => {
+    const res = await app.request('/verify/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        walletAddress: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
+        fullName: 'Ada Lovelace',
+        dob: '1815-12-10',
+        country: 'GB',
+      }),
+    }, {
+      IDENTITY_PROVIDER_MODE: 'mock',
+      VERIFY_PORTAL_BASE_URL: 'https://frontend.example',
+      DB: emptyD1,
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { verificationUrl: string }
+    const url = new URL(body.verificationUrl)
+    expect(url.searchParams.get('fullName')).toBe('Ada Lovelace')
+    expect(url.searchParams.get('dob')).toBe('1815-12-10')
+    expect(url.searchParams.get('country')).toBe('GB')
   })
 
   it('POST /verify/mock-complete persists a verified identity', async () => {
@@ -63,10 +106,11 @@ describe('identity service app', () => {
         dob: '1815-12-10',
         country: 'GB',
       }),
-    }, { IDENTITY_PROVIDER_MODE: 'mock' })
+    }, { IDENTITY_PROVIDER_MODE: 'mock', DB: emptyD1 })
 
     expect(res.status).toBe(200)
-    expect(saveIdentity).toHaveBeenCalledWith(expect.objectContaining({
+    expect(saveIdentity).toHaveBeenCalledTimes(1)
+    expect(saveIdentity.mock.calls[0]?.[1]).toEqual(expect.objectContaining({
       walletAddress,
       fullName: 'ADA LOVELACE',
       dob: '1815-12-10',
@@ -83,7 +127,7 @@ describe('identity service app', () => {
         Signature: 'any',
       },
       body: JSON.stringify({ event: 'verification.accepted' }),
-    }, { IDENTITY_PROVIDER_MODE: 'mock' })
+    }, { IDENTITY_PROVIDER_MODE: 'mock', DB: emptyD1 })
 
     expect(res.status).toBe(400)
     const body = await res.json() as { error: string }
@@ -114,10 +158,12 @@ describe('identity service app', () => {
       IDENTITY_PROVIDER_MODE: 'real',
       SHUFTI_CLIENT_ID: 'client',
       SHUFTI_SECRET: 'secret',
+      DB: emptyD1,
     })
 
     expect(res.status).toBe(200)
-    expect(saveIdentity).toHaveBeenCalledWith(expect.objectContaining({
+    expect(saveIdentity).toHaveBeenCalledTimes(1)
+    expect(saveIdentity.mock.calls[0]?.[1]).toEqual(expect.objectContaining({
       walletAddress: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
       fullName: 'ADA LOVELACE',
       reference: 'id_7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU_abc123',
@@ -126,7 +172,7 @@ describe('identity service app', () => {
 
   it('GET /identity/:wallet returns 404 when no identity exists', async () => {
     getIdentity.mockResolvedValueOnce(null)
-    const res = await app.request('/identity/unknown')
+    const res = await app.request('/identity/unknown', {}, { DB: emptyD1 })
     expect(res.status).toBe(404)
   })
 })

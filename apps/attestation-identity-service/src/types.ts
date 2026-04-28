@@ -1,4 +1,5 @@
 export interface Bindings {
+  DB?: D1Database
   IDENTITY_PROVIDER_MODE?: string
   VERIFY_PORTAL_BASE_URL?: string
   SHUFTI_CLIENT_ID?: string

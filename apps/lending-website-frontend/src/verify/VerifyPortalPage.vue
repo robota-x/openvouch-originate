@@ -15,9 +15,11 @@ const success = ref<string | null>(null)
 
 const sessionId = ref('')
 const walletAddress = ref('')
+const redirectUrl = ref('')
 const fullName = ref('')
 const dob = ref('')
 const country = ref('GB')
+const handoverPrefilled = ref(false)
 
 const stepIndex = computed(() => {
   if (step.value === 'start') return 1
@@ -73,6 +75,12 @@ async function completeFaceCheck() {
     }
     step.value = 'completed'
     success.value = `Identity verified for ${identity.identity?.fullName ?? fullName.value}`
+    if (redirectUrl.value) {
+      const target = new URL(redirectUrl.value, window.location.origin)
+      target.searchParams.set('identityVerified', '1')
+      target.searchParams.set('walletAddress', walletAddress.value)
+      window.location.assign(target.toString())
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to complete verification'
   } finally {
@@ -83,8 +91,21 @@ async function completeFaceCheck() {
 onMounted(() => {
   const session = route.query.sessionId
   const wallet = route.query.walletAddress
+  const redirect = route.query.redirectUrl
+  const prefillName = route.query.fullName
+  const prefillDob = route.query.dob
+  const prefillCountry = route.query.country
   if (typeof session === 'string') sessionId.value = session
   if (typeof wallet === 'string') walletAddress.value = wallet
+  if (typeof redirect === 'string') redirectUrl.value = redirect
+  if (typeof prefillName === 'string' && !fullName.value) fullName.value = prefillName
+  if (typeof prefillDob === 'string' && !dob.value) dob.value = prefillDob
+  if (typeof prefillCountry === 'string' && !country.value) country.value = prefillCountry
+  handoverPrefilled.value = (
+    typeof prefillName === 'string'
+    || typeof prefillDob === 'string'
+    || typeof prefillCountry === 'string'
+  )
   if (sessionId.value && walletAddress.value) {
     step.value = 'face-check'
   }
@@ -157,6 +178,7 @@ onMounted(() => {
               v-model.trim="fullName"
               type="text"
               data-testid="full-name-input"
+              :readonly="handoverPrefilled"
               class="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-sm outline-none focus:border-primary"
               placeholder="Jane Doe"
             />
@@ -167,6 +189,7 @@ onMounted(() => {
               <input
                 v-model="dob"
                 type="date"
+                :readonly="handoverPrefilled"
                 class="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </label>
@@ -176,11 +199,15 @@ onMounted(() => {
                 v-model.trim="country"
                 type="text"
                 maxlength="2"
+                :readonly="handoverPrefilled"
                 class="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-sm uppercase outline-none focus:border-primary"
                 placeholder="GB"
               />
             </label>
           </div>
+          <p v-if="handoverPrefilled" class="text-xs text-muted">
+            Director details are prefilled from the selected company officer and cannot be edited in this step.
+          </p>
           <button
             type="button"
             data-testid="complete-button"

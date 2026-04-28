@@ -43,6 +43,13 @@ export async function getActiveDirectors(companyNumber: string, apiKey: string):
       name: o['name'] as string,
       role: o['officer_role'] as string,
       appointedOn: (o['appointed_on'] as string) ?? '',
+      dob: (() => {
+        const raw = o['date_of_birth'] as { year?: number; month?: number } | undefined
+        if (!raw?.year || !raw?.month) return undefined
+        const month = String(raw.month).padStart(2, '0')
+        return `${raw.year}-${month}-01`
+      })(),
+      country: (o['nationality'] as string | undefined) ?? (o['country_of_residence'] as string | undefined),
     }))
 }
 
