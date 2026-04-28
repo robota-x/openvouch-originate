@@ -10,7 +10,7 @@
     "db:migrate:staging": "wrangler d1 migrations apply openvouch-attestation-identity-db-staging --remote --config wrangler.staging.jsonc",
     "db:migrate:production": "wrangler d1 migrations apply openvouch-attestation-identity-db-production --remote --config wrangler.production.jsonc",
     "dev": "wrangler dev --config wrangler.jsonc --port 8789 --inspector-port 9231",
-    "lint": "echo \"No linter configured yet\"",
+    "lint": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

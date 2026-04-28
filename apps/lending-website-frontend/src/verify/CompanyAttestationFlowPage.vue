@@ -143,8 +143,16 @@ async function startAttestation() {
     )
     window.location.assign(verification.verificationUrl)
   } catch (err) {
-    if (err instanceof Error && 'status' in err && err.status === 409) {
-      error.value = 'This wallet already has an attestation for a company'
+    if (err instanceof ApiError && err.status === 409) {
+      if (err.message === 'wallet_already_attested') {
+        error.value = 'This wallet already has an attestation for a company.'
+      } else if (err.message === 'already_verified') {
+        // This shouldn't normally be reachable if identityMatchesDirector worked, 
+        // but identity-service might still return it if session logic changes.
+        error.value = 'Identity is already verified, but does not match the selected director.'
+      } else {
+        error.value = 'A conflict occurred. You might already have an active session or record.'
+      }
     } else {
       error.value = err instanceof Error ? err.message : 'Failed to progress attestation flow'
     }
@@ -183,9 +191,9 @@ onMounted(async () => {
 
       <section class="grid gap-3 sm:grid-cols-4">
         <IdentityStepCard :step="1" title="Company" description="Select target company." :state="stepIndex > 1 ? 'done' : 'active'" />
-        <IdentityStepCard :step="2" title="Identity" description="Check or verify identity." :state="stepIndex === 2 ? 'active' : stepIndex > 2 ? 'done' : 'pending'" />
-        <IdentityStepCard :step="3" title="Attestation" description="Issue company attestation." :state="stepIndex === 3 ? 'active' : stepIndex > 3 ? 'done' : 'pending'" />
-        <IdentityStepCard :step="4" title="Completed" description="Attestation status confirmed." :state="stepIndex === 4 ? 'done' : 'pending'" />
+        <IdentityStepCard :step="2" title="Identity" description="Secure identity verification." :state="stepIndex === 2 ? 'active' : stepIndex > 2 ? 'done' : 'pending'" />
+        <IdentityStepCard :step="3" title="Attestation" description="Issue secure attestation." :state="stepIndex === 3 ? 'active' : stepIndex > 3 ? 'done' : 'pending'" />
+        <IdentityStepCard :step="4" title="Completed" description="Verification confirmed." :state="stepIndex === 4 ? 'done' : 'pending'" />
       </section>
 
       <section class="glass-panel rounded-xl p-6 space-y-4">
@@ -224,7 +232,7 @@ onMounted(async () => {
           :disabled="busy"
           @click="startAttestation"
         >
-          {{ busy ? 'Processing...' : 'Start Company Verification' }}
+          {{ busy ? 'Processing...' : 'Verify Company Ownership' }}
         </button>
 
         <div v-if="step === 'completed'" class="rounded-lg border border-emerald/40 bg-emerald/10 px-4 py-3">

@@ -66,16 +66,6 @@ app.post('/verify/start', async (c) => {
     return c.json({ error: 'missing_wallet_address' }, 400)
   }
 
-  // Check if already verified
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-
-  const existing = await getIdentity(db, walletAddress)
-  if (existing) {
-    return c.json({ error: 'already_verified', identity: existing }, 409)
-  }
-
   const reference = buildReference(walletAddress)
 
   if (config.identityProviderMode === 'mock') {

@@ -52,6 +52,7 @@ app.post('/start', async (c) => {
     company = await getCompany(companyNumber, config.companiesHouseUkApiKey)
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown'
+    console.error(`[verify/start] Companies House lookup failed for ${companyNumber}: ${msg}`)
     if (msg === 'company_not_found') return c.json({ error: 'company_not_found' }, 404)
     return c.json({ error: 'ch_api_unavailable' }, 502)
   }
@@ -66,7 +67,18 @@ app.post('/start', async (c) => {
     return c.json({ error: 'director_mismatch_with_identity', details: 'The verified identity name does not match any active director.' }, 422)
   }
 
-  // Optional: DOB check could be added here if needed, comparing identity.dob with CoHouse partial DOB
+  // 4. DOB Check (Partial Month/Year)
+  // Companies House only provides YYYY-MM. Identity service might provide YYYY-MM-DD.
+  const matchedDirector = company.directors.find(d => directorNameMatches(identity.fullName, [d]))
+  if (matchedDirector && matchedDirector.dob && identity.dob) {
+    const normalizeDob = (d: string) => d.substring(0, 7) // Get YYYY-MM
+    if (normalizeDob(matchedDirector.dob) !== normalizeDob(identity.dob)) {
+      return c.json({ 
+        error: 'dob_mismatch', 
+        details: 'The verified date of birth does not match the company director records.' 
+      }, 422)
+    }
+  }
 
   const challengeMessage = buildChallengeMessage(companyNumber, walletAddress)
   const session = {

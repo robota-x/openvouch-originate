@@ -8,9 +8,14 @@ function authHeader(apiKey: string): string {
 }
 
 async function chFetch(path: string, apiKey: string): Promise<Response> {
-  return fetch(`${BASE_URL}${path}`, {
+  const url = `${BASE_URL}${path}`
+  const res = await fetch(url, {
     headers: { Authorization: authHeader(apiKey) },
   })
+  if (!res.ok && res.status !== 404) {
+    console.error(`[companies-house] API error: ${res.status} on ${path}`)
+  }
+  return res
 }
 
 export async function getCompany(companyNumber: string, apiKey: string): Promise<CompanyDetails> {
