@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import IdentityStepCard from './components/IdentityStepCard.vue'
 import { identityClient } from '../api/client'
-import { fmtMonthYear } from '../utils/format'
+import { fmtMonthYear, fmtDate } from '../utils/format'
+import { useAuth } from '../composables/useAuth'
 
 type FlowStep = 'start' | 'document-check' | 'biometric' | 'processing' | 'completed'
 
+const auth = useAuth()
 const route = useRoute()
+const router = useRouter()
 
 const step = ref<FlowStep>('start')
 const busy = ref(false)
@@ -16,6 +19,7 @@ const success = ref<string | null>(null)
 
 const sessionId = ref('')
 const walletAddress = ref('')
+const isEditingWallet = ref(false)
 const redirectUrl = ref('')
 const fullName = ref('')
 const dob = ref('')
@@ -29,8 +33,13 @@ const scanProgress = ref(0)
 let stream: MediaStream | null = null
 
 const isPartialDob = computed(() => {
-  // Companies House format is YYYY-MM-01 or just YYYY-MM
-  return dob.value && (dob.value.length === 7 || dob.value.endsWith('-01'))
+  // Only use partial DOB (Month/Year) display if we are in handover/prefilled mode 
+  // and the data looks like a Companies House partial record (YYYY-MM-01 or YYYY-MM)
+  return handoverPrefilled.value && dob.value && (dob.value.length === 7 || dob.value.endsWith('-01'))
+})
+
+const isRedirectingToCompany = computed(() => {
+  return redirectUrl.value && redirectUrl.value.includes('/verify/company')
 })
 
 const stepIndex = computed(() => {
@@ -130,11 +139,28 @@ async function completeVerification() {
     }
     step.value = 'completed'
     success.value = `Identity verified for ${identity.identity?.fullName ?? fullName.value}`
+    
     if (redirectUrl.value) {
-      const target = new URL(redirectUrl.value, window.location.origin)
-      target.searchParams.set('identityVerified', '1')
-      target.searchParams.set('walletAddress', walletAddress.value)
-      window.location.assign(target.toString())
+      setTimeout(() => {
+        try {
+          const target = new URL(redirectUrl.value, window.location.origin)
+          // We only append these if they don't exist to avoid duplicates if already in redirectUrl
+          if (!target.searchParams.has('identityVerified')) target.searchParams.set('identityVerified', '1')
+          if (!target.searchParams.has('walletAddress')) target.searchParams.set('walletAddress', walletAddress.value)
+          
+          if (target.origin === window.location.origin) {
+            // Internal redirect: use router for smoother transition
+            const internalPath = target.pathname + target.search + target.hash
+            router.push(internalPath)
+          } else {
+            // External redirect
+            window.location.assign(target.toString())
+          }
+        } catch (err) {
+          console.error('Redirect failed:', err)
+          router.push('/')
+        }
+      }, 3000)
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to complete verification'
@@ -145,6 +171,7 @@ async function completeVerification() {
 }
 
 onMounted(() => {
+  walletAddress.value = auth.address ?? ''
   const session = route.query.sessionId
   const wallet = route.query.walletAddress
   const redirect = route.query.redirectUrl
@@ -214,13 +241,25 @@ onMounted(() => {
         <div v-if="step === 'start'" class="space-y-4">
           <label class="block text-sm">
             <span class="mb-1 block text-muted">Wallet address</span>
-            <input
-              v-model.trim="walletAddress"
-              type="text"
-              data-testid="wallet-input"
-              class="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-sm outline-none focus:border-primary"
-              placeholder="Enter wallet address"
-            />
+            <div class="flex gap-2">
+              <input
+                v-model.trim="walletAddress"
+                type="text"
+                data-testid="wallet-input"
+                :readonly="!isEditingWallet"
+                class="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-70"
+                :class="{ 'border-transparent bg-black/10': !isEditingWallet }"
+                placeholder="Enter wallet address"
+              />
+              <button
+                v-if="!isEditingWallet"
+                type="button"
+                class="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted hover:text-white"
+                @click="isEditingWallet = true"
+              >
+                Edit
+              </button>
+            </div>
           </label>
 
           <button
@@ -258,11 +297,13 @@ onMounted(() => {
                   {{ fmtMonthYear(dob) }}
                 </div>
               </template>
+              <div v-else-if="handoverPrefilled" class="flex h-[38px] items-center rounded-lg border border-border bg-black/10 px-3 py-2 text-sm text-white">
+                {{ fmtDate(dob) }}
+              </div>
               <input
                 v-else
                 v-model="dob"
                 type="date"
-                :readonly="handoverPrefilled"
                 class="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </label>
@@ -368,7 +409,9 @@ onMounted(() => {
             <h2 class="font-display text-2xl text-fg">Identity Verified</h2>
             <p class="text-muted">{{ success }}</p>
           </div>
-          <p class="text-xs text-muted italic">Redirecting back to attestation flow...</p>
+          <p class="text-xs text-muted italic">
+            {{ isRedirectingToCompany ? 'Redirecting back to attestation flow...' : 'Returning to your profile...' }}
+          </p>
         </div>
 
         <p

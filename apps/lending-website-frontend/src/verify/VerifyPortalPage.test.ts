@@ -98,7 +98,7 @@ describe('VerifyPortalPage', () => {
     const captureButton = wrapper.find('button.group.relative')
     await captureButton.trigger('click')
     
-    await vi.advanceTimersByTimeAsync(3000)
+    await vi.advanceTimersByTimeAsync(6000)
     await flushPromises()
     vi.useRealTimers()
 
@@ -109,13 +109,27 @@ describe('VerifyPortalPage', () => {
   })
 
   it('redirects back when redirectUrl is provided in query', async () => {
-    const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {})
-    const wrapper = await mountPage('/verify/portal?sessionId=id_test_123&walletAddress=WalletXYZ&redirectUrl=%2Fverify%2Fcompany%3Fresume%3D1')
+    const router = createRouter({
+      history: createWebHistory(),
+      routes: [
+        { path: '/verify/portal', component: VerifyPortalPage },
+        { path: '/verify/company', component: { template: '<div></div>' } }
+      ],
+    })
+    const pushSpy = vi.spyOn(router, 'push')
+    
+    await router.push('/verify/portal?sessionId=id_test_123&walletAddress=WalletXYZ&redirectUrl=%2Fverify%2Fcompany%3Fresume%3D1')
+    await router.isReady()
+    
+    const wrapper = mount(VerifyPortalPage, {
+      global: { plugins: [router] },
+    })
     await flushPromises()
 
     await wrapper.get('[data-testid="full-name-input"]').setValue('Ada Lovelace')
     
-    const continueBtn = wrapper.findAll('button').find(b => b.text().includes('Continue'))
+    const buttons = wrapper.findAll('button')
+    const continueBtn = buttons.find(b => b.text().includes('Continue'))
     await continueBtn?.trigger('click')
     await flushPromises()
 
@@ -128,13 +142,14 @@ describe('VerifyPortalPage', () => {
     const captureButton = wrapper.find('button.group.relative')
     await captureButton.trigger('click')
     
-    await vi.advanceTimersByTimeAsync(3000)
+    await vi.advanceTimersByTimeAsync(6000)
     await flushPromises()
     vi.useRealTimers()
 
-    expect(assign).toHaveBeenCalledTimes(1)
-    expect(assign.mock.calls[0]?.[0]).toContain('/verify/company?resume=1')
-    expect(assign.mock.calls[0]?.[0]).toContain('identityVerified=1')
+    expect(pushSpy).toHaveBeenCalled()
+    const lastPush = pushSpy.mock.calls[pushSpy.mock.calls.length - 1]?.[0]
+    expect(lastPush).toContain('/verify/company')
+    expect(lastPush).toContain('identityVerified=1')
   })
 
   it('locks prefilled identity fields during company handover', async () => {

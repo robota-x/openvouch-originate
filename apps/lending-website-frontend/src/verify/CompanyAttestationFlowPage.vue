@@ -26,6 +26,7 @@ const error = ref<string | null>(null)
 const success = ref<string | null>(null)
 
 const walletAddress = ref('')
+const isEditingWallet = ref(false)
 const companyNumber = ref('')
 const directors = ref<Director[]>([])
 const selectedDirector = ref('')
@@ -104,6 +105,23 @@ async function completeAttestationFlow() {
   statusText.value = status.attestationAddress ?? ''
   success.value = `Attestation issued for ${completion.companyName}`
   step.value = 'completed'
+
+  // If a redirectUrl was provided (e.g. from profile), return there after a delay
+  const redirect = route.query.redirectUrl as string
+  if (redirect) {
+    setTimeout(() => {
+      try {
+        const target = new URL(redirect, window.location.origin)
+        if (target.origin === window.location.origin) {
+          router.push(target.pathname + target.search + target.hash)
+        } else {
+          window.location.assign(target.toString())
+        }
+      } catch {
+        router.push('/')
+      }
+    }, 3000)
+  }
 }
 
 async function startAttestation() {
@@ -200,7 +218,24 @@ onMounted(async () => {
         <div class="grid gap-4 sm:grid-cols-2">
           <label class="block text-sm">
             <span class="mb-1 block text-muted">Wallet address</span>
-            <input v-model.trim="walletAddress" data-testid="company-wallet-input" type="text" class="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-sm outline-none focus:border-primary" />
+            <div class="flex gap-2">
+              <input
+                v-model.trim="walletAddress"
+                data-testid="company-wallet-input"
+                type="text"
+                :readonly="!isEditingWallet"
+                class="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-70"
+                :class="{ 'border-transparent bg-black/10': !isEditingWallet }"
+              />
+              <button
+                v-if="!isEditingWallet"
+                type="button"
+                class="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted hover:text-white"
+                @click="isEditingWallet = true"
+              >
+                Edit
+              </button>
+            </div>
           </label>
           <label class="block text-sm">
             <span class="mb-1 block text-muted">Company number</span>
@@ -240,6 +275,9 @@ onMounted(async () => {
           <p class="text-sm text-muted">{{ success }}</p>
           <p v-if="statusText" class="mt-1 text-xs text-muted">
             Ref: <code>{{ statusText }}</code>
+          </p>
+          <p v-if="route.query.redirectUrl" class="mt-2 text-xs text-muted italic">
+            Returning to your profile...
           </p>
         </div>
 

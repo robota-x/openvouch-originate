@@ -1,30 +1,126 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
 import type { Profile, ProfileLoan, ContractView, Attestation, AttestationProvider } from '../types'
 import { ApiError } from '../types'
-import { backendClient } from '../api/client'
-import { fmt } from '../utils/format'
+import { backendClient, identityClient, attestationClient } from '../api/client'
+import { fmt, fmtDate } from '../utils/format'
 import { profileLoanToContractView } from '../utils/loans'
 import AttestationCard from '../components/AttestationCard.vue'
 import AttestationModal from '../components/AttestationModal.vue'
 import ProfileLoanCard from '../components/ProfileLoanCard.vue'
 import ContractModal from '../components/ContractModal.vue'
 
+const auth    = useAuth()
 const route   = useRoute()
+const router  = useRouter()
 const address = route.params.address as string
 
+const isOwnProfile = computed(() => auth.address === address)
 const profile   = ref<Profile | null>(null)
 const providers = ref<AttestationProvider[]>([])
 const loadError = ref<string | null>(null)
 const activeTab = ref<'attestations' | 'loans'>('attestations')
 
+const activeAttestation = ref<Attestation | null>(null)
+const activeProvider    = ref<AttestationProvider | null>(null)
+
+// ── URL-Synced Modal Logic ───────────────────────────────────────────────
+const viewAttestationTitle = computed(() => route.query.viewAttestation as string | undefined)
+
+function updateModalFromUrl() {
+  if (!profile.value) return
+  const title = viewAttestationTitle.value
+  if (title) {
+    const att = profile.value.attestations.find(a => a.title === title)
+    if (att) {
+      activeAttestation.value = att
+      activeProvider.value    = providers.value.find(p => p.id === att.providerId) ?? null
+      return
+    }
+  }
+  activeAttestation.value = null
+  activeProvider.value = null
+}
+
+function openAttestation(att: Attestation) {
+  router.push({ query: { ...route.query, viewAttestation: att.title } })
+}
+
+function closeAttestation() {
+  const query = { ...route.query }
+  delete query.viewAttestation
+  delete query.justVerified
+  router.push({ query })
+}
+
+watch(() => route.query.viewAttestation, updateModalFromUrl)
+
+/**
+ * Fetches dynamic attestations from the identity and company microservices.
+ */
+async function fetchExternalAttestations(wallet: string): Promise<Attestation[]> {
+  const attestations: Attestation[] = []
+
+  try {
+    const [identity, company] = await Promise.all([
+      identityClient.getIdentity(wallet).catch(() => ({ verified: false })),
+      attestationClient.getStatus(wallet).catch(() => ({ verified: false })),
+    ])
+
+    if (identity.verified && identity.identity) {
+      attestations.push({
+        icon: 'fingerprint',
+        title: 'Identity Verified',
+        status: 'Verified',
+        verified: true,
+        issuedAt: new Date(identity.identity.verifiedAt).toISOString(),
+        metadata: {
+          'Full Name': identity.identity.fullName,
+          'Date of Birth': fmtDate(identity.identity.dob),
+          'Country': identity.identity.country,
+        }
+      })
+    }
+
+    if (company.verified) {
+      attestations.push({
+        icon: 'business',
+        title: 'UK Company Ownership',
+        status: 'Active',
+        verified: true,
+        issuedAt: company.issuedAt ? new Date(company.issuedAt * 1000).toISOString() : undefined,
+        onChainRef: company.attestationAddress,
+        metadata: {
+          'Company Name': company.companyName ?? 'Unknown',
+          'Company Number': company.companyNumber ?? 'Unknown',
+          'Authorized Director': company.directorName ?? 'Unknown',
+          'Expires': company.expiresAt ? fmtDate(company.expiresAt * 1000) : 'Never',
+        }
+      })
+    }
+  } catch (err) {
+    console.warn('[ProfilePage] Failed to fetch external attestations:', err)
+  }
+
+  return attestations
+}
+
 onMounted(async () => {
   try {
-    ;[profile.value, providers.value] = await Promise.all([
+    const [prof, provs, externalAtts] = await Promise.all([
       backendClient.getProfile(address),
       backendClient.getAttestationProviders(),
+      fetchExternalAttestations(address),
     ])
+
+    profile.value = {
+      ...prof,
+      attestations: [...prof.attestations, ...externalAtts]
+    }
+    providers.value = provs
+    updateModalFromUrl()
   } catch (e) {
     console.error('[ProfilePage] Failed to load data:', e)
     loadError.value = e instanceof ApiError ? e.message : 'Failed to load profile'
@@ -62,15 +158,6 @@ const repaymentRate = computed(() => {
   return borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
 })
 
-// ── Attestation modal ──────────────────────────────────────────────────────
-const activeAttestation = ref<Attestation | null>(null)
-const activeProvider    = ref<AttestationProvider | null>(null)
-
-function openAttestation(att: Attestation) {
-  activeAttestation.value = att
-  activeProvider.value    = providers.value.find(p => p.id === att.providerId) ?? null
-}
-
 // ── Contract modal ─────────────────────────────────────────────────────────
 const activeContract = ref<ContractView | null>(null)
 
@@ -86,6 +173,14 @@ const verifiedCount = computed(() =>
 const pendingCount = computed(() =>
   profile.value?.attestations.filter(a => a.verified === false).length ?? 0
 )
+
+const redirectUrlForIdentity = computed(() => {
+  return `${window.location.origin}/profile/${address}?viewAttestation=Identity+Verified&justVerified=1`
+})
+
+const redirectUrlForCompany = computed(() => {
+  return `${window.location.origin}/profile/${address}?viewAttestation=UK+Company+Ownership&justVerified=1`
+})
 
 </script>
 
@@ -160,10 +255,29 @@ const pendingCount = computed(() =>
       <div v-if="activeTab === 'attestations'" class="flex flex-col gap-6">
 
         <!-- Recap bar -->
-        <div class="flex items-center gap-4 flex-wrap font-mono text-sm">
-          <span class="text-emerald font-bold">{{ verifiedCount }} verified</span>
-          <span class="text-muted">·</span>
-          <span class="text-muted">{{ pendingCount }} pending</span>
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div class="flex items-center gap-4 font-mono text-sm">
+            <span class="text-emerald font-bold">{{ verifiedCount }} verified</span>
+            <span class="text-muted">·</span>
+            <span class="text-muted">{{ pendingCount }} pending</span>
+          </div>
+
+          <div v-if="isOwnProfile" class="flex items-center gap-2">
+            <RouterLink
+              :to="{ path: '/verify/company', query: { redirectUrl: redirectUrlForCompany } }"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-white/5 text-xs font-semibold text-white hover:bg-white/10 transition-colors"
+            >
+              <span class="material-symbols-outlined text-sm">business</span>
+              Verify UK Company Ownership
+            </RouterLink>
+            <RouterLink
+              :to="{ path: '/verify/portal', query: { redirectUrl: redirectUrlForIdentity } }"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/10 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+            >
+              <span class="material-symbols-outlined text-sm">fingerprint</span>
+              Verify Identity
+            </RouterLink>
+          </div>
         </div>
 
         <!-- Attestation cards -->
@@ -245,7 +359,7 @@ const pendingCount = computed(() =>
     :attestation="activeAttestation"
     :provider="activeProvider ?? undefined"
     :address="address"
-    @close="activeAttestation = null; activeProvider = null"
+    @close="closeAttestation"
   />
 
   <!-- Contract modal -->

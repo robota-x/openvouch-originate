@@ -315,9 +315,15 @@ export interface DetectedWallet {
   raw: any;
 }
 
-// ─────────────────────────────────────────────────────────────
-// State (shared across app)
-// ─────────────────────────────────────────────────────────────
+const STORAGE_KEY_ADDRESS = 'openvouch_auth_address'
+const STORAGE_KEY_TOKEN   = 'openvouch_auth_token'
+
+// Refs live at module scope, not inside the function — this is intentional.
+// Every component that calls useAuth() receives the same ref instances, giving
+// shared reactive state without a store library. Moving them inside the function
+// would create a new independent copy per call, breaking cross-component sync.
+const address = ref<string | null>(localStorage.getItem(STORAGE_KEY_ADDRESS))
+const token   = ref<string | null>(localStorage.getItem(STORAGE_KEY_TOKEN))
 
 const address = ref<string | null>(localStorage.getItem("auth_address"));
 

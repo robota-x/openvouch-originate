@@ -38,9 +38,9 @@ const router = createRouter({
     // Identity verification portal routes.
     // Kept isolated under /verify/* for clear ownership boundaries.
     // -----------------------------------------------------------------------
-    { path: '/verify',           redirect: '/verify/company', meta: { hideNav: true } },
-    { path: '/verify/company',   component: CompanyAttestationFlowPage, meta: { hideNav: true } },
-    { path: '/verify/portal',    component: VerifyPortalPage, meta: { hideNav: true } },
+    { path: '/verify',           redirect: '/verify/company' },
+    { path: '/verify/company',   component: CompanyAttestationFlowPage, meta: { requiresAuth: true } },
+    { path: '/verify/portal',    component: VerifyPortalPage, meta: { requiresAuth: true } },
   ],
 })
 
@@ -48,7 +48,12 @@ const router = createRouter({
 router.beforeEach((to) => {
   if (to.meta.requiresAuth) {
     const auth = useAuth()
-    if (!auth.isConnected) return '/login'
+    if (!auth.isConnected) {
+      return {
+        path: '/login',
+        query: { redirect: to.fullPath },
+      }
+    }
   }
 })
 
