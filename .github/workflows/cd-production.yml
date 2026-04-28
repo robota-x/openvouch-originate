@@ -54,6 +54,7 @@ jobs:
       - run: npm run build
         env:
           VITE_API_BASE_URL: https://api.openvouch-originate.robota.dev
+          VITE_IDENTITY_API_BASE_URL: https://openvouch-attestation-identity-service-production.robota.dev
       - uses: actions/upload-artifact@v4
         with:
           name: frontend-dist-production-${{ github.run_id }}
@@ -163,19 +164,16 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - name: Sync Shufti credentials (production)
+      - name: Build identity service (production)
+        run: npm run build --workspace=@openvouch/attestation-identity-service
+      - name: Sync identity provider placeholders (production)
         working-directory: apps/attestation-identity-service
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          SHUFTI_CLIENT_ID: ${{ secrets.SHUFTI_CLIENT_ID_PRODUCTION }}
-          SHUFTI_SECRET: ${{ secrets.SHUFTI_SECRET_PRODUCTION }}
+          IDENTITY_PROVIDER_PLACEHOLDER: "TODO - mock provider enabled for hackathon"
         run: |
-          if [ -z "$SHUFTI_CLIENT_ID" ]; then
-            echo "Missing required GitHub secret: SHUFTI_CLIENT_ID_PRODUCTION"
-            exit 1
-          fi
-          echo "$SHUFTI_CLIENT_ID" | npx wrangler secret put SHUFTI_CLIENT_ID --config wrangler.production.jsonc
-          echo "$SHUFTI_SECRET" | npx wrangler secret put SHUFTI_SECRET --config wrangler.production.jsonc
+          echo "$IDENTITY_PROVIDER_PLACEHOLDER" | npx wrangler secret put SHUFTI_CLIENT_ID --config wrangler.production.jsonc
+          echo "$IDENTITY_PROVIDER_PLACEHOLDER" | npx wrangler secret put SHUFTI_SECRET --config wrangler.production.jsonc
       - name: Deploy identity service (production)
         uses: cloudflare/wrangler-action@v3
         with:

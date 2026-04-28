@@ -10,7 +10,9 @@
     "enabled": true
   },
   "vars": {
+    "IDENTITY_PROVIDER_MODE": "mock",
+    "VERIFY_PORTAL_BASE_URL": "https://openvouch-originate-frontend-production.robota.dev",
     "SHUFTI_BASE_URL": "https://api.shuftipro.com",
-    "CALLBACK_URL": "https://openvouch-attestation-identity-service-production.neuronefunzionante.workers.dev/verify/webhook"
+    "CALLBACK_URL": "https://openvouch-attestation-identity-service-production.robota.dev/verify/webhook"
   }
 }

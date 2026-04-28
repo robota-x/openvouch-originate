@@ -10,6 +10,8 @@
     "enabled": true
   },
   "vars": {
+    "IDENTITY_PROVIDER_MODE": "mock",
+    "VERIFY_PORTAL_BASE_URL": "http://localhost:5173",
     "SHUFTI_BASE_URL": "https://api.shuftipro.com"
   }
 }

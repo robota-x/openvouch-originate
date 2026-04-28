@@ -1,25 +1,18 @@
-import fs from 'node:fs/promises'
-import path from 'node:path'
 import type { VerifiedIdentity } from '../types.js'
 
-const CACHE_FILE = path.join(process.cwd(), '.identity-cache.json')
+/**
+ * Workers-safe in-memory identity registry.
+ *
+ * We intentionally avoid node:fs/process here because this service runs on
+ * Cloudflare Workers where filesystem access is unavailable. For the hackathon
+ * mock flow we only need a lightweight process-local cache.
+ */
+const identityRegistry = new Map<string, VerifiedIdentity>()
 
 export async function saveIdentity(identity: VerifiedIdentity): Promise<void> {
-  const data = await loadAllIdentities()
-  data[identity.walletAddress.toLowerCase()] = identity
-  await fs.writeFile(CACHE_FILE, JSON.stringify(data, null, 2))
+  identityRegistry.set(identity.walletAddress.toLowerCase(), identity)
 }
 
 export async function getIdentity(walletAddress: string): Promise<VerifiedIdentity | null> {
-  const data = await loadAllIdentities()
-  return data[walletAddress.toLowerCase()] || null
-}
-
-async function loadAllIdentities(): Promise<Record<string, VerifiedIdentity>> {
-  try {
-    const content = await fs.readFile(CACHE_FILE, 'utf-8')
-    return JSON.parse(content)
-  } catch (err) {
-    return {}
-  }
+  return identityRegistry.get(walletAddress.toLowerCase()) ?? null
 }

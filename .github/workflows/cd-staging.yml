@@ -58,6 +58,7 @@ jobs:
       - run: npm run build
         env:
           VITE_API_BASE_URL: https://openvouch-originate-backend-staging.neuronefunzionante.workers.dev
+          VITE_IDENTITY_API_BASE_URL: https://openvouch-attestation-identity-service-staging.neuronefunzionante.workers.dev
       - uses: actions/upload-artifact@v4
         with:
           name: frontend-dist-staging-${{ github.run_id }}
@@ -132,14 +133,6 @@ jobs:
             exit 1
           fi
           echo "$COMPANIES_HOUSE_UK_API_KEY" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
-      - name: Sync email placeholders (staging)
-        working-directory: apps/attestation-uk-company-service
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          TODO_EMAIL_PLACEHOLDER: "TODO - gonna be deprecated along email"
-        run: |
-          echo "$TODO_EMAIL_PLACEHOLDER" | npx wrangler secret put SENDGRID_KEY --config wrangler.staging.jsonc
-          echo "$TODO_EMAIL_PLACEHOLDER" | npx wrangler secret put EMAIL_FROM --config wrangler.staging.jsonc
       - name: Migrate attestation database (staging)
         uses: cloudflare/wrangler-action@v3
         with:
@@ -167,19 +160,16 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - name: Sync Shufti credentials (staging)
+      - name: Build identity service (staging)
+        run: npm run build --workspace=@openvouch/attestation-identity-service
+      - name: Sync identity provider placeholders (staging)
         working-directory: apps/attestation-identity-service
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          SHUFTI_CLIENT_ID: ${{ secrets.SHUFTI_CLIENT_ID_STAGING }}
-          SHUFTI_SECRET: ${{ secrets.SHUFTI_SECRET_STAGING }}
+          IDENTITY_PROVIDER_PLACEHOLDER: "TODO - mock provider enabled for hackathon"
         run: |
-          if [ -z "$SHUFTI_CLIENT_ID" ]; then
-            echo "Missing required GitHub secret: SHUFTI_CLIENT_ID_STAGING"
-            exit 1
-          fi
-          echo "$SHUFTI_CLIENT_ID" | npx wrangler secret put SHUFTI_CLIENT_ID --config wrangler.staging.jsonc
-          echo "$SHUFTI_SECRET" | npx wrangler secret put SHUFTI_SECRET --config wrangler.staging.jsonc
+          echo "$IDENTITY_PROVIDER_PLACEHOLDER" | npx wrangler secret put SHUFTI_CLIENT_ID --config wrangler.staging.jsonc
+          echo "$IDENTITY_PROVIDER_PLACEHOLDER" | npx wrangler secret put SHUFTI_SECRET --config wrangler.staging.jsonc
       - name: Deploy identity service (staging)
         uses: cloudflare/wrangler-action@v3
         with:

@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "build": "tsc --noEmit",
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --config wrangler.jsonc --port 8789 --inspector-port 9231",
     "lint": "echo \"No linter configured yet\"",
     "test": "vitest run"
   },

@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import type { Context } from 'hono'
 import { cors } from 'hono/cors'
 import { configMiddleware } from './config.js'
 import { createShuftiSession, verifyShuftiSignature } from './services/shufti.js'
@@ -11,6 +12,20 @@ app.use('*', cors())
 app.use('*', configMiddleware)
 
 app.get('/', (c) => c.json({ status: 'ok', service: 'identity-service' }))
+
+function buildReference(walletAddress: string): string {
+  return `id_${walletAddress.toLowerCase()}_${crypto.randomUUID().split('-')[0]}`
+}
+
+function parseWalletFromReference(reference: unknown): string | null {
+  if (typeof reference !== 'string') return null
+  const parts = reference.split('_')
+  if (parts.length < 3 || parts[0] !== 'id') return null
+  const wallet = parts[1]
+  // Keep format-agnostic for hackathon: supports Solana-style base58 and avoids hardcoding chain assumptions.
+  if (!wallet || wallet.length < 16) return null
+  return wallet
+}
 
 // GET /identity/:wallet
 app.get('/identity/:wallet', async (c) => {
@@ -47,10 +62,19 @@ app.post('/verify/start', async (c) => {
     return c.json({ error: 'already_verified', identity: existing }, 409)
   }
 
-  // Reference must be alphanumeric (plus some chars) for Shufti
-  // We use vouch_<wallet>_<random>
-  const reference = `vouch_${walletAddress.toLowerCase()}_${crypto.randomUUID().split('-')[0]}`
-  
+  const reference = buildReference(walletAddress)
+
+  if (config.identityProviderMode === 'mock') {
+    const url = new URL('/verify/portal', config.verifyPortalBaseUrl)
+    url.searchParams.set('sessionId', reference)
+    url.searchParams.set('walletAddress', walletAddress)
+    if (redirectUrl) url.searchParams.set('redirectUrl', redirectUrl)
+    return c.json({
+      sessionId: reference,
+      verificationUrl: url.toString(),
+    })
+  }
+
   try {
     const session = await createShuftiSession(config, reference, walletAddress, redirectUrl)
     return c.json({
@@ -63,9 +87,54 @@ app.post('/verify/start', async (c) => {
   }
 })
 
+async function completeVerification(c: Context<AppEnv>) {
+  const config = c.get('config')
+  if (config.identityProviderMode !== 'mock') {
+    return c.json({ error: 'not_enabled_in_real_mode' }, 404)
+  }
+
+  const {
+    sessionId,
+    walletAddress,
+    fullName,
+    dob,
+    country,
+  } = await c.req.json<{
+    sessionId?: string
+    walletAddress?: string
+    fullName?: string
+    dob?: string
+    country?: string
+  }>()
+
+  if (!sessionId || !walletAddress || !fullName) {
+    return c.json({ error: 'missing_fields' }, 400)
+  }
+
+  await saveIdentity({
+    walletAddress,
+    fullName: fullName.toUpperCase(),
+    dob: dob ?? '1990-01-01',
+    country: country ?? 'GB',
+    verifiedAt: Date.now(),
+    reference: sessionId,
+  })
+
+  return c.json({ success: true, verified: true })
+}
+
+// POST /verify/complete
+app.post('/verify/complete', completeVerification)
+
+// POST /verify/mock-complete (legacy alias)
+app.post('/verify/mock-complete', completeVerification)
+
 // POST /verify/webhook
 app.post('/verify/webhook', async (c) => {
   const config = c.get('config')
+  if (config.identityProviderMode === 'mock') {
+    return c.json({ error: 'not_enabled_in_mock_mode' }, 400)
+  }
   const signature = c.req.header('Signature')
   const rawBody = await c.req.text()
 
@@ -83,20 +152,10 @@ app.post('/verify/webhook', async (c) => {
 
   if (event === 'verification.accepted') {
     const verificationData = payload.verification_data?.document
-    const info = payload.info
-    
-    // We'd need to know which wallet this belongs to. 
-    // Usually Shufti allows passing custom parameters or we use the reference.
-    // For this MVP, let's assume we can find the wallet from the reference if we had a mapping.
-    // To keep it simple, we'll try to get it from a 'custom_data' field if we had one,
-    // but Shufti typically uses the reference. 
-    // Let's assume the reference was vouch_WALLETADDRESS or similar for this demo.
-    const reference = payload.reference as string
-    // Reference format: vouch_<wallet>_<random>
-    const parts = reference.split('_')
-    const walletAddress = (parts.length >= 2 && parts[0] === 'vouch') ? parts[1] : 'unknown'
+    const reference = payload.reference
+    const walletAddress = parseWalletFromReference(reference)
 
-    if (walletAddress === 'unknown' || !walletAddress.startsWith('0x')) {
+    if (!walletAddress) {
         console.error('Could not parse wallet from reference:', reference)
         return c.json({ error: 'unknown_reference' }, 400)
     }
@@ -108,7 +167,7 @@ app.post('/verify/webhook', async (c) => {
       country: verificationData.country || 'GB',
       documentNumber: verificationData.document_number,
       verifiedAt: Date.now(),
-      reference
+      reference: String(reference),
     })
   }
 

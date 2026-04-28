@@ -1,11 +1,17 @@
 export interface Bindings {
+  IDENTITY_PROVIDER_MODE?: string
+  VERIFY_PORTAL_BASE_URL?: string
   SHUFTI_CLIENT_ID?: string
   SHUFTI_SECRET?: string
   SHUFTI_BASE_URL?: string
   CALLBACK_URL?: string
 }
 
+export type IdentityProviderMode = 'mock' | 'real'
+
 export interface AppConfig {
+  identityProviderMode: IdentityProviderMode
+  verifyPortalBaseUrl: string
   shuftiClientId: string
   shuftiSecret: string
   shuftiBaseUrl: string

@@ -163,10 +163,23 @@ import { ApiError } from "../types";
 
 // ---------------------------------------------------------------------------
 // Backend client
+//
+// VITE_API_BASE_URL controls where lending API calls go:
+//   - Unset / empty string: same-origin (works when Vite proxy or CF Pages
+//     routes /api/* to the Worker, or when frontend and backend share a domain)
+//   - http://localhost:8787: direct to local lending backend wrangler dev
+//   - https://openvouch-originate-backend-staging.robota.dev: explicit staging
+//
+// The Vite dev server proxies /api/* to VITE_API_BASE_URL so the browser never
+// makes a cross-origin request during development (no CORS preflight).
+//
+// Error path: non-2xx responses are thrown as ApiError so callers can branch on
+// `instanceof ApiError` vs unknown network failures.
 // ---------------------------------------------------------------------------
 
-const API_BASE =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
+const IDENTITY_API_BASE =
+  (import.meta.env.VITE_IDENTITY_API_BASE_URL as string | undefined) ?? '/identity-api'
 
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${API_BASE}${path}`, init);
@@ -198,6 +211,23 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   }
 
   return res;
+}
+
+async function identityFetch(path: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(`${IDENTITY_API_BASE}${path}`, init)
+
+  if (!res.ok) {
+    let message = res.statusText
+    try {
+      const body = await res.json() as { error?: string }
+      message = body.error ?? message
+    } catch {
+      /* non-JSON body */
+    }
+    throw new ApiError(message, `HTTP_${res.status}`, res.status)
+  }
+
+  return res
 }
 
 export const backendClient = {
@@ -342,4 +372,76 @@ export const backendClient = {
 
     return res.json() as Promise<{ address: string }>;
   },
-};
+
+  /** POST /api/auth/verify — submit signed nonce, receive JWT. */
+  async verify(address: string, nonce: string, signature: string): Promise<{ token: string }> {
+    const res = await apiFetch('/api/auth/verify', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ address, nonce, signature }),
+    })
+    return res.json() as Promise<{ token: string }>
+  },
+
+  /** DELETE /api/auth/session — server-side teardown (stateless JWT: client must also discard token). */
+  async logout(token: string): Promise<void> {
+    await apiFetch('/api/auth/session', {
+      method:  'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  },
+}
+
+export const identityClient = {
+  async startVerification(
+    walletAddress: string,
+    redirectUrl?: string,
+  ): Promise<{ sessionId: string; verificationUrl: string }> {
+    const res = await identityFetch('/verify/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ walletAddress, redirectUrl }),
+    })
+    return res.json() as Promise<{ sessionId: string; verificationUrl: string }>
+  },
+
+  async completeVerification(input: {
+    sessionId: string
+    walletAddress: string
+    fullName: string
+    dob?: string
+    country?: string
+  }): Promise<{ success: boolean; verified: boolean }> {
+    const res = await identityFetch('/verify/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    return res.json() as Promise<{ success: boolean; verified: boolean }>
+  },
+
+  async getIdentity(walletAddress: string): Promise<{
+    verified: boolean
+    identity?: {
+      fullName: string
+      dob: string
+      country: string
+      verifiedAt: number
+    }
+  }> {
+    const res = await fetch(`${IDENTITY_API_BASE}/identity/${encodeURIComponent(walletAddress)}`)
+    if (res.status === 404) return { verified: false }
+    if (!res.ok) {
+      throw new ApiError(`Identity service returned ${res.status}`, `HTTP_${res.status}`, res.status)
+    }
+    return res.json() as Promise<{
+      verified: boolean
+      identity?: {
+        fullName: string
+        dob: string
+        country: string
+        verifiedAt: number
+      }
+    }>
+  },
+}

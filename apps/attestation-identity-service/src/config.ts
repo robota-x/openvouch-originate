@@ -1,21 +1,26 @@
 import { createMiddleware } from 'hono/factory'
-import type { AppEnv, Bindings, AppConfig } from './types.js'
+import type { AppEnv, Bindings, AppConfig, IdentityProviderMode } from './types.js'
 
 export function buildConfig(env: Bindings | undefined): AppConfig {
+  const rawMode = env?.IDENTITY_PROVIDER_MODE ?? 'mock'
+  if (rawMode !== 'mock' && rawMode !== 'real') {
+    throw new Error('[identity-service] IDENTITY_PROVIDER_MODE must be either "mock" or "real"')
+  }
+  const identityProviderMode = rawMode as IdentityProviderMode
   const shuftiClientId = env?.SHUFTI_CLIENT_ID
   const shuftiSecret = env?.SHUFTI_SECRET
 
-  if (!shuftiClientId || !shuftiSecret) {
-    // In a real prod env we'd throw, but for hackathon/dev we might allow it to start
-    // but we'll enforce it here to match the pattern.
-    console.warn('[identity-service] SHUFTI_CLIENT_ID or SHUFTI_SECRET is missing')
+  if (identityProviderMode === 'real' && (!shuftiClientId || !shuftiSecret)) {
+    throw new Error('[identity-service] SHUFTI_CLIENT_ID and SHUFTI_SECRET are required in real mode')
   }
 
   return {
-    shuftiClientId: shuftiClientId ?? 'DEV_CLIENT_ID',
-    shuftiSecret: shuftiSecret ?? 'DEV_SECRET',
+    identityProviderMode,
+    verifyPortalBaseUrl: env?.VERIFY_PORTAL_BASE_URL ?? 'http://localhost:5173',
+    shuftiClientId: shuftiClientId ?? 'MOCK_CLIENT_ID',
+    shuftiSecret: shuftiSecret ?? 'MOCK_SECRET',
     shuftiBaseUrl: env?.SHUFTI_BASE_URL ?? 'https://api.shuftipro.com',
-    callbackUrl: env?.CALLBACK_URL ?? 'http://localhost:8787/verify/webhook'
+    callbackUrl: env?.CALLBACK_URL ?? 'http://localhost:8789/verify/webhook',
   }
 }
 
