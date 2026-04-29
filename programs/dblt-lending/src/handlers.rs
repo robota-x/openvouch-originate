@@ -1,14 +1,15 @@
 use anchor_lang::prelude::*;
+use anchor_lang::system_program;
 use crate::instructions::*; 
 use crate::state::*;
 use crate::error::ErrorCode;
-// use crate::constants::*;
 
 // --- INITIALIZE ---
 pub fn initialize(ctx: Context<Initialize>, admin: Pubkey) -> Result<()> {
     let config = &mut ctx.accounts.config;
     config.admin = admin;
-    config.dblt_mint = ctx.accounts.dblt_mint.key();
+    // [DEFERRED-SPL]
+    // config.dblt_mint = ctx.accounts.dblt_mint.key();
     config.platform_fee_bps = 50;
     config.total_borrowers = 0;
     config.total_lenders = 0;
@@ -87,6 +88,18 @@ pub fn contribute_to_pool(ctx: Context<ContributeToPool>, amount: u64) -> Result
     let vault = &mut ctx.accounts.vault;
     let position = &mut ctx.accounts.position;
     
+    // Transfer SOL from lender to vault
+    system_program::transfer(
+        CpiContext::new(
+            ctx.accounts.system_program.key(),
+            system_program::Transfer {
+                from: ctx.accounts.lender.to_account_info(),
+                to: vault.to_account_info(),
+            },
+        ),
+        amount,
+    )?;
+
     pool.current_amount = pool.current_amount.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
     vault.total_deposited = vault.total_deposited.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
     
@@ -98,16 +111,39 @@ pub fn contribute_to_pool(ctx: Context<ContributeToPool>, amount: u64) -> Result
     Ok(())
 }
 
-// --- DISBURSE (WITH SCORE CHECK) ---
+// --- DISBURSE ---
 pub fn disburse_loan(ctx: Context<DisburseLoan>) -> Result<()> {
     let vault = &mut ctx.accounts.vault;
-    let borrower_profile = &ctx.accounts.borrower_profile;
+    let borrower = &ctx.accounts.borrower;
 
-    // ✅ VALIDATE BORROWER'S FINANCIAL SCORE
-    require!(borrower_profile.financial_score >= 50, ErrorCode::InsufficientCredit);
+    // TODO [PRODUCTION]: Schedule creation should ideally be atomic with finalization/disbursement 
+    // to prevent funds being locked without repayment rules.
 
-    vault.total_withdrawn = vault.total_withdrawn.checked_add(vault.total_deposited).ok_or(ErrorCode::MathOverflow)?;
-    msg!("Loan disbursed to borrower with score: {}", borrower_profile.financial_score);
+    let amount = vault.total_deposited;
+    
+    // Transfer SOL from vault to borrower
+    let pool_key = ctx.accounts.pool.key();
+    let seeds = &[
+        b"vault",
+        pool_key.as_ref(),
+        &[ctx.bumps.vault],
+    ];
+    let signer = &[&seeds[..]];
+
+    system_program::transfer(
+        CpiContext::new_with_signer(
+            ctx.accounts.system_program.key(),
+            system_program::Transfer {
+                from: vault.to_account_info(),
+                to: borrower.to_account_info(),
+            },
+            signer,
+        ),
+        amount,
+    )?;
+
+    vault.total_withdrawn = vault.total_withdrawn.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+    msg!("Loan disbursed to borrower: {}", borrower.key());
     Ok(())
 }
 
@@ -122,8 +158,41 @@ pub fn finalize_pool(ctx: Context<FinalizePool>) -> Result<()> {
 pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
     let position = &mut ctx.accounts.position;
     let vault = &mut ctx.accounts.vault;
-    require!(vault.total_repaid > 0, ErrorCode::InsufficientFunds);
-    position.withdrawn = position.withdrawn.checked_add(1).ok_or(ErrorCode::MathOverflow)?;
+    let pool = &ctx.accounts.pool;
+    let lender = &ctx.accounts.lender;
+
+    // Pro-rata withdrawal logic:
+    // (Lender Position / Total Pool Target) * Total Repaid into Vault
+    let share = (position.amount as u128)
+        .checked_mul(vault.total_repaid as u128)
+        .ok_or(ErrorCode::MathOverflow)?
+        .checked_div(pool.target_amount as u128)
+        .ok_or(ErrorCode::MathOverflow)? as u64;
+
+    let claimable = share.saturating_sub(position.withdrawn);
+    require!(claimable > 0, ErrorCode::InsufficientFunds);
+    
+    let pool_key = pool.key();
+    let seeds = &[
+        b"vault",
+        pool_key.as_ref(),
+        &[ctx.bumps.vault],
+    ];
+    let signer = &[&seeds[..]];
+
+    system_program::transfer(
+        CpiContext::new_with_signer(
+            ctx.accounts.system_program.key(),
+            system_program::Transfer {
+                from: vault.to_account_info(),
+                to: lender.to_account_info(),
+            },
+            signer,
+        ),
+        claimable,
+    )?;
+
+    position.withdrawn = position.withdrawn.checked_add(claimable).ok_or(ErrorCode::MathOverflow)?;
     Ok(())
 }
 
@@ -139,13 +208,29 @@ pub fn create_term_offer(
 }
 
 pub fn create_loan_pool(
-    _ctx: Context<CreateLoanPool>,
-    _target_amount: u64,
-    _term_offer_id: Pubkey,
+    ctx: Context<CreateLoanPool>,
+    target_amount: u64,
+    term_offer_id: Pubkey,
     _years_data_hash: String,
     _years_covered: u8,
     _currency: String,
     _country: String,
 ) -> Result<()> {
+    let pool = &mut ctx.accounts.pool;
+    let vault = &mut ctx.accounts.vault;
+    let clock = Clock::get()?;
+
+    pool.borrower = ctx.accounts.borrower.key();
+    pool.target_amount = target_amount;
+    pool.current_amount = 0;
+    pool.term_offer = term_offer_id;
+    pool.status = 0; // Open
+    pool.created_at = clock.unix_timestamp;
+
+    vault.pool = pool.key();
+    vault.total_deposited = 0;
+    vault.total_withdrawn = 0;
+    vault.total_repaid = 0;
+
     Ok(())
 }

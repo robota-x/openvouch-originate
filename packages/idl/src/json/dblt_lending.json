@@ -8,101 +8,47 @@
   },
   "instructions": [
     {
-      "name": "create_loan_listing",
+      "name": "contribute_to_pool",
+      "docs": [
+        "Contributes to an existing loan pool with a specified amount."
+      ],
       "discriminator": [
-        36,
-        58,
-        192,
-        138,
-        186,
-        7,
-        252,
-        99
+        188,
+        91,
+        152,
+        162,
+        165,
+        91,
+        227,
+        229
       ],
       "accounts": [
         {
-          "name": "borrower",
-          "writable": true,
-          "signer": true
+          "name": "pool",
+          "writable": true
         },
         {
-          "name": "borrower_profile",
+          "name": "vault",
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  112,
-                  114,
-                  111,
-                  102,
-                  105,
-                  108,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "borrower"
-              }
-            ]
-          }
-        },
-        {
-          "name": "listing",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  111,
+                  118,
                   97,
-                  110
+                  117,
+                  108,
+                  116
                 ]
               },
               {
                 "kind": "account",
-                "path": "borrower"
-              },
-              {
-                "kind": "arg",
-                "path": "amount"
+                "path": "pool"
               }
             ]
           }
         },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        },
-        {
-          "name": "interest_rate",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "fund_loan",
-      "discriminator": [
-        50,
-        221,
-        51,
-        13,
-        3,
-        142,
-        116,
-        215
-      ],
-      "accounts": [
         {
           "name": "lender",
           "writable": true,
@@ -133,33 +79,7 @@
           }
         },
         {
-          "name": "listing",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  111,
-                  97,
-                  110
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "borrower"
-              },
-              {
-                "kind": "account",
-                "path": "listing.amount",
-                "account": "LoanListing"
-              }
-            ]
-          }
-        },
-        {
-          "name": "borrower",
+          "name": "position",
           "writable": true,
           "pda": {
             "seeds": [
@@ -167,26 +87,387 @@
                 "kind": "const",
                 "value": [
                   112,
-                  114,
                   111,
-                  102,
+                  115,
                   105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "lender"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "create_loan_pool",
+      "docs": [
+        "Creates a loan pool with the target amount and associated term offer."
+      ],
+      "discriminator": [
+        104,
+        146,
+        212,
+        187,
+        156,
+        36,
+        220,
+        6
+      ],
+      "accounts": [
+        {
+          "name": "borrower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "target_amount",
+          "type": "u64"
+        },
+        {
+          "name": "term_offer_id",
+          "type": "pubkey"
+        },
+        {
+          "name": "years_data_hash",
+          "type": "string"
+        },
+        {
+          "name": "years_covered",
+          "type": "u8"
+        },
+        {
+          "name": "currency",
+          "type": "string"
+        },
+        {
+          "name": "country",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "create_repayment_schedule",
+      "docs": [
+        "Creates a repayment schedule for a borrower with multiple installments."
+      ],
+      "discriminator": [
+        100,
+        176,
+        120,
+        1,
+        70,
+        109,
+        198,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "borrower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "repayment_schedule",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  99,
+                  104,
+                  101,
+                  100,
+                  117,
                   108,
                   101
                 ]
               },
               {
                 "kind": "account",
-                "path": "borrower"
+                "path": "pool"
               }
             ]
           }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "total_repayable",
+          "type": "u64"
+        },
+        {
+          "name": "num_installments",
+          "type": "u8"
+        },
+        {
+          "name": "installment_interval_days",
+          "type": "u32"
+        },
+        {
+          "name": "late_penalty_bps",
+          "type": "u16"
+        },
+        {
+          "name": "early_repayment_discount_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "create_term_offer",
+      "docs": [
+        "Creates a lending term offer with specific parameters."
+      ],
+      "discriminator": [
+        136,
+        80,
+        74,
+        151,
+        148,
+        104,
+        247,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "min_interest_rate_bps",
+          "type": "u64"
+        },
+        {
+          "name": "max_duration_days",
+          "type": "u64"
+        },
+        {
+          "name": "collateral_required",
+          "type": "bool"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "disburse_loan",
+      "docs": [
+        "Disburses a loan to a borrower."
+      ],
+      "discriminator": [
+        115,
+        159,
+        152,
+        253,
+        201,
+        29,
+        29,
+        174
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "borrower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "early_repay_all",
+      "docs": [
+        "Allows early repayment of all outstanding debt."
+      ],
+      "discriminator": [
+        205,
+        197,
+        171,
+        152,
+        123,
+        117,
+        80,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "borrower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "repayment_schedule",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "finalize_pool",
+      "docs": [
+        "Finalizes a loan pool, making it available for lending."
+      ],
+      "discriminator": [
+        74,
+        182,
+        193,
+        101,
+        92,
+        152,
+        202,
+        142
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true
         }
       ],
       "args": []
     },
     {
       "name": "initialize",
+      "docs": [
+        "Initializes the program with an admin's public key."
+      ],
       "discriminator": [
         175,
         175,
@@ -204,16 +485,13 @@
           "signer": true
         },
         {
-          "name": "user",
+          "name": "admin",
           "writable": true,
           "signer": true
         },
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "dblt_mint"
         }
       ],
       "args": [
@@ -224,7 +502,165 @@
       ]
     },
     {
+      "name": "make_repayment",
+      "docs": [
+        "Makes a repayment for a specific installment."
+      ],
+      "discriminator": [
+        227,
+        28,
+        204,
+        24,
+        252,
+        153,
+        66,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "borrower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "repayment_schedule",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  99,
+                  104,
+                  101,
+                  100,
+                  117,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "installment_number",
+          "type": "u8"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "is_early",
+          "type": "bool"
+        },
+        {
+          "name": "is_late",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "mark_default",
+      "docs": [
+        "Marks a borrower as defaulted if repayments are not made."
+      ],
+      "discriminator": [
+        182,
+        231,
+        123,
+        132,
+        66,
+        208,
+        137,
+        139
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "repayment_schedule",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "record_late_payment",
+      "docs": [
+        "Records a late payment made by the borrower."
+      ],
+      "discriminator": [
+        92,
+        243,
+        199,
+        111,
+        94,
+        166,
+        88,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "inst",
+          "type": "u8"
+        },
+        {
+          "name": "amt",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "register_borrower",
+      "docs": [
+        "Registers a borrower with a company name."
+      ],
       "discriminator": [
         203,
         187,
@@ -242,7 +678,7 @@
           "signer": true
         },
         {
-          "name": "borrower",
+          "name": "user_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -279,6 +715,9 @@
     },
     {
       "name": "register_lender",
+      "docs": [
+        "Registers a lender with an entity name."
+      ],
       "discriminator": [
         106,
         218,
@@ -296,7 +735,7 @@
           "signer": true
         },
         {
-          "name": "borrower",
+          "name": "user_profile",
           "writable": true,
           "pda": {
             "seeds": [
@@ -333,6 +772,9 @@
     },
     {
       "name": "update_financial_score",
+      "docs": [
+        "Updates the borrower's financial score."
+      ],
       "discriminator": [
         113,
         237,
@@ -376,13 +818,16 @@
       ],
       "args": [
         {
-          "name": "component_type",
+          "name": "new_score",
           "type": "u8"
         }
       ]
     },
     {
       "name": "update_identity_score",
+      "docs": [
+        "Updates the borrower's identity score."
+      ],
       "discriminator": [
         229,
         207,
@@ -426,10 +871,93 @@
       ],
       "args": [
         {
-          "name": "component_type",
+          "name": "new_score",
           "type": "u8"
         }
       ]
+    },
+    {
+      "name": "withdraw_funds",
+      "docs": [
+        "Withdraws funds from a pool or a user's account."
+      ],
+      "discriminator": [
+        241,
+        36,
+        29,
+        111,
+        208,
+        31,
+        104,
+        217
+      ],
+      "accounts": [
+        {
+          "name": "lender",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              },
+              {
+                "kind": "account",
+                "path": "lender"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -447,16 +975,55 @@
       ]
     },
     {
-      "name": "LoanListing",
+      "name": "LenderPosition",
       "discriminator": [
-        64,
-        143,
-        90,
-        82,
+        165,
+        98,
+        244,
+        204,
+        209,
+        158,
+        88,
+        19
+      ]
+    },
+    {
+      "name": "LoanPool",
+      "discriminator": [
+        179,
+        24,
+        123,
+        83,
+        155,
+        186,
+        17,
+        89
+      ]
+    },
+    {
+      "name": "LoanVault",
+      "discriminator": [
+        70,
         164,
-        133,
-        137,
-        233
+        79,
+        174,
+        234,
+        185,
+        25,
+        181
+      ]
+    },
+    {
+      "name": "RepaymentSchedule",
+      "discriminator": [
+        87,
+        163,
+        152,
+        157,
+        210,
+        78,
+        249,
+        216
       ]
     },
     {
@@ -476,23 +1043,133 @@
   "errors": [
     {
       "code": 6000,
-      "name": "InvalidComponent",
-      "msg": "Invalid verification component type"
+      "name": "StringTooLong",
+      "msg": "String too long"
     },
     {
       "code": 6001,
-      "name": "AlreadyVerified",
-      "msg": "Already verified for this component"
+      "name": "InvalidComponent",
+      "msg": "Invalid component type"
     },
     {
       "code": 6002,
-      "name": "LenderNoFinancials",
-      "msg": "Lenders do not need financial verification"
+      "name": "AlreadyVerified",
+      "msg": "Already verified"
     },
     {
       "code": 6003,
-      "name": "ListingNotActive",
-      "msg": "Listing is not active"
+      "name": "LenderNoFinancials",
+      "msg": "Lender cannot have financial scores"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidInterestRate",
+      "msg": "Invalid interest rate"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidDuration",
+      "msg": "Invalid duration"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidYearsCovered",
+      "msg": "Invalid years covered"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidAmount",
+      "msg": "Invalid amount"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidCurrencyCode",
+      "msg": "Invalid currency code"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidCountryCode",
+      "msg": "Invalid country code"
+    },
+    {
+      "code": 6010,
+      "name": "InsufficientCredit",
+      "msg": "Insufficient credit score"
+    },
+    {
+      "code": 6011,
+      "name": "PoolNotOpen",
+      "msg": "Pool not open"
+    },
+    {
+      "code": 6012,
+      "name": "OverFunding",
+      "msg": "Over funding"
+    },
+    {
+      "code": 6013,
+      "name": "PoolNotFunded",
+      "msg": "Pool not funded"
+    },
+    {
+      "code": 6014,
+      "name": "NothingToWithdraw",
+      "msg": "Nothing to withdraw"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidPoolStatus",
+      "msg": "Invalid pool status"
+    },
+    {
+      "code": 6016,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6017,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6018,
+      "name": "InsufficientFunds",
+      "msg": "The vault has insufficient funds for this operation."
+    },
+    {
+      "code": 6019,
+      "name": "InvalidNumInstallments",
+      "msg": "Invalid number of installments"
+    },
+    {
+      "code": 6020,
+      "name": "TooManyInstallments",
+      "msg": "Too many installments"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidInstallmentInterval",
+      "msg": "Invalid installment interval"
+    },
+    {
+      "code": 6022,
+      "name": "PenaltyTooHigh",
+      "msg": "Late penalty too high"
+    },
+    {
+      "code": 6023,
+      "name": "DiscountTooHigh",
+      "msg": "Early repayment discount too high"
+    },
+    {
+      "code": 6024,
+      "name": "ScheduleInactive",
+      "msg": "Repayment schedule inactive"
+    },
+    {
+      "code": 6025,
+      "name": "InsufficientPayment",
+      "msg": "Insufficient payment amount"
     }
   ],
   "types": [
@@ -525,7 +1202,31 @@
       }
     },
     {
-      "name": "LoanListing",
+      "name": "LenderPosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lender",
+            "type": "pubkey"
+          },
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "withdrawn",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LoanPool",
       "type": {
         "kind": "struct",
         "fields": [
@@ -534,20 +1235,20 @@
             "type": "pubkey"
           },
           {
-            "name": "amount",
+            "name": "target_amount",
             "type": "u64"
           },
           {
-            "name": "interest_rate_bps",
+            "name": "current_amount",
             "type": "u64"
+          },
+          {
+            "name": "term_offer",
+            "type": "pubkey"
           },
           {
             "name": "status",
-            "type": {
-              "defined": {
-                "name": "LoanStatus"
-              }
-            }
+            "type": "u8"
           },
           {
             "name": "created_at",
@@ -557,21 +1258,89 @@
       }
     },
     {
-      "name": "LoanStatus",
+      "name": "LoanVault",
       "type": {
-        "kind": "enum",
-        "variants": [
+        "kind": "struct",
+        "fields": [
           {
-            "name": "Pending"
+            "name": "pool",
+            "type": "pubkey"
           },
           {
-            "name": "Funded"
+            "name": "total_deposited",
+            "type": "u64"
           },
           {
-            "name": "Completed"
+            "name": "total_withdrawn",
+            "type": "u64"
           },
           {
-            "name": "Defaulted"
+            "name": "total_repaid",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RepaymentSchedule",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "borrower",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_repayable",
+            "type": "u64"
+          },
+          {
+            "name": "total_repaid",
+            "type": "u64"
+          },
+          {
+            "name": "current_installment",
+            "type": "u8"
+          },
+          {
+            "name": "num_installments",
+            "type": "u8"
+          },
+          {
+            "name": "installment_amount",
+            "type": "u64"
+          },
+          {
+            "name": "installment_interval_days",
+            "type": "u32"
+          },
+          {
+            "name": "start_date",
+            "type": "i64"
+          },
+          {
+            "name": "next_due_date",
+            "type": "i64"
+          },
+          {
+            "name": "late_penalty_bps",
+            "type": "u16"
+          },
+          {
+            "name": "early_repayment_discount_bps",
+            "type": "u16"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "defaulted_installment",
+            "type": "u8"
           }
         ]
       }
@@ -592,21 +1361,31 @@
           {
             "name": "company_name",
             "type": {
-              "option": "string"
+              "array": [
+                "u8",
+                64
+              ]
             }
           },
           {
             "name": "entity_name",
             "type": {
-              "option": "string"
+              "array": [
+                "u8",
+                64
+              ]
             }
+          },
+          {
+            "name": "name_len",
+            "type": "u8"
           },
           {
             "name": "identity_score",
             "type": "u8"
           },
           {
-            "name": "max_score",
+            "name": "max_identity_score",
             "type": "u8"
           },
           {
@@ -614,7 +1393,11 @@
             "type": "u8"
           },
           {
-            "name": "financial_max_score",
+            "name": "max_financial_score",
+            "type": "u8"
+          },
+          {
+            "name": "financial_verified_flags",
             "type": "u8"
           },
           {

@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Transfer};
+use anchor_lang::system_program;
+// [DEFERRED-SPL]
+// use anchor_spl::token::{self, Transfer};
 use crate::instructions::*; 
 // use crate::state::*;
 use crate::error::ErrorCode;
@@ -48,6 +50,7 @@ pub fn make_repayment(
 ) -> Result<()> {
     let schedule = &mut ctx.accounts.repayment_schedule;
     let vault = &mut ctx.accounts.vault;
+    let borrower = &ctx.accounts.borrower;
 
     require!(schedule.status == SCHEDULE_ACTIVE, ErrorCode::ScheduleInactive);
 
@@ -64,14 +67,15 @@ pub fn make_repayment(
 
     require!(amount >= expected, ErrorCode::InsufficientPayment);
 
-    let cpi_accounts = Transfer {
-        from: ctx.accounts.borrower_token_account.to_account_info(),
-        to: ctx.accounts.vault_token_account.to_account_info(),
-        authority: ctx.accounts.borrower.to_account_info(),
-    };
-
-    token::transfer(
-        CpiContext::new(ctx.accounts.token_program.key(), cpi_accounts),
+    // Transfer SOL from borrower to vault
+    system_program::transfer(
+        CpiContext::new(
+            ctx.accounts.system_program.key(),
+            system_program::Transfer {
+                from: borrower.to_account_info(),
+                to: vault.to_account_info(),
+            },
+        ),
         amount,
     )?;
 
@@ -99,15 +103,17 @@ pub fn mark_default(ctx: Context<MarkDefault>) -> Result<()> {
 pub fn early_repay_all(ctx: Context<EarlyRepayAll>, amount: u64) -> Result<()> {
     let schedule = &mut ctx.accounts.repayment_schedule;
     let vault = &mut ctx.accounts.vault;
+    let borrower = &ctx.accounts.borrower;
     
-    let cpi_accounts = Transfer {
-        from: ctx.accounts.borrower_token_account.to_account_info(),
-        to: ctx.accounts.vault_token_account.to_account_info(),
-        authority: ctx.accounts.borrower.to_account_info(),
-    };
-
-    token::transfer(
-        CpiContext::new(ctx.accounts.token_program.key(), cpi_accounts),
+    // Transfer SOL from borrower to vault
+    system_program::transfer(
+        CpiContext::new(
+            ctx.accounts.system_program.key(),
+            system_program::Transfer {
+                from: borrower.to_account_info(),
+                to: vault.to_account_info(),
+            },
+        ),
         amount,
     )?;
 

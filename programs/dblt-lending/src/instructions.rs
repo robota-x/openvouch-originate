@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount, Mint};
+// [DEFERRED-SPL]
+// use anchor_spl::token::{Token, TokenAccount, Mint};
 
 use crate::state::*;
 use crate::constants::*;
@@ -9,7 +10,8 @@ use crate::constants::*;
 pub struct Initialize<'info> {
     #[account(init, payer = admin, space = 8 + 200)]
     pub config: Account<'info, Config>,
-    pub dblt_mint: Account<'info, Mint>,
+    // [DEFERRED-SPL]
+    // pub dblt_mint: Account<'info, Mint>,
     #[account(mut)]
     pub admin: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -56,6 +58,24 @@ pub struct CreateTermOffer<'info> {
 pub struct CreateLoanPool<'info> {
     #[account(mut)]
     pub borrower: Signer<'info>,
+
+    #[account(
+        init,
+        payer = borrower,
+        space = 8 + std::mem::size_of::<LoanPool>(),
+    )]
+    pub pool: Account<'info, LoanPool>,
+
+    #[account(
+        init,
+        payer = borrower,
+        space = 8 + std::mem::size_of::<LoanVault>(),
+        seeds = [SEED_VAULT, pool.key().as_ref()],
+        bump
+    )]
+    pub vault: Account<'info, LoanVault>,
+
+    pub system_program: Program<'info, System>,
 }
 
 // ==================== CONTRIBUTION ====================
@@ -67,20 +87,29 @@ pub struct ContributeToPool<'info> {
     pub vault: Account<'info, LoanVault>,
     #[account(mut)]
     pub lender: Signer<'info>,
-    // Added for potential lender validation
     #[account(
         mut,
         seeds = [SEED_PROFILE, lender.key().as_ref()],
         bump
     )]
     pub lender_profile: Account<'info, UserProfile>,
-    #[account(mut)]
-    pub lender_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
-    pub vault_token_account: Account<'info, TokenAccount>,
-    #[account(mut, seeds=[SEED_POSITION, pool.key().as_ref(), lender.key().as_ref()], bump)]
+    
+    // [DEFERRED-SPL]
+    // #[account(mut)]
+    // pub lender_token_account: Account<'info, TokenAccount>,
+    // #[account(mut)]
+    // pub vault_token_account: Account<'info, TokenAccount>,
+    // pub token_program: Program<'info, Token>,
+
+    #[account(
+        init_if_needed,
+        payer = lender,
+        space = 8 + std::mem::size_of::<LenderPosition>(),
+        seeds = [SEED_POSITION, pool.key().as_ref(), lender.key().as_ref()],
+        bump
+    )]
     pub position: Account<'info, LenderPosition>,
-    pub token_program: Program<'info, Token>,
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -93,18 +122,8 @@ pub struct DisburseLoan<'info> {
     pub vault: Account<'info, LoanVault>,
     #[account(mut)]
     pub borrower: Signer<'info>,
-    // Added for borrower score validation
-    #[account(
-        mut,
-        seeds = [SEED_PROFILE, borrower.key().as_ref()],
-        bump
-    )]
-    pub borrower_profile: Account<'info, UserProfile>,
-    #[account(mut)]
-    pub borrower_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
-    pub vault_token_account: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
+    
+    pub system_program: Program<'info, System>,
 }
 
 // ==================== FINALIZE ====================
@@ -125,13 +144,17 @@ pub struct WithdrawFunds<'info> {
     pub pool: Account<'info, LoanPool>,
     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
     pub vault: Account<'info, LoanVault>,
-    #[account(mut)]
-    pub lender_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
-    pub vault_token_account: Account<'info, TokenAccount>,
+    
+    // [DEFERRED-SPL]
+    // #[account(mut)]
+    // pub lender_token_account: Account<'info, TokenAccount>,
+    // #[account(mut)]
+    // pub vault_token_account: Account<'info, TokenAccount>,
+    // pub token_program: Program<'info, Token>,
+
     #[account(mut, seeds=[SEED_POSITION, pool.key().as_ref(), lender.key().as_ref()], bump)]
     pub position: Account<'info, LenderPosition>,
-    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 // ==================== REPAYMENT ====================
@@ -144,7 +167,7 @@ pub struct CreateRepaymentSchedule<'info> {
     #[account(
         init,
         payer = borrower,
-        space = 8 + 256,
+        space = 8 + std::mem::size_of::<RepaymentSchedule>(),
         seeds = [b"schedule", pool.key().as_ref()],
         bump
     )]
@@ -162,11 +185,15 @@ pub struct MakeRepayment<'info> {
     pub repayment_schedule: Account<'info, RepaymentSchedule>,
     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
     pub vault: Account<'info, LoanVault>,
-    #[account(mut)]
-    pub borrower_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
-    pub vault_token_account: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
+    
+    // [DEFERRED-SPL]
+    // #[account(mut)]
+    // pub borrower_token_account: Account<'info, TokenAccount>,
+    // #[account(mut)]
+    // pub vault_token_account: Account<'info, TokenAccount>,
+    // pub token_program: Program<'info, Token>,
+
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -191,9 +218,13 @@ pub struct EarlyRepayAll<'info> {
     pub repayment_schedule: Account<'info, RepaymentSchedule>,
     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
     pub vault: Account<'info, LoanVault>,
-    #[account(mut)]
-    pub borrower_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
-    pub vault_token_account: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
+    
+    // [DEFERRED-SPL]
+    // #[account(mut)]
+    // pub borrower_token_account: Account<'info, TokenAccount>,
+    // #[account(mut)]
+    // pub vault_token_account: Account<'info, TokenAccount>,
+    // pub token_program: Program<'info, Token>,
+
+    pub system_program: Program<'info, System>,
 }

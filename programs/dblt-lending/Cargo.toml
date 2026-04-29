@@ -19,7 +19,7 @@ anchor-debug = []
 
 [dependencies]
 # Adding solana-program-entrypoint for compatibility with Solana
-solana-program-entrypoint = "1.8.0"  # Replace with the latest version if needed
+solana-program-entrypoint = "3.1.1" 
 
 # Anchor-related dependencies
 anchor-lang = { version = "1.0.0", features = ["init-if-needed"] }

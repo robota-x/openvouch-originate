@@ -6,7 +6,8 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
-    "test": "turbo test"
+    "test": "turbo test",
+    "anchor:sync": "./scripts/sync-idl.sh"
   },
   "devDependencies": {
     "turbo": "latest"
