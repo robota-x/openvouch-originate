@@ -65,8 +65,8 @@ async function fetchExternalAttestations(wallet: string): Promise<Attestation[]>
 
   try {
     const [identity, company] = await Promise.all([
-      identityClient.getIdentity(wallet).catch(() => ({ verified: false })),
-      attestationClient.getStatus(wallet).catch(() => ({ verified: false })),
+      identityClient.getIdentity(wallet),
+      attestationClient.getStatus(wallet),
     ])
 
     if (identity.verified && identity.identity) {

@@ -169,6 +169,27 @@ export const backendClient = {
   },
 };
 
+export interface IdentityResponse {
+  verified: boolean;
+  identity?: {
+    fullName: string;
+    dob: string;
+    country: string;
+    verifiedAt: number;
+  };
+}
+
+export interface CompanyStatusResponse {
+  verified: boolean;
+  companyNumber?: string;
+  companyName?: string;
+  directorName?: string;
+  attestationAddress?: string;
+  issuedAt?: number;
+  expiresAt?: number;
+  reason?: string;
+}
+
 export const identityClient = {
   async startVerification(
     walletAddress: string,
@@ -198,19 +219,12 @@ export const identityClient = {
     return res.json() as Promise<{ success: boolean; verified: boolean }>;
   },
 
-  async getIdentity(walletAddress: string): Promise<{
-    verified: boolean;
-    identity?: {
-      fullName: string;
-      dob: string;
-      country: string;
-      verifiedAt: number;
-    };
-  }> {
+  async getIdentity(walletAddress: string): Promise<IdentityResponse> {
     // Note: direct fetch to IDENTITY_API_BASE to match existing handling of 404
     const res = await fetch(`${IDENTITY_API_BASE}/identity/${encodeURIComponent(walletAddress)}`);
     if (res.status === 404) return { verified: false };
-    return handleResponse(res, `/identity/${walletAddress}`).then(r => r.json());
+    const data = await handleResponse(res, `/identity/${walletAddress}`).then(r => r.json());
+    return data as IdentityResponse;
   },
 };
 
@@ -278,18 +292,11 @@ export const attestationClient = {
     }>;
   },
 
-  async getStatus(walletAddress: string): Promise<{
-    verified: boolean;
-    companyNumber?: string;
-    companyName?: string;
-    directorName?: string;
-    attestationAddress?: string;
-    issuedAt?: number;
-    expiresAt?: number;
-    reason?: string;
-  }> {
+  async getStatus(walletAddress: string): Promise<CompanyStatusResponse> {
     // Note: direct fetch to ATTESTATION_API_BASE to match direct status lookup
     const res = await fetch(`${ATTESTATION_API_BASE}/api/verify/status/${encodeURIComponent(walletAddress)}`);
-    return handleResponse(res, `/api/verify/status/${walletAddress}`).then(r => r.json());
+    if (res.status === 404) return { verified: false };
+    const data = await handleResponse(res, `/api/verify/status/${walletAddress}`).then(r => r.json());
+    return data as CompanyStatusResponse;
   },
 };
