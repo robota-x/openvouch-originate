@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import type { ContractView } from '../types'
-import { truncate } from '../utils/format'
+import { truncate, fmtDate } from '../utils/format'
 
-const props = defineProps<{ contract: ContractView }>()
+const props = defineProps<{ contract: ContractView }> ()
 const emit  = defineEmits<{ close: []; fund: [borrower: string] }>()
 
 // ── Trust score color ──────────────────────────────────────────────────────
@@ -70,9 +70,6 @@ const daysRemaining = computed(() => {
 // ── Helpers ────────────────────────────────────────────────────────────────
 function fmt(n: number) {
   return n.toLocaleString(undefined, { maximumFractionDigits: 2 })
-}
-function fmtDate(iso: string) {
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso))
 }
 
 // ── ESC to close ───────────────────────────────────────────────────────────

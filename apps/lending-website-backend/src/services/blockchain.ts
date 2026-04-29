@@ -1,12 +1,12 @@
 import * as anchor from "@coral-xyz/anchor";
-import {
-  Connection,
-  PublicKey,
-  Transaction,
-  VersionedTransaction,
-} from "@solana/web3.js";
-import BN from "bn.js";
-import { getDbltLendingIdl, Registry } from "@openvouch/idl";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { BN } from "bn.js";
+
+// ✅ FIX: use named imports from Registry
+import { Registry } from "@openvouch/idl";
+const idl = Registry.getIdl("dblt_lending");
+
+const PROGRAM_ID = "6fXix7yZxeoqyL3wNtAHpPZ8dXAXQe3DXbVPeqcH1Gny";
 
 /**
  * ⚠️ Backend-only transaction builder
@@ -22,31 +22,14 @@ export class BlockchainService {
   constructor(rpcUrl: string) {
     this.connection = new Connection(rpcUrl, "confirmed");
 
-    const idl = getDbltLendingIdl();
+    const provider = new anchor.AnchorProvider(this.connection, providerWallet, {
+      commitment: "confirmed",
+    });
 
-    /**
-     * ✅ FIX: NO NodeWallet, NO payer required
-     * We only satisfy Anchor type system
-     */
-    const dummyKeypair = anchor.web3.Keypair.generate();
-    const dummyWallet: anchor.Wallet & { payer: anchor.web3.Keypair } = {
-      publicKey: dummyKeypair.publicKey,
-      payer: dummyKeypair,
-
-      signTransaction: async <T extends Transaction | VersionedTransaction>(
-        tx: T,
-      ): Promise<T> => tx,
-
-      signAllTransactions: async <T extends Transaction | VersionedTransaction>(
-        txs: T[],
-      ): Promise<T[]> => txs,
-    };
-
-    // Use the correct explicit AnchorProvider type
-    const provider: anchor.AnchorProvider = new anchor.AnchorProvider(
-      this.connection,
-      dummyWallet,
-      { commitment: "confirmed" },
+    // ⚠️ Anchor expects full IDL object (now imported safely)
+    this.program = new anchor.Program(
+      idl as anchor.Idl,
+      provider,
     );
 
     this.program = new anchor.Program(idl as anchor.Idl, provider);
@@ -89,7 +72,7 @@ export class BlockchainService {
    */
   async buildCreateLoanPoolTx(
     borrower: PublicKey,
-    targetAmount: BN,
+    targetAmount: anchor.BN,
     termOfferId: PublicKey,
     yearsDataHash: string,
     yearsCovered: number,
@@ -117,7 +100,7 @@ export class BlockchainService {
   async buildContributeToPoolTx(
     pool: PublicKey,
     lender: PublicKey,
-    amount: BN,
+    amount: anchor.BN,
     lenderTokenAccount: PublicKey,
     vaultTokenAccount: PublicKey,
   ): Promise<Transaction> {
@@ -172,10 +155,12 @@ export class BlockchainService {
     owner: PublicKey,
     mint: PublicKey,
   ): Promise<PublicKey> {
-    const ata = await anchor.utils.token.associatedAddress({
-      mint,
-      owner,
-    });
+    const associatedTokenAddress = await anchor.utils.token.associatedAddress(
+      {
+        mint,
+        owner,
+      },
+    );
 
     const info = await this.connection.getAccountInfo(ata);
 
@@ -187,9 +172,7 @@ export class BlockchainService {
   }
 
   async getTokenBalance(tokenAccount: PublicKey): Promise<number> {
-    const res = await this.connection.getTokenAccountBalance(tokenAccount);
-
-    // FIX: safe conversion (no "0" string issues)
-    return Number(res.value.uiAmount ?? 0);
+    const info = await this.connection.getTokenAccountBalance(tokenAccount);
+    return info.value.uiAmount ?? 0;
   }
 }

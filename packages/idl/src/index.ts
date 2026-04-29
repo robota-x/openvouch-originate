@@ -41,3 +41,5 @@ export const Registry = {
 // Legacy-friendly constants for common programs (optional, but keeps existing code working)
 export const getDbltLendingIdl = () => Registry.getIdl("dblt_lending");
 export const getGenericRecordIdl = () => Registry.getIdl("generic_record");
+
+export default Registry.getIdl("dblt_lending");

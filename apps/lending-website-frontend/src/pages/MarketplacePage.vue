@@ -53,7 +53,7 @@ function openContract(loan: Loan) {
 // A non-authed user could fund directly on-chain. We intercept to drive wallet adoption.
 function handleFund(borrower: string) {
   activeContract.value = null
-  if (!auth.isConnected) {
+  if (!auth.isAuthenticated) {
     pendingFundBorrower.value = borrower
     showConnectModal.value    = true
     return

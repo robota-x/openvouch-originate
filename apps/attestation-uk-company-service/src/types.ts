@@ -4,8 +4,7 @@ import type { AppConfig } from './config.js'
 export type Bindings = {
   DB:            D1Database
   COMPANIES_HOUSE_UK_API_KEY?: string
-  SENDGRID_KEY?: string
-  EMAIL_FROM?:   string
+  IDENTITY_SERVICE_URL?: string
 }
 
 /** Per-request context variables set by middleware and read by handlers */
@@ -21,17 +20,14 @@ export type AppEnv = {
 
 // ── Session ───────────────────────────────────────────────────────────────────
 
-export type SessionStatus = 'pending' | 'email_verified' | 'attested'
+export type SessionStatus = 'pending' | 'attested'
 
 export interface Session {
   id: string
   walletAddress: string
   companyNumber: string
   directorName: string
-  companyEmail: string
   challengeMessage: string
-  otp: string
-  otpExpiresAt: number // unix ms
   status: SessionStatus
   createdAt: number // unix ms
 }
@@ -56,6 +52,8 @@ export interface Director {
   name: string
   role: string
   appointedOn: string
+  dob?: string
+  country?: string
 }
 
 export interface CompanyDetails {

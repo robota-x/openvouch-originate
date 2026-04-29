@@ -6,10 +6,8 @@ import type { AppEnv, Bindings } from './types.js'
 export interface AppConfig {
   /** Companies House API key. Required — requests fail fast if absent. */
   companiesHouseUkApiKey: string
-  /** SendGrid API key. undefined = dev/test mode (OTP printed to console). */
-  sendgridKey: string | undefined
-  /** From address for outgoing email. */
-  emailFrom: string
+  /** Identity service URL for verification. */
+  identityServiceUrl: string
 }
 
 // ── Builder ───────────────────────────────────────────────────────────────────
@@ -29,8 +27,7 @@ export function buildConfig(env: Bindings | undefined): AppConfig {
 
   return {
     companiesHouseUkApiKey,
-    sendgridKey: env?.SENDGRID_KEY,
-    emailFrom:   env?.EMAIL_FROM ?? 'noreply@openvouch.io',
+    identityServiceUrl: env?.IDENTITY_SERVICE_URL ?? 'http://localhost:8789',
   }
 }
 

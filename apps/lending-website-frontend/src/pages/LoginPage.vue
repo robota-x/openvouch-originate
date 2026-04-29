@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth, type DetectedWallet } from '../composables/useAuth'
 import WalletConnectModal from '../components/WalletConnectModal.vue'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 
 const router = useRouter()
+const route  = useRoute()
 const auth   = useAuth()
 
 const loading = ref(false)
@@ -16,7 +17,14 @@ async function connect(wallet: DetectedWallet) {
   error.value   = null
   try {
     await auth.connect(wallet)
-    router.push('/my-profile')
+    
+    // Support redirect back to the intended page if redirect query is present
+    const redirectPath = route.query.redirect as string
+    if (redirectPath && redirectPath.startsWith('/')) {
+      router.push(redirectPath)
+    } else {
+      router.push('/my-profile')
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Connection failed'
   } finally {

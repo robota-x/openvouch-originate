@@ -5,20 +5,69 @@ on:
     workflows: ["CI"]
     types:
       - completed
-    branches:
-      - main
-  workflow_dispatch:
-    inputs:
-      sha:
-        description: "Full commit SHA of the image to deploy"
-        required: true
 
 jobs:
   deploy-staging:
+    name: Deploy to Staging
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    env:
-      # workflow_run provides head_sha; workflow_dispatch requires the caller to pass the full SHA
-      IMAGE_SHA: ${{ github.event.workflow_run.head_sha || inputs.sha }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'pull_request') }}
     steps:
-      - run: echo "Deploying defi-hack/lending-api:${{ env.IMAGE_SHA }} to staging"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build only
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: https://openvouch-originate-backend-staging.neuronefunzionante.workers.dev
+          VITE_IDENTITY_API_BASE_URL: https://openvouch-attestation-identity-service-staging.neuronefunzionante.workers.dev
+          VITE_ATTESTATION_API_BASE_URL: https://openvouch-attestation-uk-company-service-staging.neuronefunzionante.workers.dev
+
+      - name: Deploy Frontend
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/lending-website-frontend
+          command: deploy --config wrangler.staging.jsonc
+
+      - name: Deploy Lending Backend
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/lending-website-backend
+          command: |
+            d1 migrations apply openvouch-originate-db-staging --remote --config wrangler.staging.jsonc
+            deploy --config wrangler.staging.jsonc
+
+      - name: Deploy UK Company Service
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/attestation-uk-company-service
+          command: |
+            echo "${{ secrets.COMPANIES_HOUSE_UK_API_KEY_STAGING }}" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
+            d1 migrations apply openvouch-attestation-uk-company-db-staging --remote --config wrangler.staging.jsonc
+            deploy --config wrangler.staging.jsonc
+
+      - name: Deploy Identity Service
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/attestation-identity-service
+          command: |
+            echo "mock-placeholder" | npx wrangler secret put SHUFTI_CLIENT_ID --config wrangler.staging.jsonc
+            echo "mock-placeholder" | npx wrangler secret put SHUFTI_SECRET --config wrangler.staging.jsonc
+            deploy --config wrangler.staging.jsonc
