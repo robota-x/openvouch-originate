@@ -123,7 +123,9 @@ function openLentContract(loan: LentLoan) {
     borrowerAttestationCount: loan.borrowerAttestationCount,
     borrowerRepaymentRate:   loan.borrowerRepaymentRate,
     lender:   MY_ADDRESS,
-    amount:   loan.amount, currency: loan.currency,
+    amount:   loan.amount, // This is the user's position
+    raisedAmount: loan.totalLoanAmount, // We'll repurpose this field to show total context in the modal
+    currency: loan.currency,
     apy:      loan.apy,    duration: loan.duration,
     status:   loan.status, dueDate:  loan.dueDate,
   }

@@ -92,9 +92,18 @@ export const loanListings = sqliteTable('loan_listings', {
   status:     text('status', { enum: ['open', 'active', 'repaid', 'defaulted'] }).notNull().default('open'),
   raisedAmount: real('raised_amount').notNull().default(0),
   repaid:     real('repaid').notNull().default(0),
-  lender:     text('lender'),
+  lender:     text('lender'), // Legacy/Primary lender
   dueDate:    text('due_date'),
   onChainRef: text('on_chain_ref'),
   createdAt:  integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt:  integer('updated_at', { mode: 'timestamp' }).notNull(),
+})
+
+export const loanContributions = sqliteTable('loan_contributions', {
+  id:         text('id').primaryKey(),
+  loanId:     text('loan_id').notNull().references(() => loanListings.id),
+  lender:     text('lender').notNull(),
+  amount:     real('amount').notNull(),
+  onChainRef: text('on_chain_ref'),
+  createdAt:  integer('created_at', { mode: 'timestamp' }).notNull(),
 })

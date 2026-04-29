@@ -88,6 +88,9 @@ pub fn contribute_to_pool(ctx: Context<ContributeToPool>, amount: u64) -> Result
     let vault = &mut ctx.accounts.vault;
     let position = &mut ctx.accounts.position;
     
+    // Check pool status
+    require!(pool.status == PoolStatus::Open as u8, ErrorCode::ListingNotOpen);
+
     // Transfer SOL from lender to vault
     system_program::transfer(
         CpiContext::new(
@@ -106,6 +109,11 @@ pub fn contribute_to_pool(ctx: Context<ContributeToPool>, amount: u64) -> Result
     position.lender = ctx.accounts.lender.key();
     position.pool = pool.key();
     position.amount = position.amount.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+
+    // If target reached, mark as funded
+    if pool.current_amount >= pool.target_amount {
+        pool.status = PoolStatus::Funded as u8;
+    }
 
     msg!("Contribution made: {}", amount);
     Ok(())

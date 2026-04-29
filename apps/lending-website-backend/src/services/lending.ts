@@ -9,8 +9,8 @@ import {
   buildRepaymentTx,
 } from "./blockchain/index.js";
 import type { AppConfig } from "../config.js";
-import { loanListings } from "../db/schema.js";
-import { eq } from "drizzle-orm";
+import { loanListings, loanContributions } from "../db/schema.js";
+import { eq, sql } from "drizzle-orm";
 import { getDbltLendingIdl } from '@openvouch/idl';
 
 const idl = getDbltLendingIdl();
@@ -79,6 +79,9 @@ export async function verifyAndFinalizeLoan(
     throw new Error("Transaction does not involve the lending program");
   }
 
+  // Extract the pool public key from the transaction instructions if needed
+  // For now we trust the signature provided by the frontend
+
   return { 
     success: true,
     slot: tx.slot,
@@ -121,6 +124,7 @@ export async function verifyAndFinalizeContribution(
   signature: string,
   loanId: string,
   amount: number,
+  lender: string,
   db: any,
 ) {
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
@@ -158,12 +162,23 @@ export async function verifyAndFinalizeContribution(
 
   const newRaisedAmount = loan.raisedAmount + amount;
 
-  await db.update(loanListings)
-    .set({ 
-      raisedAmount: newRaisedAmount,
-      updatedAt: new Date()
-    })
-    .where(eq(loanListings.id, loanId));
+  await db.transaction(async (tx: any) => {
+    await tx.update(loanListings)
+      .set({ 
+        raisedAmount: newRaisedAmount,
+        updatedAt: new Date()
+      })
+      .where(eq(loanListings.id, loanId));
+
+    await tx.insert(loanContributions).values({
+      id: crypto.randomUUID(),
+      loanId,
+      lender,
+      amount,
+      onChainRef: signature,
+      createdAt: new Date(),
+    });
+  });
 
   return { success: true };
 }

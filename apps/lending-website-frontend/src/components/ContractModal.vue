@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { ContractView } from '../types'
 import { truncate, fmtDate } from '../utils/format'
 
 const props = defineProps<{ contract: ContractView }> ()
-const emit  = defineEmits<{ close: []; fund: [loanId: string] }>()
+const emit  = defineEmits<{ close: []; fund: [loanId: string, amount: number] }>()
+
+const contributionAmount = ref(props.contract.amount - (props.contract.raisedAmount || 0))
+watch(() => props.contract.id, () => {
+  contributionAmount.value = props.contract.amount - (props.contract.raisedAmount || 0)
+})
+
+const maxContribution = computed(() => props.contract.amount - (props.contract.raisedAmount || 0))
 
 // ── Trust score color ──────────────────────────────────────────────────────
 const trustColor = computed(() => {
@@ -225,8 +232,12 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
             <div class="flex flex-col gap-2 text-sm">
               <div class="flex items-center justify-between">
-                <span class="text-muted">Principal</span>
+                <span class="text-muted">{{ lender === borrower ? 'Principal' : 'Your Position' }}</span>
                 <span class="font-mono text-white">{{ fmt(contract.amount) }} {{ contract.currency }}</span>
+              </div>
+              <div v-if="contract.raisedAmount && contract.raisedAmount !== contract.amount" class="flex items-center justify-between text-[10px]">
+                <span class="text-muted italic">Total Loan Size</span>
+                <span class="font-mono text-muted">{{ fmt(contract.raisedAmount) }} {{ contract.currency }}</span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-muted">Interest ({{ contract.apy }}% × {{ contract.duration }}d)</span>
@@ -259,20 +270,36 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
         </div>
 
         <!-- Footer -->
-        <div class="px-6 py-4 border-t border-border flex items-center justify-end gap-3">
-          <button
-            class="px-4 py-2 rounded text-sm text-muted hover:text-white transition-colors"
-            @click="emit('close')"
-          >
-            Close
-          </button>
-          <button
-            v-if="contract.status === 'open'"
-            class="px-5 py-2 rounded bg-primary text-white text-sm font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
-            @click="emit('fund', contract.id!)"
-          >
-            Fund Request
-          </button>
+        <div class="px-6 py-4 border-t border-border flex items-center justify-between gap-3">
+          <div v-if="contract.status === 'open'" class="flex items-center gap-3">
+             <div class="relative">
+                <input 
+                  v-model.number="contributionAmount" 
+                  type="number" 
+                  step="0.1" 
+                  :min="0.1" 
+                  :max="maxContribution"
+                  class="w-24 bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white font-mono text-sm focus:border-primary/50 outline-none transition-all"
+                />
+                <div class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-muted font-bold pointer-events-none uppercase">SOL</div>
+             </div>
+             <span class="text-[10px] text-muted">max {{ maxContribution }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <button
+              class="px-4 py-2 rounded text-sm text-muted hover:text-white transition-colors"
+              @click="emit('close')"
+            >
+              Close
+            </button>
+            <button
+              v-if="contract.status === 'open'"
+              class="px-5 py-2 rounded bg-primary text-white text-sm font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
+              @click="emit('fund', contract.id!, contributionAmount)"
+            >
+              Contribute
+            </button>
+          </div>
         </div>
 
       </div>

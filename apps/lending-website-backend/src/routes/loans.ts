@@ -221,7 +221,7 @@ loanRoutes.post('/:id/contribute/finalize', authenticate, async (c) => {
   const config = c.get('config')
 
   try {
-    await verifyAndFinalizeContribution(config, signature, id, amount, db)
+    await verifyAndFinalizeContribution(config, signature, id, amount, c.var.user.address, db)
     return c.json({ success: true })
   } catch (e: any) {
     return c.json({ error: e.message }, 400)

@@ -78,11 +78,14 @@ function truncate(addr: string) {
     </div>
 
     <!-- Amount -->
-    <div class="flex-1 min-w-0">
+    <div class="flex-1 min-w-0 flex flex-col">
       <p class="font-mono font-bold text-white">
         {{ amount.toLocaleString() }}
         <span class="text-white/50 text-sm font-normal">{{ currency }}</span>
       </p>
+      <span v-if="totalLoanAmount" class="text-[9px] text-muted uppercase tracking-tighter">
+        of {{ totalLoanAmount.toLocaleString() }} {{ currency }} pool
+      </span>
     </div>
 
     <!-- APY -->

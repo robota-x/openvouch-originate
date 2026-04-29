@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
 import { createAppDb } from '../db/client.js'
-import { profiles as profilesTable, attestations as attestationsTable, loanListings } from '../db/schema.js'
+import { profiles as profilesTable, attestations as attestationsTable, loanListings, loanContributions } from '../db/schema.js'
 import { authenticate } from '../middleware/session.js'
 import { fixtureProfiles } from '../fixtures.js'
 import type { AppEnv } from '../types.js'
@@ -37,25 +37,30 @@ profileRoutes.get('/:address', async (c) => {
     })
   }
 
-  const [attestationRows, borrowedRows, lentRows] = await Promise.all([
+  const [attestationRows, borrowedRows, contributionRows] = await Promise.all([
     db.select().from(attestationsTable).where(eq(attestationsTable.address, address)),
     db.select().from(loanListings).where(eq(loanListings.borrower, address)),
-    db.select().from(loanListings).where(eq(loanListings.lender, address)),
+    db.select().from(loanContributions).where(eq(loanContributions.lender, address)),
   ])
 
-  // For each lent loan, look up the borrower profile to denormalize borrower stats.
-  // NOTE: this is an N+1 — one extra query per lent loan. Acceptable at current scale;
-  // replace with a JOIN or a batched IN query if lentLoans lists grow large.
-  const lentLoans = await Promise.all(lentRows.map(async l => {
+  // Map contributions back to their parent loans to show in "Lent Loans"
+  const lentLoans = await Promise.all(contributionRows.map(async cRow => {
+    const [loan] = await db
+      .select()
+      .from(loanListings)
+      .where(eq(loanListings.id, cRow.loanId))
+    
+    if (!loan) return null;
+
     const [borrowerProfile] = await db
       .select()
       .from(profilesTable)
-      .where(eq(profilesTable.address, l.borrower))
+      .where(eq(profilesTable.address, loan.borrower))
 
     const borrowerSettledLoans = await db
       .select()
       .from(loanListings)
-      .where(eq(loanListings.borrower, l.borrower))
+      .where(eq(loanListings.borrower, loan.borrower))
       .then(rows => rows.filter(r => r.status !== 'open'))
 
     const totalBorrowed = borrowerSettledLoans.reduce((s, r) => s + r.amount, 0)
@@ -67,24 +72,25 @@ profileRoutes.get('/:address', async (c) => {
     const borrowerAttestationCount = await db
       .select()
       .from(attestationsTable)
-      .where(eq(attestationsTable.address, l.borrower))
+      .where(eq(attestationsTable.address, loan.borrower))
       .then(rows => rows.filter(r => r.verified).length)
 
     return {
-      id:                       l.id,
-      borrower:                 l.borrower,
-      borrowerNickname:         borrowerProfile?.nickname ?? l.borrower.slice(0, 8),
+      id:                       loan.id,
+      borrower:                 loan.borrower,
+      borrowerNickname:         borrowerProfile?.nickname ?? loan.borrower.slice(0, 8),
       borrowerTrustScore:       borrowerProfile?.trustScore ?? 0,
       borrowerAttestationCount,
       borrowerRepaymentRate:    repaymentRate,
-      amount:                   l.amount,
-      currency:                 l.currency,
-      apy:                      l.apy,
-      duration:                 l.duration,
-      status:                   l.status as 'active' | 'repaid' | 'defaulted',
-      dueDate:                  l.dueDate ?? undefined,
+      amount:                   cRow.amount, // The amount this specific user lent
+      totalLoanAmount:          loan.amount,
+      currency:                 loan.currency,
+      apy:                      loan.apy,
+      duration:                 loan.duration,
+      status:                   loan.status as 'active' | 'repaid' | 'defaulted',
+      dueDate:                  loan.dueDate ?? undefined,
     }
-  }))
+  })).then(results => results.filter(r => r !== null))
 
   return c.json({
     address:    row.address,
@@ -117,15 +123,6 @@ profileRoutes.get('/:address', async (c) => {
 
 /**
  * PATCH /api/profiles/:address — update user-editable off-chain fields (own profile only).
- *
- * No POST endpoint exists: profiles are created automatically on first login
- * (POST /api/auth/verify) via INSERT OR IGNORE, so the row always exists by the
- * time a user can reach this endpoint.
- *
- * Fields that are NEVER accepted from external input:
- *   - trustScore  — platform-computed; has no write path through the public API
- *   - updatedAt   — always set to server time on every write
- *   - createdAt   — set once at profile creation, never changes
  */
 profileRoutes.patch('/:address', authenticate, async (c) => {
   const address = c.req.param('address')
@@ -138,16 +135,12 @@ profileRoutes.patch('/:address', authenticate, async (c) => {
   const db = createAppDb(d1)
   const raw = await c.req.json<Record<string, unknown>>()
 
-  // Explicit guard: reject any attempt to set protected fields, even if sent accidentally.
-  // This is defence-in-depth — the type below already excludes them, but we don't want
-  // a future refactor silently opening a write path for platform-managed fields.
   const forbidden = ['trustScore', 'trust_score', 'updatedAt', 'updated_at', 'createdAt', 'created_at']
   const attempted = forbidden.filter(k => k in raw)
   if (attempted.length > 0) {
     return c.json({ error: `fields not settable via API: ${attempted.join(', ')}` }, 400)
   }
 
-  // Only nickname is user-editable at this time.
   const body = raw as { nickname?: string }
   const updates: Partial<typeof profilesTable.$inferInsert> = { updatedAt: new Date() }
   if (body.nickname !== undefined) updates.nickname = body.nickname

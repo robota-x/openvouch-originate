@@ -56,7 +56,7 @@ function openContract(loan: Loan) {
 // ── Fund action ───────────────────────────────────────────────────────────────
 // NOTE: auth intercept here is an intentional UX funnel, not a security boundary.
 // A non-authed user could fund directly on-chain. We intercept to drive wallet adoption.
-async function handleFund(loanId: string) {
+async function handleFund(loanId: string, amountToLend?: number) {
   const loan = loans.value.find(l => l.id === loanId)
   if (!loan) return
 
@@ -70,18 +70,17 @@ async function handleFund(loanId: string) {
   isFunding.value = true
   try {
     // 1. Get Base64 TX from backend
-    const amountToLend = loan.amount - (loan.raisedAmount || 0)
+    const contributionAmount = amountToLend ?? (loan.amount - (loan.raisedAmount || 0))
     const { transaction: txBase64 } = await backendClient.initiateContribution(
       auth.token!,
       loan.id,
-      amountToLend
+      contributionAmount
     )
 
     // 2. Deserialize
     const tx = solanaBridge.deserializeTx(txBase64)
 
     // 3. Sign and Broadcast
-    // We need to pass the actual connected wallet object.
     const signature = await solanaBridge.signAndBroadcast(
       solana.connection,
       tx,
@@ -91,12 +90,12 @@ async function handleFund(loanId: string) {
     // 4. Finalize with backend
     await backendClient.finalizeContribution(auth.token!, loan.id, {
       signature,
-      amount: amountToLend
+      amount: contributionAmount
     })
 
     // 5. Refresh
     loans.value = await backendClient.getOpenRequests()
-    alert('Success! Loan funded.')
+    alert('Success! Contribution made.')
   } catch (e: any) {
     console.error('[MarketplacePage] Funding failed:', e)
     alert(`Funding failed: ${e.message}`)

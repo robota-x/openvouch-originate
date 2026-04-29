@@ -60,7 +60,8 @@ export interface LentLoan {
   borrowerAttestationCount: number
   borrowerRepaymentRate: number   // 0–100, historical
   // Terms
-  amount: number
+  amount: number                  // The amount this specific lender contributed
+  totalLoanAmount?: number        // The total size of the loan pool
   currency: string
   apy: number
   duration: number                // days
