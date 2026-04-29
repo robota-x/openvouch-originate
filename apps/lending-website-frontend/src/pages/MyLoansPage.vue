@@ -7,6 +7,7 @@ import { ApiError } from '../types'
 import { backendClient } from '../api/client'
 import { fmt } from '../utils/format'
 import { profileLoanToContractView } from '../utils/loans'
+import { toLamports, toSol } from '../utils/precision'
 import { useSolana } from '../composables/useSolana'
 import { solanaBridge } from '../utils/solana-bridge'
 import BorrowedLoanCard from '../components/BorrowedLoanCard.vue'
@@ -52,7 +53,7 @@ async function handleDisburse(loanId: string) {
   }
 }
 
-async function handleRepay(loanId: string, amount: number) {
+async function handleRepay(loanId: string, amount: string) {
   if (!auth.isAuthenticated) return
   
   isProcessing.value = true
@@ -124,26 +125,32 @@ const lentLoans = computed(() => profile.value?.lentLoans ?? [])
 // ── Recap stats ────────────────────────────────────────────────────────────
 const borrowRepaymentRate = computed(() => {
   const settled = borrowedLoans.value.filter(l => l.status === 'repaid' || l.status === 'defaulted')
-  const borrowed = settled.reduce((s, l) => s + l.amount, 0)
-  const repaid   = settled.reduce((s, l) => s + l.repaid, 0)
-  return borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
+  const borrowed = settled.reduce((s, l) => s + toLamports(l.amount), 0n)
+  const repaid   = settled.reduce((s, l) => s + toLamports(l.repaid), 0n)
+  return borrowed > 0n ? Number((repaid * 100n) / borrowed) : 100
 })
 
-const lendInterest = computed(() =>
-  lentLoans.value
+const lendInterest = computed(() => {
+  const totalInterestLamports = lentLoans.value
     .filter(l => l.status === 'repaid')
-    .reduce((s, l) => s + l.amount * (l.apy / 100) * (l.duration / 365), 0)
-)
-const lendLost = computed(() =>
-  lentLoans.value
+    .reduce((s, l) => {
+      const amount = toLamports(l.amount)
+      return s + (amount * BigInt(l.apy) * BigInt(l.duration)) / (10000n * 365n)
+    }, 0n)
+  return toSol(totalInterestLamports)
+})
+const lendLost = computed(() => {
+  const totalLostLamports = lentLoans.value
     .filter(l => l.status === 'defaulted')
-    .reduce((s, l) => s + l.amount, 0)
-)
-const lendOutstanding = computed(() =>
-  lentLoans.value
+    .reduce((s, l) => s + toLamports(l.amount), 0n)
+  return toSol(totalLostLamports)
+})
+const lendOutstanding = computed(() => {
+  const totalOutstandingLamports = lentLoans.value
     .filter(l => l.status === 'active')
-    .reduce((s, l) => s + l.amount, 0)
-)
+    .reduce((s, l) => s + toLamports(l.amount), 0n)
+  return toSol(totalOutstandingLamports)
+})
 
 // ── Contract modal ─────────────────────────────────────────────────────────
 const activeContract = ref<ContractView | null>(null)
@@ -244,7 +251,7 @@ function openLentContract(loan: LentLoan) {
               :key="loan.id"
               v-bind="loan"
               @view="openBorrowedContract(loan)"
-              @repay="handleRepay(loan.id, loan.amount / loan.duration)"
+              @repay="handleRepay(loan.id, toSol(toLamports(loan.amount) / BigInt(loan.duration)))"
             />
           </div>
 

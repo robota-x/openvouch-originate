@@ -4,10 +4,10 @@ export interface Loan {
   id: string               // server-assigned UUID (or fixture id)
   borrower: string         // wallet address, e.g. "7xKX..."
   nickname: string         // ENS / display name, e.g. "alice.sol"
-  amount: number           // in `currency` units
-  raisedAmount: number     // currently raised
+  amount: string           // in `currency` units
+  raisedAmount: string     // currently raised
   currency: string         // e.g. "USDC"
-  apy: number              // percentage, e.g. 12.5
+  apy: number              // In basis points (BPS), e.g. 1250 for 12.5%
   duration: number         // days
   repaymentRate: number    // 0–100 (percentage of past loans repaid)
   attestationCount: number // number of on-chain attestations
@@ -39,13 +39,13 @@ export interface AttestationProvider {
 
 export interface ProfileLoan {
   id: string
-  amount: number        // original requested / borrowed amount
-  raisedAmount: number  // currently raised
+  amount: string        // original requested / borrowed amount
+  raisedAmount: string  // currently raised
   currency: string
   apy: number
   duration: number      // days
   status: 'open' | 'active' | 'repaid' | 'defaulted'
-  repaid: number        // 0 when unpaid/defaulted, full amount when repaid; no partials
+  repaid: string        // 0 when unpaid/defaulted, full amount when repaid; no partials
   dueDate?: string      // ISO date; present for active/repaid/defaulted loans
   counterparty?: string // lender address; absent for open offers
 }
@@ -60,8 +60,8 @@ export interface LentLoan {
   borrowerAttestationCount: number
   borrowerRepaymentRate: number   // 0–100, historical
   // Terms
-  amount: number                  // The amount this specific lender contributed
-  totalLoanAmount?: number        // The total size of the loan pool
+  amount: string                  // The amount this specific lender contributed
+  totalLoanAmount?: string        // The total size of the loan pool
   currency: string
   apy: number
   duration: number                // days
@@ -96,8 +96,8 @@ export interface ContractView {
   lender?: string
 
   // Terms
-  amount: number
-  raisedAmount?: number
+  amount: string
+  raisedAmount?: string
   currency: string
   apy: number
   duration: number             // days

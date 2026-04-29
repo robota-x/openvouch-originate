@@ -178,6 +178,185 @@ async fn test_full_loan_lifecycle_and_safety_rails() {
 }
 
 #[tokio::test]
+async fn test_repayment_precision_and_rounding() {
+    let (mut context, borrower) = setup_test().await;
+    let program_id = dblt_lending::id();
+    let sdk_program_id = to_sdk_pubkey(program_id);
+
+    airdrop(&mut context, &borrower.pubkey(), 5_000_000_000).await;
+
+    // 1. Setup pool and fund it
+    let pool_keypair = Keypair::new();
+    let (vault_pda, _) = Pubkey::find_program_address(&[b"vault", from_sdk_pubkey(pool_keypair.pubkey()).as_ref()], &program_id);
+    let (schedule_pda, _) = Pubkey::find_program_address(&[b"schedule", from_sdk_pubkey(pool_keypair.pubkey()).as_ref()], &program_id);
+    
+    // Register & Create Pool
+    let (b_prof, _) = Pubkey::find_program_address(&[b"profile", from_sdk_pubkey(borrower.pubkey()).as_ref()], &program_id);
+    let reg_b = Instruction {
+        program_id: sdk_program_id,
+        accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::RegisterUser {
+            user: from_sdk_pubkey(borrower.pubkey()),
+            user_profile: b_prof,
+            system_program: sys_prog(),
+        }, None).into_iter().map(to_sdk_account_meta).collect(),
+        data: dblt_lending::instruction::RegisterBorrower { company_name: "B".to_string() }.data(),
+    };
+    let create = Instruction {
+        program_id: sdk_program_id,
+        accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::CreateLoanPool {
+            borrower: from_sdk_pubkey(borrower.pubkey()),
+            pool: from_sdk_pubkey(pool_keypair.pubkey()),
+            vault: vault_pda,
+            system_program: sys_prog(),
+        }, None).into_iter().map(to_sdk_account_meta).collect(),
+        data: dblt_lending::instruction::CreateLoanPool {
+            target_amount: 100_000_000,
+            term_offer_id: Pubkey::new_unique(),
+            years_data_hash: "".to_string(),
+            years_covered: 1,
+            currency: "SOL".to_string(),
+            country: "UK".to_string(),
+        }.data(),
+    };
+    let tx = Transaction::new_signed_with_payer(&[reg_b, create], Some(&borrower.pubkey()), &[&borrower, &pool_keypair], context.last_blockhash);
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Fund
+    let lender = Keypair::new();
+    airdrop(&mut context, &lender.pubkey(), 1_000_000_000).await;
+    let (l_prof, _) = Pubkey::find_program_address(&[b"profile", from_sdk_pubkey(lender.pubkey()).as_ref()], &program_id);
+    let (pos, _) = Pubkey::find_program_address(&[b"position", from_sdk_pubkey(pool_keypair.pubkey()).as_ref(), from_sdk_pubkey(lender.pubkey()).as_ref()], &program_id);
+    let reg_l = Instruction {
+        program_id: sdk_program_id,
+        accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::RegisterUser {
+            user: from_sdk_pubkey(lender.pubkey()),
+            user_profile: l_prof,
+            system_program: sys_prog(),
+        }, None).into_iter().map(to_sdk_account_meta).collect(),
+        data: dblt_lending::instruction::RegisterLender { entity_name: "L".to_string() }.data(),
+    };
+    let fund = Instruction {
+        program_id: sdk_program_id,
+        accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::ContributeToPool {
+            pool: from_sdk_pubkey(pool_keypair.pubkey()),
+            vault: vault_pda,
+            lender: from_sdk_pubkey(lender.pubkey()),
+            lender_profile: l_prof,
+            position: pos,
+            system_program: sys_prog(),
+        }, None).into_iter().map(to_sdk_account_meta).collect(),
+        data: dblt_lending::instruction::ContributeToPool { amount: 100_000_000 }.data(),
+    };
+    let tx = Transaction::new_signed_with_payer(&[reg_l, fund], Some(&lender.pubkey()), &[&lender], context.last_blockhash);
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Disburse
+    let disburse = Instruction {
+        program_id: sdk_program_id,
+        accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::DisburseLoan {
+            pool: from_sdk_pubkey(pool_keypair.pubkey()),
+            vault: vault_pda,
+            borrower: from_sdk_pubkey(borrower.pubkey()),
+            system_program: sys_prog(),
+        }, None).into_iter().map(to_sdk_account_meta).collect(),
+        data: dblt_lending::instruction::DisburseLoan {}.data(),
+    };
+    
+    // 2. Create Repayment Schedule with 3 installments
+    // 100,000,001 / 3 = 33,333,333.666... -> installment_amount = 33,333,333
+    // Installment 1: 33,333,333
+    // Installment 2: 33,333,333
+    // Installment 3 (Last): 100,000,001 - 33,333,333 - 33,333,333 = 33,333,335
+    let sched = Instruction {
+        program_id: sdk_program_id,
+        accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::CreateRepaymentSchedule {
+            borrower: from_sdk_pubkey(borrower.pubkey()),
+            pool: from_sdk_pubkey(pool_keypair.pubkey()),
+            repayment_schedule: schedule_pda,
+            system_program: sys_prog(),
+        }, None).into_iter().map(to_sdk_account_meta).collect(),
+        data: dblt_lending::instruction::CreateRepaymentSchedule {
+            total_repayable: 100_000_001,
+            num_installments: 3,
+            installment_interval_days: 30,
+            late_penalty_bps: 1000, // 10%
+            early_repayment_discount_bps: 500, // 5%
+        }.data(),
+    };
+    let tx = Transaction::new_signed_with_payer(&[disburse, sched], Some(&borrower.pubkey()), &[&borrower], context.last_blockhash);
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // 3. Make 1st repayment (Normal)
+    let repay_ix = Instruction {
+        program_id: sdk_program_id,
+        accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::MakeRepayment {
+            borrower: from_sdk_pubkey(borrower.pubkey()),
+            pool: from_sdk_pubkey(pool_keypair.pubkey()),
+            repayment_schedule: schedule_pda,
+            vault: vault_pda,
+            system_program: sys_prog(),
+        }, None).into_iter().map(to_sdk_account_meta).collect(),
+        data: dblt_lending::instruction::MakeRepayment {
+            installment_number: 0,
+            amount: 33_333_333,
+            is_early: false,
+            is_late: false,
+        }.data(),
+    };
+    let tx = Transaction::new_signed_with_payer(&[repay_ix], Some(&borrower.pubkey()), &[&borrower], context.last_blockhash);
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // 4. Make 2nd repayment (Early with discount)
+    // expected = 33,333,333 * (10000 - 500) / 10000 = 33,333,333 * 0.95 = 31,666,666.35 -> 31,666,666
+    let repay_ix_early = Instruction {
+        program_id: sdk_program_id,
+        accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::MakeRepayment {
+            borrower: from_sdk_pubkey(borrower.pubkey()),
+            pool: from_sdk_pubkey(pool_keypair.pubkey()),
+            repayment_schedule: schedule_pda,
+            vault: vault_pda,
+            system_program: sys_prog(),
+        }, None).into_iter().map(to_sdk_account_meta).collect(),
+        data: dblt_lending::instruction::MakeRepayment {
+            installment_number: 1,
+            amount: 31_666_666,
+            is_early: true,
+            is_late: false,
+        }.data(),
+    };
+    let tx = Transaction::new_signed_with_payer(&[repay_ix_early], Some(&borrower.pubkey()), &[&borrower], context.last_blockhash);
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // 5. Make 3rd repayment (Late with penalty)
+    // Remaining repayable = 100,000,001 - 33,333,333 - 31,666,666 = 35,000,002
+    // expected = 35,000,002
+    // penalty = 35,000,002 * 1000 / 10000 = 3,500,000.2 -> 3,500,000
+    // total expected = 35,000,002 + 3,500,000 = 38,500,002
+    let repay_ix_late = Instruction {
+        program_id: sdk_program_id,
+        accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::MakeRepayment {
+            borrower: from_sdk_pubkey(borrower.pubkey()),
+            pool: from_sdk_pubkey(pool_keypair.pubkey()),
+            repayment_schedule: schedule_pda,
+            vault: vault_pda,
+            system_program: sys_prog(),
+        }, None).into_iter().map(to_sdk_account_meta).collect(),
+        data: dblt_lending::instruction::MakeRepayment {
+            installment_number: 2,
+            amount: 38_500_002,
+            is_early: false,
+            is_late: true,
+        }.data(),
+    };
+    let tx = Transaction::new_signed_with_payer(&[repay_ix_late], Some(&borrower.pubkey()), &[&borrower], context.last_blockhash);
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    let sched_account = context.banks_client.get_account(to_sdk_pubkey(schedule_pda)).await.unwrap().unwrap();
+    let sched_data: RepaymentSchedule = RepaymentSchedule::try_deserialize(&mut &sched_account.data[..]).unwrap();
+    assert_eq!(sched_data.status, 2); // Completed
+}
+
+#[tokio::test]
 async fn test_default_flow() {
     let (mut context, borrower) = setup_test().await;
     let program_id = dblt_lending::id();

@@ -14,7 +14,7 @@ pub enum PoolStatus {
 pub struct Config {
     pub admin: Pubkey,
     pub dblt_mint: Pubkey,
-    pub platform_fee_bps: u16,
+    pub platform_fee_bps: u64,
     pub total_borrowers: u64,
     pub total_lenders: u64,
 }
@@ -84,8 +84,8 @@ pub struct RepaymentSchedule {
     pub installment_interval_days: u32,
     pub start_date: i64,
     pub next_due_date: i64,
-    pub late_penalty_bps: u16,
-    pub early_repayment_discount_bps: u16,
+    pub late_penalty_bps: u64,
+    pub early_repayment_discount_bps: u64,
     pub status: u8,
     pub defaulted_installment: u8,
 }

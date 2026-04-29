@@ -8,6 +8,7 @@ import type { Profile, ProfileLoan, ContractView, Attestation, AttestationProvid
 import { ApiError } from '../types'
 import { backendClient, identityClient, attestationClient } from '../api/client'
 import { fmt, fmtDate } from '../utils/format'
+import { toLamports, toSol } from '../utils/precision'
 import { profileLoanToContractView } from '../utils/loans'
 import AttestationCard from '../components/AttestationCard.vue'
 import AttestationModal from '../components/AttestationModal.vue'
@@ -71,7 +72,7 @@ async function handleDisburse(loanId: string) {
   }
 }
 
-async function handleRepay(loanId: string, amount: number) {
+async function handleRepay(loanId: string, amount: string) {
   if (!auth.isAuthenticated) return
   
   isProcessing.value = true
@@ -198,20 +199,20 @@ const settledLoans = computed(() => profile.value?.loans.filter(l => l.status ==
 
 // ── Loan recap stats ───────────────────────────────────────────────────────
 const totalRepaid = computed(() =>
-  profile.value?.loans.reduce((s, l) => s + l.repaid, 0) ?? 0
+  toSol(profile.value?.loans.reduce((s, l) => s + toLamports(l.repaid), 0n) ?? 0n)
 )
 const totalRequested = computed(() =>
-  openLoans.value.reduce((s, l) => s + l.amount, 0)
+  toSol(openLoans.value.reduce((s, l) => s + toLamports(l.amount), 0n))
 )
 // Active loans are fully outstanding (repaid is always 0 until expiry)
 const totalOutstanding = computed(() =>
-  activeLoans.value.reduce((s, l) => s + l.amount, 0)
+  toSol(activeLoans.value.reduce((s, l) => s + toLamports(l.amount), 0n))
 )
 // Repayment rate is computed only over settled loans (active loans are still pending)
 const repaymentRate = computed(() => {
-  const borrowed = settledLoans.value.reduce((s, l) => s + l.amount, 0)
-  const repaid   = settledLoans.value.reduce((s, l) => s + l.repaid,  0)
-  return borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
+  const borrowed = settledLoans.value.reduce((s, l) => s + toLamports(l.amount), 0n)
+  const repaid   = settledLoans.value.reduce((s, l) => s + toLamports(l.repaid),  0n)
+  return borrowed > 0n ? Number((repaid * 100n) / borrowed) : 100
 })
 
 // ── Attestation recap ──────────────────────────────────────────────────────
@@ -390,7 +391,7 @@ const redirectUrlForCompany = computed(() => {
               :key="loan.id" 
               v-bind="loan" 
               @view="openContract(loan)"
-              @repay="handleRepay(loan.id, loan.amount / loan.duration)"
+              @repay="handleRepay(loan.id, toSol(toLamports(loan.amount) / BigInt(loan.duration)))"
             />
           </div>
         </template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { LentLoan } from '../types'
+import { toSol, toLamports } from '../utils/precision'
+import { truncate } from '../utils/format'
 
 const props = defineProps<LentLoan>()
 const emit  = defineEmits<{ view: [] }>()
@@ -23,12 +25,14 @@ const trustColor = computed(() => {
 })
 
 // Net outcome for the lender
-const interest = computed(() =>
-  +(props.amount * (props.apy / 100) * (props.duration / 365)).toFixed(2)
-)
+const interest = computed(() => {
+  const principal = toLamports(props.amount)
+  const interestLamports = (principal * BigInt(props.apy) * BigInt(props.duration)) / (10000n * 365n)
+  return toSol(interestLamports)
+})
 const netLabel = computed(() => {
-  if (props.status === 'repaid')    return `+${interest.value.toLocaleString()} ${props.currency}`
-  if (props.status === 'defaulted') return `−${props.amount.toLocaleString()} ${props.currency}`
+  if (props.status === 'repaid')    return `+${interest.value} ${props.currency}`
+  if (props.status === 'defaulted') return `−${toSol(toLamports(props.amount))} ${props.currency}`
   return null
 })
 const netColor = computed(() => {
@@ -44,10 +48,6 @@ const daysRemaining = computed(() => {
   const today = new Date('2026-04-12').getTime()
   return Math.ceil((due - today) / 86_400_000)
 })
-
-function truncate(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
-}
 </script>
 
 <template>
@@ -80,17 +80,17 @@ function truncate(addr: string) {
     <!-- Amount -->
     <div class="flex-1 min-w-0 flex flex-col">
       <p class="font-mono font-bold text-white">
-        {{ amount.toLocaleString() }}
+        {{ toSol(toLamports(amount)) }}
         <span class="text-white/50 text-sm font-normal">{{ currency }}</span>
       </p>
       <span v-if="totalLoanAmount" class="text-[9px] text-muted uppercase tracking-tighter">
-        of {{ totalLoanAmount.toLocaleString() }} {{ currency }} pool
+        of {{ toSol(toLamports(totalLoanAmount)) }} {{ currency }} pool
       </span>
     </div>
 
     <!-- APY -->
     <div class="w-20 flex-shrink-0">
-      <p class="font-mono font-bold text-white">{{ apy }}%</p>
+      <p class="font-mono font-bold text-white">{{ apy / 100 }}%</p>
     </div>
 
     <!-- Duration -->

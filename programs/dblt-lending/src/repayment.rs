@@ -12,11 +12,16 @@ pub fn create_repayment_schedule(
     total_repayable: u64,
     num_installments: u8,
     installment_interval_days: u32,
-    late_penalty_bps: u16,
-    early_repayment_discount_bps: u16,
+    late_penalty_bps: u64,
+    early_repayment_discount_bps: u64,
 ) -> Result<()> {
+    require!(late_penalty_bps <= BPS_DIVIDER, ErrorCode::PenaltyTooHigh);
+    require!(early_repayment_discount_bps <= BPS_DIVIDER, ErrorCode::DiscountTooHigh);
+
     let schedule = &mut ctx.accounts.repayment_schedule;
     let pool = &ctx.accounts.pool;
+
+    require!(num_installments > 0, ErrorCode::InvalidNumInstallments);
 
     let installment_amount = total_repayable
         .checked_div(num_installments as u64)
@@ -35,7 +40,12 @@ pub fn create_repayment_schedule(
     schedule.late_penalty_bps = late_penalty_bps;
     schedule.early_repayment_discount_bps = early_repayment_discount_bps;
     schedule.start_date = now;
-    schedule.next_due_date = now.checked_add(installment_interval_days as i64 * 86400).ok_or(ErrorCode::MathOverflow)?;
+    let interval_seconds = (installment_interval_days as i64)
+        .checked_mul(86400)
+        .ok_or(ErrorCode::MathOverflow)?;
+    schedule.next_due_date = now
+        .checked_add(interval_seconds)
+        .ok_or(ErrorCode::MathOverflow)?;
     
     schedule.status = SCHEDULE_ACTIVE;
     Ok(())
@@ -57,19 +67,35 @@ pub fn make_repayment(
 
     // Over-payment protection
     let remaining_repayable = schedule.total_repayable.checked_sub(schedule.total_repaid).ok_or(ErrorCode::MathOverflow)?;
-    require!(amount <= remaining_repayable, ErrorCode::Overpayment);
-
-    let mut expected = schedule.installment_amount;
+    
+    let is_last_installment = schedule.current_installment == schedule.num_installments.saturating_sub(1);
+    let mut expected = if is_last_installment {
+        remaining_repayable
+    } else {
+        schedule.installment_amount
+    };
 
     if is_early && schedule.early_repayment_discount_bps > 0 {
-        expected = expected.checked_mul(10000 - schedule.early_repayment_discount_bps as u64).unwrap().checked_div(10000).unwrap();
+        let discount_multiplier = BPS_DIVIDER
+            .checked_sub(schedule.early_repayment_discount_bps)
+            .ok_or(ErrorCode::MathOverflow)?;
+        expected = expected
+            .checked_mul(discount_multiplier)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_div(BPS_DIVIDER)
+            .ok_or(ErrorCode::MathOverflow)?;
     }
 
     if is_late && schedule.late_penalty_bps > 0 {
-        let penalty = expected.checked_mul(schedule.late_penalty_bps as u64).unwrap().checked_div(10000).unwrap();
-        expected = expected.checked_add(penalty).unwrap();
+        let penalty = expected
+            .checked_mul(schedule.late_penalty_bps)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_div(BPS_DIVIDER)
+            .ok_or(ErrorCode::MathOverflow)?;
+        expected = expected.checked_add(penalty).ok_or(ErrorCode::MathOverflow)?;
     }
 
+    require!(amount <= expected || (is_last_installment && amount <= remaining_repayable.max(expected)), ErrorCode::Overpayment);
     require!(amount >= expected || amount == remaining_repayable, ErrorCode::InsufficientPayment);
 
     // Transfer SOL from borrower to vault
@@ -93,10 +119,6 @@ pub fn make_repayment(
         pool.status = PoolStatus::Completed as u8;
     }
 
-    Ok(())
-}
-
-pub fn record_late_payment(_ctx: Context<RecordLatePayment>, _inst: u8, _amt: u64) -> Result<()> {
     Ok(())
 }
 

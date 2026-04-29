@@ -202,6 +202,7 @@ pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
     } else {
         // Pro-rata withdrawal logic:
         // (Lender Position / Total Pool Target) * Total Repaid into Vault
+        // Calculation uses integer division which truncates (rounds down), protecting the vault.
         let share = (position.amount as u128)
             .checked_mul(vault.total_repaid as u128)
             .ok_or(ErrorCode::MathOverflow)?
@@ -227,17 +228,6 @@ pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
         .ok_or(ErrorCode::MathOverflow)?;
 
     position.withdrawn = position.withdrawn.checked_add(claimable).ok_or(ErrorCode::MathOverflow)?;
-    Ok(())
-}
-
-// --- PLACEHOLDERS FOR OTHER INSTRUCTIONS ---
-pub fn create_term_offer(
-    _ctx: Context<CreateTermOffer>,
-    _min_interest_rate_bps: u64,
-    _max_duration_days: u64,
-    _collateral_required: bool,
-    _description: String,
-) -> Result<()> {
     Ok(())
 }
 

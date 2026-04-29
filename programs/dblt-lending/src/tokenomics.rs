@@ -1,4 +1,6 @@
 use anchor_lang::prelude::*;
+use crate::error::ErrorCode;
+use crate::constants::BPS_DIVIDER;
 
 /// Mock representation of DBLT token amounts (since no SPL mint yet)
 pub type DbltAmount = u64;
@@ -68,17 +70,23 @@ pub fn stake_tokens(
     pool: &mut StakingPool,
     position: &mut StakePosition,
     amount: DbltAmount,
-) {
-    position.amount += amount;
-    pool.total_staked += amount;
+) -> Result<()> {
+    position.amount = position.amount.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+    pool.total_staked = pool.total_staked.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+    Ok(())
 }
 
 pub fn distribute_staking_rewards(
     pool: &mut StakingPool,
     config: &TokenomicsConfig,
-) {
-    let rewards = pool.total_staked * config.staking_reward_rate;
-    pool.reward_pool += rewards;
+) -> Result<()> {
+    let rewards = (pool.total_staked as u128)
+        .checked_mul(config.staking_reward_rate as u128)
+        .ok_or(ErrorCode::MathOverflow)?
+        .checked_div(BPS_DIVIDER as u128)
+        .ok_or(ErrorCode::MathOverflow)? as u64;
+    pool.reward_pool = pool.reward_pool.checked_add(rewards).ok_or(ErrorCode::MathOverflow)?;
+    Ok(())
 }
 
 /// Covers protocol shortfall using staked funds
@@ -93,23 +101,32 @@ pub fn update_lender_rewards(
     position: &mut LenderPosition,
     config: &TokenomicsConfig,
     current_time: i64,
-) {
-    let duration = current_time - position.last_update;
+) -> Result<()> {
+    let duration = current_time.checked_sub(position.last_update).ok_or(ErrorCode::MathOverflow)?;
     if duration <= 0 {
-        return;
+        return Ok(());
     }
 
-    let reward = (position.amount_lent as u64)
-        * (duration as u64)
-        * config.base_lender_reward_rate;
+    let reward = (position.amount_lent as u128)
+        .checked_mul(duration as u128)
+        .ok_or(ErrorCode::MathOverflow)?
+        .checked_mul(config.base_lender_reward_rate as u128)
+        .ok_or(ErrorCode::MathOverflow)?
+        .checked_div(BPS_DIVIDER as u128)
+        .ok_or(ErrorCode::MathOverflow)? as u64;
 
-    position.accumulated_rewards += reward;
+    position.accumulated_rewards = position.accumulated_rewards.checked_add(reward).ok_or(ErrorCode::MathOverflow)?;
     position.last_update = current_time;
+    Ok(())
 }
 
 /// Optional ve-style boost (token locking multiplier)
-pub fn apply_lock_boost(base_reward: DbltAmount, lock_multiplier: u64) -> DbltAmount {
-    base_reward * lock_multiplier
+pub fn apply_lock_boost(base_reward: DbltAmount, lock_multiplier_bps: u64) -> Result<DbltAmount> {
+    base_reward
+        .checked_mul(lock_multiplier_bps)
+        .ok_or(ErrorCode::MathOverflow)?
+        .checked_div(BPS_DIVIDER)
+        .ok_or(ErrorCode::MathOverflow.into())
 }
 
 /// -------------------------------
@@ -118,22 +135,28 @@ pub fn apply_lock_boost(base_reward: DbltAmount, lock_multiplier: u64) -> DbltAm
 pub fn reward_borrower_on_repayment(
     borrower: &mut BorrowerProfile,
     config: &TokenomicsConfig,
-) {
-    let reward = config.borrower_reward_rate * borrower.credit_score as u64;
-    borrower.rewards_earned += reward;
-    borrower.loans_repaid += 1;
+) -> Result<()> {
+    let reward = config.borrower_reward_rate
+        .checked_mul(borrower.credit_score as u64)
+        .ok_or(ErrorCode::MathOverflow)?;
+    
+    borrower.rewards_earned = borrower.rewards_earned.checked_add(reward).ok_or(ErrorCode::MathOverflow)?;
+    borrower.loans_repaid = borrower.loans_repaid.checked_add(1).ok_or(ErrorCode::MathOverflow)?;
+    Ok(())
 }
 
 /// -------------------------------
 //// Governance & Utility
 /// -------------------------------
-pub fn calculate_voting_power(position: &GovernancePosition, current_time: i64) -> u64 {
+pub fn calculate_voting_power(position: &GovernancePosition, current_time: i64) -> Result<u64> {
     if current_time > position.lock_end {
-        return 0;
+        return Ok(0);
     }
 
-    let lock_duration = position.lock_end - current_time;
-    position.locked_tokens * lock_duration as u64
+    let lock_duration = position.lock_end.checked_sub(current_time).ok_or(ErrorCode::MathOverflow)?;
+    position.locked_tokens
+        .checked_mul(lock_duration as u64)
+        .ok_or(ErrorCode::MathOverflow.into())
 }
 
 /// Fee discount based on token holdings
@@ -152,17 +175,34 @@ pub fn fee_discount(token_balance: DbltAmount) -> u64 {
 pub fn risk_weighted_reward(
     base_reward: DbltAmount,
     credit_score: u8,
-) -> DbltAmount {
+) -> Result<DbltAmount> {
     // Higher rewards for lower credit score (riskier loans)
-    let risk_multiplier = 100 - credit_score as u64;
-    base_reward * (1 + risk_multiplier / 100)
+    // multiplier = (100 - score) % -> in BPS is (100 - score) * 100
+    let risk_multiplier_bps = (100u64).checked_sub(credit_score as u64).ok_or(ErrorCode::MathOverflow)?
+        .checked_mul(100).ok_or(ErrorCode::MathOverflow)?;
+    
+    let bonus = (base_reward as u128)
+        .checked_mul(risk_multiplier_bps as u128)
+        .ok_or(ErrorCode::MathOverflow)?
+        .checked_div(BPS_DIVIDER as u128)
+        .ok_or(ErrorCode::MathOverflow)? as u64;
+
+    base_reward.checked_add(bonus).ok_or(ErrorCode::MathOverflow.into())
 }
 
 /// Reward lenders for funding safer loans (alternative model)
 pub fn safe_lending_bonus(
     base_reward: DbltAmount,
     credit_score: u8,
-) -> DbltAmount {
-    let safety_multiplier = credit_score as u64;
-    base_reward * (1 + safety_multiplier / 100)
+) -> Result<DbltAmount> {
+    // Safety multiplier = score % -> in BPS is score * 100
+    let safety_multiplier_bps = (credit_score as u64).checked_mul(100).ok_or(ErrorCode::MathOverflow)?;
+    
+    let bonus = (base_reward as u128)
+        .checked_mul(safety_multiplier_bps as u128)
+        .ok_or(ErrorCode::MathOverflow)?
+        .checked_div(BPS_DIVIDER as u128)
+        .ok_or(ErrorCode::MathOverflow)? as u64;
+
+    base_reward.checked_add(bonus).ok_or(ErrorCode::MathOverflow.into())
 }

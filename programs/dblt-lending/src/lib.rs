@@ -46,24 +46,6 @@ pub mod dblt_lending {
         handlers::update_financial_score(ctx, new_score)
     }
 
-    // --- LENDING OFFERS ---
-    /// Creates a lending term offer with specific parameters.
-    pub fn create_term_offer(
-        ctx: Context<CreateTermOffer>,
-        min_interest_rate_bps: u64,
-        max_duration_days: u64,
-        collateral_required: bool,
-        description: String,
-    ) -> Result<()> {
-        handlers::create_term_offer(
-            ctx, 
-            min_interest_rate_bps, 
-            max_duration_days, 
-            collateral_required, 
-            description
-        )
-    }
-
     // --- POOL MANAGEMENT ---
     /// Creates a loan pool with the target amount and associated term offer.
     pub fn create_loan_pool(
@@ -119,8 +101,8 @@ pub mod dblt_lending {
         total_repayable: u64,
         num_installments: u8,
         installment_interval_days: u32,
-        late_penalty_bps: u16,
-        early_repayment_discount_bps: u16,
+        late_penalty_bps: u64,
+        early_repayment_discount_bps: u64,
     ) -> Result<()> {
         repayment::create_repayment_schedule(
             ctx, 
@@ -141,11 +123,6 @@ pub mod dblt_lending {
         is_late: bool,
     ) -> Result<()> {
         repayment::make_repayment(ctx, installment_number, amount, is_early, is_late)
-    }
-
-    /// Records a late payment made by the borrower.
-    pub fn record_late_payment(ctx: Context<RecordLatePayment>, inst: u8, amt: u64) -> Result<()> {
-        repayment::record_late_payment(ctx, inst, amt)
     }
 
     /// Marks a borrower as defaulted if repayments are not made.

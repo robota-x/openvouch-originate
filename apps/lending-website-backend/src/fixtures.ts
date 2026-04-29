@@ -68,12 +68,12 @@ export interface FixtureAttestation {
 
 export interface FixtureProfileLoan {
   id:           string
-  amount:       number
+  amount:       string
   currency:     string
-  apy:          number
+  apy:          string
   duration:     number
   status:       'open' | 'active' | 'repaid' | 'defaulted'
-  repaid:       number
+  repaid:       string
   dueDate?:     string
   counterparty?: string
 }
@@ -85,9 +85,9 @@ export interface FixtureLentLoan {
   borrowerTrustScore:      number
   borrowerAttestationCount: number
   borrowerRepaymentRate:   number
-  amount:                  number
+  amount:                  string
   currency:                string
-  apy:                     number
+  apy:                     string
   duration:                number
   status:                  'active' | 'repaid' | 'defaulted'
   dueDate?:                string
@@ -139,37 +139,37 @@ export const fixtureProfiles: Record<string, FixtureProfile> = {
       {
         id: 'vitalik-1', borrower: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg',
         borrowerNickname: 'vitalik.sol', borrowerTrustScore: 875,
-        borrowerAttestationCount: 4, borrowerRepaymentRate: 100,
-        amount: 2000, currency: 'USDC', apy: 9.5, duration: 60,
+        borrowerAttestationCount: 4, borrowerRepaymentRate: 10000,
+        amount: '2000000000000', currency: 'USDC', apy: '950', duration: 60,
         status: 'repaid', dueDate: '2025-08-10',
       },
       {
         id: 'whale-1', borrower: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
         borrowerNickname: 'defi-whale.sol', borrowerTrustScore: 682,
-        borrowerAttestationCount: 3, borrowerRepaymentRate: 62,
-        amount: 8000, currency: 'USDC', apy: 10.0, duration: 30,
+        borrowerAttestationCount: 3, borrowerRepaymentRate: 6200,
+        amount: '8000000000000', currency: 'USDC', apy: '1000', duration: 30,
         status: 'defaulted', dueDate: '2025-11-20',
       },
       {
         id: 'cobie-1', borrower: 'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3',
         borrowerNickname: 'cobie.sol', borrowerTrustScore: 810,
-        borrowerAttestationCount: 4, borrowerRepaymentRate: 100,
-        amount: 5000, currency: 'USDC', apy: 10.0, duration: 730,
+        borrowerAttestationCount: 4, borrowerRepaymentRate: 10000,
+        amount: '5000000000000', currency: 'USDC', apy: '1000', duration: 730,
         status: 'repaid', dueDate: '2024-10-05',
       },
       {
         id: 'anon-2', borrower: 'HN7cABqLq46Es1jh92dQQisAi18upCMi8bZNUCEXVi3Y',
         borrowerNickname: 'anon-3439', borrowerTrustScore: 341,
         borrowerAttestationCount: 0, borrowerRepaymentRate: 0,
-        amount: 1200, currency: 'USDC', apy: 13.5, duration: 30,
+        amount: '1200000000000', currency: 'USDC', apy: '1350', duration: 30,
         status: 'active', dueDate: '2026-04-24',
       },
     ],
     loans: [
-      { id: 'alice-1', amount: 3000, currency: 'USDC', apy: 11.0, duration: 365, status: 'repaid',    repaid: 3000, dueDate: '2025-05-15', counterparty: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg' },
-      { id: 'alice-2', amount: 4500, currency: 'USDC', apy: 12.0, duration: 180, status: 'repaid',    repaid: 4500, dueDate: '2025-09-20', counterparty: 'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3' },
-      { id: 'alice-3', amount: 2000, currency: 'USDC', apy: 10.5, duration:  90, status: 'active',    repaid:    0, dueDate: '2026-05-11', counterparty: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
-      { id: 'alice-4', amount: 5000, currency: 'USDC', apy: 12.5, duration:  30, status: 'open',      repaid:    0 },
+      { id: 'alice-1', amount: '3000000000000', currency: 'USDC', apy: '1100', duration: 365, status: 'repaid',    repaid: '3000000000000', dueDate: '2025-05-15', counterparty: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg' },
+      { id: 'alice-2', amount: '4500000000000', currency: 'USDC', apy: '1200', duration: 180, status: 'repaid',    repaid: '4500000000000', dueDate: '2025-09-20', counterparty: 'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3' },
+      { id: 'alice-3', amount: '2000000000000', currency: 'USDC', apy: '1050', duration:  90, status: 'active',    repaid: '0', dueDate: '2026-05-11', counterparty: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
+      { id: 'alice-4', amount: '5000000000000', currency: 'USDC', apy: '1250', duration:  30, status: 'open',      repaid: '0' },
     ],
   },
   'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg': {
@@ -203,9 +203,9 @@ export const fixtureProfiles: Record<string, FixtureProfile> = {
       },
     ],
     loans: [
-      { id: 'vitalik-1', amount: 2000, currency: 'USDC', apy:  9.5, duration:  60, status: 'repaid', repaid: 2000, dueDate: '2025-08-10', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
-      { id: 'vitalik-2', amount: 8000, currency: 'USDC', apy:  8.0, duration: 730, status: 'active', repaid:    0, dueDate: '2027-02-20', counterparty: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
-      { id: 'vitalik-3', amount: 2500, currency: 'USDC', apy:  9.0, duration: 730, status: 'open',   repaid:    0 },
+      { id: 'vitalik-1', amount: '2000000000000', currency: 'USDC', apy: '950', duration:  60, status: 'repaid', repaid: '2000000000000', dueDate: '2025-08-10', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
+      { id: 'vitalik-2', amount: '8000000000000', currency: 'USDC', apy: '800', duration: 730, status: 'active', repaid: '0', dueDate: '2027-02-20', counterparty: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
+      { id: 'vitalik-3', amount: '2500000000000', currency: 'USDC', apy: '900', duration: 730, status: 'open',   repaid: '0' },
     ],
   },
   'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263': {
@@ -216,7 +216,7 @@ export const fixtureProfiles: Record<string, FixtureProfile> = {
       {
         icon: 'monitoring', title: 'Cred Protocol', status: 'Score: 720', verified: true,
         providerId: 'cred-protocol', issuedAt: '2025-07-15',
-        onChainRef: 'BrMdKpzTXvL4JfYRtU7NdCwSsVeHpGiAoE5Mx8bDQnKuF9WjBcXrZgP3YhSvN2LkTd4aFmJqEuWi7RoCpHsBYVC',
+        onChainRef: 'BrMdKpzTXvL4JfYRtU7NdCwSsVeHpGiAoE5Mx8bDQnKuF9WjBcXrZgP3YhSvN2LkTd4aFmJqEuWi8RoCpHsBYVC',
         metadata: { Score: '720 / 1000', Percentile: 'Top 28%', 'History span': '18 months' },
       },
       {
@@ -233,9 +233,9 @@ export const fixtureProfiles: Record<string, FixtureProfile> = {
       },
     ],
     loans: [
-      { id: 'whale-1', amount:  8000, currency: 'USDC', apy: 10.0, duration:  30, status: 'defaulted', repaid:    0, dueDate: '2025-11-20', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
-      { id: 'whale-2', amount:  5000, currency: 'USDC', apy: 11.5, duration: 120, status: 'repaid',    repaid: 5000, dueDate: '2025-07-05', counterparty: 'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3' },
-      { id: 'whale-3', amount: 10000, currency: 'USDC', apy: 11.0, duration: 120, status: 'open',      repaid:    0 },
+      { id: 'whale-1', amount:  '8000000000000', currency: 'USDC', apy: '1000', duration:  30, status: 'defaulted', repaid: '0', dueDate: '2025-11-20', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
+      { id: 'whale-2', amount:  '5000000000000', currency: 'USDC', apy: '1150', duration: 120, status: 'repaid',    repaid: '5000000000000', dueDate: '2025-07-05', counterparty: 'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3' },
+      { id: 'whale-3', amount: '10000000000000', currency: 'USDC', apy: '1100', duration: 120, status: 'open',      repaid: '0' },
     ],
   },
   'HN7cABqLq46Es1jh92dQQisAi18upCMi8bZNUCEXVi3Y': {
@@ -255,9 +255,9 @@ export const fixtureProfiles: Record<string, FixtureProfile> = {
       },
     ],
     loans: [
-      { id: 'anon-1', amount: 1000, currency: 'USDC', apy: 15.0, duration:  90, status: 'defaulted', repaid:    0, dueDate: '2025-06-15', counterparty: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg' },
-      { id: 'anon-2', amount: 1200, currency: 'USDC', apy: 13.5, duration:  30, status: 'active',    repaid:    0, dueDate: '2026-04-24', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
-      { id: 'anon-3', amount: 1500, currency: 'USDC', apy: 14.0, duration:   7, status: 'open',      repaid:    0 },
+      { id: 'anon-1', amount: '1000000000000', currency: 'USDC', apy: '1500', duration:  90, status: 'defaulted', repaid: '0', dueDate: '2025-06-15', counterparty: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg' },
+      { id: 'anon-2', amount: '1200000000000', currency: 'USDC', apy: '1350', duration:  30, status: 'active',    repaid: '0', dueDate: '2026-04-24', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
+      { id: 'anon-3', amount: '1500000000000', currency: 'USDC', apy: '1400', duration:   7, status: 'open',      repaid: '0' },
     ],
   },
   'GVV4jHDCHmMfGFLpNKEBBJGgDVtN43B6rRQ5C8tBVFr3': {
@@ -291,9 +291,9 @@ export const fixtureProfiles: Record<string, FixtureProfile> = {
       },
     ],
     loans: [
-      { id: 'cobie-1', amount: 5000, currency: 'USDC', apy: 10.0, duration: 730, status: 'repaid', repaid: 5000, dueDate: '2024-10-05', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
-      { id: 'cobie-2', amount: 6000, currency: 'USDC', apy: 10.5, duration: 180, status: 'active', repaid:    0, dueDate: '2026-05-30', counterparty: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg' },
-      { id: 'cobie-3', amount: 7500, currency: 'USDC', apy: 10.5, duration: 365, status: 'open',   repaid:    0 },
+      { id: 'cobie-1', amount: '5000000000000', currency: 'USDC', apy: '1000', duration: 730, status: 'repaid', repaid: '5000000000000', dueDate: '2024-10-05', counterparty: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
+      { id: 'cobie-2', amount: '6000000000000', currency: 'USDC', apy: '1050', duration: 180, status: 'active', repaid: '0', dueDate: '2026-05-30', counterparty: 'vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg' },
+      { id: 'cobie-3', amount: '7500000000000', currency: 'USDC', apy: '1050', duration: 365, status: 'open',   repaid: '0' },
     ],
   },
 }
@@ -305,9 +305,9 @@ export interface FixtureLoan {
   id:               string
   borrower:         string
   nickname:         string
-  amount:           number
+  amount:           string
   currency:         string
-  apy:              number
+  apy:              string
   duration:         number
   trustScore:       number
   repaymentRate:    number
@@ -316,10 +316,11 @@ export interface FixtureLoan {
 
 function computeRepaymentRate(address: string): number {
   const loans = fixtureProfiles[address]?.loans.filter(l => l.status !== 'open') ?? []
-  if (!loans.length) return 100
-  const borrowed = loans.reduce((s, l) => s + l.amount, 0)
-  const repaid   = loans.reduce((s, l) => s + l.repaid,  0)
-  return Math.round(repaid / borrowed * 100)
+  if (!loans.length) return 10000
+  const borrowed = loans.reduce((s, l) => s + BigInt(l.amount), 0n)
+  const repaid   = loans.reduce((s, l) => s + BigInt(l.repaid), 0n)
+  if (borrowed === 0n) return 10000
+  return Math.round(Number(repaid) / Number(borrowed) * 10000)
 }
 
 function computeAttestationCount(address: string): number {
@@ -350,9 +351,9 @@ export interface FixtureContractView {
   borrowerAttestationCount: number
   borrowerRepaymentRate:    number
   lender?:                  string
-  amount:                   number
+  amount:                   string
   currency:                 string
-  apy:                      number
+  apy:                      string
   duration:                 number
   status:                   'open' | 'active' | 'repaid' | 'defaulted'
   dueDate?:                 string

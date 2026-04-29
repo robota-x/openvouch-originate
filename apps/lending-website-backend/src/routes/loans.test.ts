@@ -13,7 +13,7 @@ const BASE_ENV: Bindings = {
   SOLANA_RPC_URL: 'https://api.devnet.solana.com'
 } as Bindings
 
-const validLoan = { amount: 5000, currency: 'USDC', apy: 10.5, duration: 30 }
+const validLoan = { amount: '5000000000000', currency: 'USDC', apy: '1050', duration: 30 }
 
 function json(method: string, url: string, body?: unknown) {
   return app.request(url, {
@@ -41,9 +41,9 @@ describe('GET /api/loans — contract shape', () => {
       expect(typeof loan.id).toBe('string')
       expect(typeof loan.borrower).toBe('string')
       expect(typeof loan.nickname).toBe('string')
-      expect(typeof loan.amount).toBe('number')
+      expect(typeof loan.amount).toBe('string')
       expect(typeof loan.currency).toBe('string')
-      expect(typeof loan.apy).toBe('number')
+      expect(typeof loan.apy).toBe('string')
       expect(typeof loan.duration).toBe('number')
       expect(typeof loan.trustScore).toBe('number')
       expect(typeof loan.repaymentRate).toBe('number')
@@ -84,7 +84,7 @@ describe('POST /api/loans/finalize', () => {
 
 describe('POST /api/loans/:id/contribute/initiate', () => {
   it('returns 401 without a session', async () => {
-    const res = await json('POST', '/api/loans/loan-123/contribute/initiate', { amount: 100 })
+    const res = await json('POST', '/api/loans/loan-123/contribute/initiate', { amount: '100000000000' })
     expect(res.status).toBe(401)
   })
 })
@@ -98,7 +98,7 @@ describe('POST /api/loans/:id/disburse/initiate', () => {
 
 describe('POST /api/loans/:id/repay/initiate', () => {
   it('returns 401 without a session', async () => {
-    const res = await json('POST', '/api/loans/loan-123/repay/initiate', { amount: 100, installmentNumber: 1 })
+    const res = await json('POST', '/api/loans/loan-123/repay/initiate', { amount: '100000000000', installmentNumber: 1 })
     expect(res.status).toBe(401)
   })
 })

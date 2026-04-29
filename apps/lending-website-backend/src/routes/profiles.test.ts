@@ -27,6 +27,12 @@ describe('GET /api/profiles/:address — contract shape', () => {
     expect(typeof profile.trustScore).toBe('number')
     expect(Array.isArray(profile.attestations)).toBe(true)
     expect(Array.isArray(profile.loans)).toBe(true)
+    
+    const loans = profile.loans as any[]
+    if (loans.length > 0) {
+      expect(typeof loans[0].amount).toBe('string')
+      expect(typeof loans[0].apy).toBe('string')
+    }
   })
 
   it('returns a zero-trust fallback for an unknown address without throwing', async () => {

@@ -21,3 +21,35 @@ export type AppEnv = {
   Bindings: Bindings
   Variables: Variables
 }
+
+export interface Loan {
+  id:               string
+  borrower:         string
+  nickname:         string
+  amount:           string
+  raisedAmount:     string
+  currency:         string
+  apy:              string
+  duration:         number
+  trustScore:       number
+  repaymentRate:    number
+  attestationCount: number
+}
+
+export interface ContractView {
+  id:                       string
+  borrower:                 string
+  borrowerNickname:         string
+  borrowerTrustScore:       number
+  borrowerAttestationCount: number
+  borrowerRepaymentRate:    number
+  lender?:                  string
+  amount:                   string
+  raisedAmount:             string
+  currency:                 string
+  apy:                      string
+  duration:                 number
+  status:                   string
+  dueDate?:                 string
+  onChainRef?:              string
+}

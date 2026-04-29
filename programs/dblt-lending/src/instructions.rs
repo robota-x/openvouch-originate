@@ -46,13 +46,6 @@ pub struct UpdateScore<'info> {
     pub user_profile: Account<'info, UserProfile>,
 }
 
-// ==================== TERM OFFER ====================
-#[derive(Accounts)]
-pub struct CreateTermOffer<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-}
-
 // ==================== LOAN POOL ====================
 #[derive(Accounts)]
 pub struct CreateLoanPool<'info> {
@@ -203,11 +196,6 @@ pub struct MakeRepayment<'info> {
     // pub token_program: Program<'info, Token>,
 
     pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct RecordLatePayment<'info> {
-    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]

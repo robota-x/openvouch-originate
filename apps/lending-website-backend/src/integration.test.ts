@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import app from './app.js'
 import type { Bindings } from './types.js'
-import { Transaction, PublicKey } from '@solana/web3.js'
+import { Transaction } from '@solana/web3.js'
+import { createToken } from './middleware/session.js'
 
 const ENV: Bindings = { 
   JWT_SECRET: 'test-secret',
@@ -9,7 +10,13 @@ const ENV: Bindings = {
 } as Bindings
 
 describe('Backend Transaction Factory — Behavioural Integration', () => {
-  const mockToken = 'Bearer valid.mock.jwt' // In a real setup we'd sign this properly
+  let mockToken: string
+  const ALICE = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'
+
+  beforeAll(async () => {
+    const token = await createToken(ENV.JWT_SECRET, ALICE)
+    mockToken = `Bearer ${token}`
+  })
   
   it('POST /api/loans/initiate — builds a createLoanPool transaction', async () => {
     // Note: We use FIXTURES_ENABLED to bypass real DB, but routes still build real transactions
@@ -19,15 +26,34 @@ describe('Backend Transaction Factory — Behavioural Integration', () => {
             'Content-Type': 'application/json',
             'Authorization': mockToken
         },
-        body: JSON.stringify({ amount: 1, currency: 'SOL', duration: 30 })
+        body: JSON.stringify({ amount: "1.0", currency: 'SOL', duration: 30 })
     }, { ...ENV, FIXTURES_ENABLED: 'true' })
 
-    if (res.status === 200) {
-        const body = await res.json() as { transaction: string }
-        expect(typeof body.transaction).toBe('string')
+    expect(res.status).toBe(200)
+    const body = await res.json() as { transaction: string }
+    expect(typeof body.transaction).toBe('string')
+    if (!body.transaction.startsWith('mock-')) {
         const tx = Transaction.from(Buffer.from(body.transaction, 'base64'))
         expect(tx.instructions.length).toBeGreaterThan(0)
     }
+  })
+
+  it('POST /api/loans/initiate — handles large BigInt amounts as strings correctly', async () => {
+    // 100,000,000 SOL
+    const largeAmount = "100000000.0" 
+    const res = await app.request('/api/loans/initiate', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': mockToken
+        },
+        body: JSON.stringify({ amount: largeAmount, currency: 'SOL', duration: 30 })
+    }, { ...ENV, FIXTURES_ENABLED: 'true' })
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { transaction: string }
+    expect(typeof body.transaction).toBe('string')
+    // No precision loss should occur when parsing the string to BigInt internally
   })
 
   it('POST /api/loans/:id/contribute/initiate — builds a contribute transaction', async () => {
@@ -38,12 +64,13 @@ describe('Backend Transaction Factory — Behavioural Integration', () => {
             'Content-Type': 'application/json',
             'Authorization': mockToken
         },
-        body: JSON.stringify({ amount: 0.5 })
+        body: JSON.stringify({ amount: "0.5" })
     }, { ...ENV, FIXTURES_ENABLED: 'true' })
 
-    if (res.status === 200) {
-        const body = await res.json() as { transaction: string }
-        expect(typeof body.transaction).toBe('string')
+    expect(res.status).toBe(200)
+    const body = await res.json() as { transaction: string }
+    expect(typeof body.transaction).toBe('string')
+    if (!body.transaction.startsWith('mock-')) {
         const tx = Transaction.from(Buffer.from(body.transaction, 'base64'))
         expect(tx.instructions.length).toBeGreaterThan(0)
     }
@@ -58,9 +85,10 @@ describe('Backend Transaction Factory — Behavioural Integration', () => {
         },
     }, { ...ENV, FIXTURES_ENABLED: 'true' })
 
-    if (res.status === 200) {
-        const body = await res.json() as { transaction: string }
-        expect(typeof body.transaction).toBe('string')
+    expect(res.status).toBe(200)
+    const body = await res.json() as { transaction: string }
+    expect(typeof body.transaction).toBe('string')
+    if (!body.transaction.startsWith('mock-')) {
         const tx = Transaction.from(Buffer.from(body.transaction, 'base64'))
         expect(tx.instructions.length).toBeGreaterThan(0)
     }

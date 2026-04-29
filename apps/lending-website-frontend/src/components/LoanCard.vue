@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Loan } from '../types'
+import { toSol, toLamports } from '../utils/precision'
 
 const props = defineProps<Loan & { variant?: 'card' | 'list' }>()
 
@@ -60,20 +61,20 @@ const trustScoreMuted = computed(() => {
     <!-- Amount -->
     <div class="flex-1 min-w-0">
       <p class="font-mono font-bold text-white leading-tight">
-        {{ raisedAmount.toLocaleString() }} / {{ amount.toLocaleString() }}
+        {{ toSol(toLamports(raisedAmount)) }} / {{ toSol(toLamports(amount)) }}
         <span class="text-white/50 text-[10px] font-normal uppercase ml-1">{{ currency }}</span>
       </p>
       <div class="w-24 h-1 bg-white/10 rounded-full mt-1.5 overflow-hidden">
         <div 
           class="h-full bg-primary transition-all duration-500" 
-          :style="{ width: `${Math.min(100, (raisedAmount / amount) * 100)}%` }"
+          :style="{ width: `${Math.min(100n, (toLamports(raisedAmount || '0') * 100n) / toLamports(amount))}%` }"
         />
       </div>
     </div>
 
     <!-- APY -->
     <div class="w-20 flex-shrink-0">
-      <p class="font-mono font-bold text-white">{{ apy }}%</p>
+      <p class="font-mono font-bold text-white">{{ apy / 100 }}%</p>
     </div>
 
     <!-- Duration -->
@@ -147,17 +148,17 @@ const trustScoreMuted = computed(() => {
       <div class="flex items-end justify-between mb-1">
         <p class="text-xs text-muted uppercase tracking-widest">Amount</p>
         <p class="font-mono text-xs text-white/70">
-          {{ Math.round((raisedAmount / amount) * 100) }}% funded
+          {{ (toLamports(raisedAmount || '0') * 100n) / toLamports(amount) }}% funded
         </p>
       </div>
       <p class="font-mono text-2xl font-bold text-white">
-        {{ raisedAmount.toLocaleString() }}
-        <span class="text-base text-white/50 font-normal">/ {{ amount.toLocaleString() }} {{ currency }}</span>
+        {{ toSol(toLamports(raisedAmount)) }}
+        <span class="text-base text-white/50 font-normal">/ {{ toSol(toLamports(amount)) }} {{ currency }}</span>
       </p>
       <div class="w-full h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden">
         <div 
           class="h-full bg-primary transition-all duration-500 shadow-glow-primary" 
-          :style="{ width: `${Math.min(100, (raisedAmount / amount) * 100)}%` }"
+          :style="{ width: `${Math.min(100n, (toLamports(raisedAmount || '0') * 100n) / toLamports(amount))}%` }"
         />
       </div>
     </div>
@@ -166,7 +167,7 @@ const trustScoreMuted = computed(() => {
     <div class="bg-black/20 rounded px-4 py-3 flex items-center justify-between">
       <div>
         <p class="text-xs text-muted uppercase tracking-widest mb-0.5">APY</p>
-        <p class="font-mono text-lg font-bold text-white">{{ apy }}%</p>
+        <p class="font-mono text-lg font-bold text-white">{{ apy / 100 }}%</p>
       </div>
       <div class="text-right">
         <p class="text-xs text-muted uppercase tracking-widest mb-0.5">Duration</p>

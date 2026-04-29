@@ -5,6 +5,7 @@ import { useAuth } from '../composables/useAuth'
 import { useSolana } from '../composables/useSolana'
 import { backendClient } from '../api/client'
 import { solanaBridge } from '../utils/solana-bridge'
+import { toLamports, LAMPORTS_PER_SOL } from '../utils/precision'
 import { ApiError } from '../types'
 
 const props = defineProps<{ 
@@ -22,12 +23,17 @@ const solana = useSolana()
 const router = useRouter()
 
 // ── Form State ─────────────────────────────────────────────────────────────
-const amount = ref(1)
+const amount = ref("1.0")
 const currency = ref('SOL')
-const apy = ref(12)
+const apy = ref(1200) // BPS
 const duration = ref(90)
 const isSubmitting = ref(false)
 const error = ref<string | null>(null)
+
+const displayApy = computed({
+  get: () => apy.value / 100,
+  set: (v) => { apy.value = Math.round(Number(v) * 100) }
+})
 
 const durationPresets = [
   { label: '30d', value: 30 },
@@ -38,31 +44,36 @@ const durationPresets = [
 ]
 
 // ── Suggested APY Logic ──────────────────────────────────────────────────
-// Base rate: 15%
-// Increase for amount: +0.1% per 10 SOL (capped at +10%)
-// Increase for duration: +3% per year (linear: 3 / 365 per day)
-// Reduction for attestations: -2% per attestation (capped at 10% reduction)
-const suggestedApy = computed(() => {
-  let base = 15
+// Base rate: 15% (1500 BPS)
+// Increase for amount: +1 BPS per 1 SOL (capped at +1000 BPS)
+// Increase for duration: +300 BPS per year (linear: (duration * 300) / 365)
+// Reduction for attestations: -200 BPS per attestation (capped at 1000 BPS reduction)
+const suggestedApyBps = computed(() => {
+  const baseBps = 1500n
   
-  // Amount factor: 0.1% per 10 SOL -> 0.01% per 1 SOL
-  const amountPremium = Math.min(amount.value * 0.01, 10)
-  base += amountPremium
+  // Amount factor: 1 BPS per 1 SOL
+  const lamports = toLamports(amount.value)
+  const amountPremiumBps = lamports / LAMPORTS_PER_SOL // 1 BPS per SOL
+  const cappedAmountPremiumBps = amountPremiumBps > 1000n ? 1000n : amountPremiumBps
   
-  // Duration factor: 3% per year -> 3/365 per day
-  const durationPremium = (duration.value * 3) / 365
-  base += durationPremium
+  // Duration factor: 300 BPS per year
+  const durationBps = (BigInt(duration.value) * 300n) / 365n
   
-  // Attestation discount
-  const attCount = props.attestationCount || 0
-  const discount = Math.min(attCount * 2, 10)
+  // Attestation discount: 200 BPS per attestation
+  const attCount = BigInt(props.attestationCount || 0)
+  const discountBps = attCount * 200n
+  const cappedDiscountBps = discountBps > 1000n ? 1000n : discountBps
   
-  const final = Math.max(5, base - discount)
-  return parseFloat(final.toFixed(2))
+  const totalBps = baseBps + cappedAmountPremiumBps + durationBps - cappedDiscountBps
+  const finalBps = totalBps < 500n ? 500n : totalBps
+  
+  return Number(finalBps)
 })
 
+const suggestedApyDisplay = computed(() => suggestedApyBps.value / 100)
+
 function applySuggested() {
-  apy.value = suggestedApy.value
+  apy.value = suggestedApyBps.value
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────
@@ -135,9 +146,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             <label class="text-[10px] text-muted uppercase tracking-[0.2em] font-bold">Principal Amount (SOL)</label>
             <div class="relative">
               <input 
-                v-model.number="amount" 
-                type="number" step="0.1" min="0.1"
+                v-model="amount" 
+                type="text"
                 class="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-white font-mono text-xl focus:border-primary/50 outline-none transition-all"
+                placeholder="0.0"
                 required
               />
               <div class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-muted font-bold pointer-events-none uppercase">SOL</div>
@@ -178,7 +190,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             </div>
             <div class="relative">
               <input 
-                v-model.number="apy" 
+                v-model="displayApy" 
                 type="number" step="0.01" min="1" max="100"
                 class="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-white font-mono text-xl focus:border-primary/50 outline-none transition-all"
                 required
@@ -190,7 +202,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             <div class="mt-1 p-3 rounded bg-white/5 border border-white/5 flex flex-col gap-2">
               <div class="flex items-center justify-between">
                 <span class="text-[10px] text-muted uppercase font-bold">Smart Rate:</span>
-                <span class="text-xs text-emerald font-mono font-bold">{{ suggestedApy }}%</span>
+                <span class="text-xs text-emerald font-mono font-bold">{{ suggestedApyDisplay }}%</span>
               </div>
               <p class="text-[10px] text-muted leading-relaxed">
                 Based on amount, duration, and your <span class="text-white font-bold">{{ attestationCount || 0 }}</span> active attestations.

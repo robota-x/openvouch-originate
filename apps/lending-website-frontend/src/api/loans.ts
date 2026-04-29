@@ -72,7 +72,7 @@ export const backendClient = {
   /** POST /api/loans/initiate — get Base64 TX to create pool. */
   async initiateLoan(
     token: string,
-    offer: { amount: number; currency: string; duration: number },
+    offer: { amount: string; currency: string; duration: number },
   ): Promise<{ transaction: string }> {
     const res = await apiFetch("/api/loans/initiate", {
       method: "POST",
@@ -90,7 +90,7 @@ export const backendClient = {
     token: string,
     data: {
       signature: string;
-      amount: number;
+      amount: string;
       currency: string;
       duration: number;
       apy: number;
@@ -111,7 +111,7 @@ export const backendClient = {
   async initiateContribution(
     token: string,
     id: string,
-    amount: number,
+    amount: string,
   ): Promise<{ transaction: string }> {
     const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}/contribute/initiate`, {
       method: "POST",
@@ -130,7 +130,7 @@ export const backendClient = {
     id: string,
     data: {
       signature: string;
-      amount: number;
+      amount: string;
     },
   ): Promise<{ success: boolean }> {
     const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}/contribute/finalize`, {
@@ -183,7 +183,7 @@ export const backendClient = {
     token: string,
     id: string,
     installmentNumber: number,
-    amount: number,
+    amount: string,
   ): Promise<{ transaction: string }> {
     const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}/repay/initiate`, {
       method: "POST",
@@ -202,7 +202,7 @@ export const backendClient = {
     id: string,
     data: {
       signature: string;
-      amount: number;
+      amount: string;
     },
   ): Promise<{ success: boolean }> {
     const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}/repay/finalize`, {
@@ -278,7 +278,7 @@ export const backendClient = {
 
   async createLoan(
     token: string,
-    offer: { amount: number; currency: string; apy: number; duration: number },
+    offer: { amount: string; currency: string; apy: number; duration: number },
   ): Promise<ProfileLoan> {
     const res = await apiFetch("/api/loans", {
       method: "POST",
@@ -299,7 +299,7 @@ export const backendClient = {
   async updateLoan(
     token: string,
     id: string,
-    patch: Partial<{ amount: number; currency: string; apy: number; duration: number }>,
+    patch: Partial<{ amount: string; currency: string; apy: number; duration: number }>,
   ): Promise<ProfileLoan> {
     const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}`, {
       method: "PATCH",

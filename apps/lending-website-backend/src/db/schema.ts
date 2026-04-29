@@ -2,7 +2,26 @@
 // After changes: npm run db:generate  →  produces a migration file in migrations/
 // Then apply:    npm run db:migrate:local / db:migrate:staging / db:migrate:production
 
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, real, blob, customType } from 'drizzle-orm/sqlite-core'
+
+/**
+ * Custom BigInt type for SQLite that uses INTEGER mode.
+ * Ensures we use 64-bit integers in D1 while having bigint in JS.
+ */
+export const sqliteBigInt = customType<{ data: bigint; driverData: bigint }>({
+  dataType() {
+    return 'integer';
+  },
+  fromDriver(value: unknown) {
+    if (typeof value === 'bigint') return value;
+    if (typeof value === 'number') return BigInt(value);
+    if (typeof value === 'string') return BigInt(value);
+    return 0n;
+  },
+  toDriver(value: bigint) {
+    return value;
+  },
+});
 
 /** One-time challenge nonces issued during wallet auth. Replaced on re-challenge. */
 export const authNonces = sqliteTable('auth_nonces', {
@@ -85,13 +104,13 @@ export const chainEvents = sqliteTable('chain_events', {
 export const loanListings = sqliteTable('loan_listings', {
   id:         text('id').primaryKey(),
   borrower:   text('borrower').notNull(),
-  amount:     real('amount').notNull(),
+  amount:     sqliteBigInt('amount').notNull(),
   currency:   text('currency').notNull(),
-  apy:        real('apy').notNull(),
+  apy:        integer('apy').notNull(), // Basis Points (BPS)
   duration:   integer('duration').notNull(),
   status:     text('status', { enum: ['open', 'active', 'repaid', 'defaulted'] }).notNull().default('open'),
-  raisedAmount: real('raised_amount').notNull().default(0),
-  repaid:     real('repaid').notNull().default(0),
+  raisedAmount: sqliteBigInt('raised_amount').notNull().default(0n),
+  repaid:     sqliteBigInt('repaid').notNull().default(0n),
   lender:     text('lender'), // Legacy/Primary lender
   dueDate:    text('due_date'),
   onChainRef: text('on_chain_ref'),
@@ -103,7 +122,7 @@ export const loanContributions = sqliteTable('loan_contributions', {
   id:         text('id').primaryKey(),
   loanId:     text('loan_id').notNull().references(() => loanListings.id),
   lender:     text('lender').notNull(),
-  amount:     real('amount').notNull(),
+  amount:     sqliteBigInt('amount').notNull(),
   onChainRef: text('on_chain_ref'),
   createdAt:  integer('created_at', { mode: 'timestamp' }).notNull(),
 })

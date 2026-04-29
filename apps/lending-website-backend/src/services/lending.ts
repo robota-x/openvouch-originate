@@ -108,7 +108,7 @@ export async function finalizeTriggerDefault(
 export async function initiateLoanCreation(
   config: AppConfig,
   borrower: string,
-  amount: number,
+  amountLamports: bigint,
   currency: string,
   duration: number,
 ) {
@@ -117,12 +117,12 @@ export async function initiateLoanCreation(
   
   // termOfferId is required by the contract - using a default for now
   const termOfferId = PublicKey.default; 
-  const amountLamports = new BN(amount * 1e9);
+  const amountBN = new BN(amountLamports.toString());
 
   const txBase64 = await buildCreateLoanPoolTx(
     ctx,
     borrowerPubkey,
-    amountLamports,
+    amountBN,
     termOfferId,
     "", 
     0,  
@@ -182,19 +182,19 @@ export async function initiateLoanContribution(
   config: AppConfig,
   lender: string,
   poolAddress: string,
-  amount: number,
+  amountLamports: bigint,
 ) {
   const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   const lenderPubkey = new PublicKey(lender);
   const poolPubkey = new PublicKey(poolAddress);
   
-  const amountLamports = new BN(amount * 1e9);
+  const amountBN = new BN(amountLamports.toString());
 
   const txBase64 = await buildContributeToPoolTx(
     ctx,
     poolPubkey,
     lenderPubkey,
-    amountLamports,
+    amountBN,
   );
 
   return {
@@ -209,7 +209,7 @@ export async function verifyAndFinalizeContribution(
   config: AppConfig,
   signature: string,
   loanId: string,
-  amount: number,
+  amountLamports: bigint,
   lender: string,
   db: any,
 ) {
@@ -234,10 +234,10 @@ export async function verifyAndFinalizeContribution(
     if (instruction) {
         const decoded = coder.instruction.decode(Buffer.from(instruction.data), 'base58');
         if (decoded && decoded.name === 'contributeToPool') {
-            const onChainAmount = (decoded.data as any).amount.toNumber() / 1e9;
-            if (Math.abs(onChainAmount - amount) > 0.0001) {
-                console.warn(`[LendingService] Amount mismatch: on-chain ${onChainAmount}, reported ${amount}`);
-                amount = onChainAmount;
+            const onChainAmountLamports = BigInt((decoded.data as any).amount.toString());
+            if (onChainAmountLamports !== amountLamports) {
+                console.warn(`[LendingService] Amount mismatch: on-chain ${onChainAmountLamports}, reported ${amountLamports}`);
+                amountLamports = onChainAmountLamports;
             }
         }
     }
@@ -246,7 +246,7 @@ export async function verifyAndFinalizeContribution(
   const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, loanId));
   if (!loan) throw new Error("Loan not found");
 
-  const newRaisedAmount = loan.raisedAmount + amount;
+  const newRaisedAmount = BigInt(loan.raisedAmount) + amountLamports;
 
   await db.transaction(async (tx: any) => {
     await tx.update(loanListings)
@@ -260,7 +260,7 @@ export async function verifyAndFinalizeContribution(
       id: crypto.randomUUID(),
       loanId,
       lender,
-      amount,
+      amount: amountLamports,
       onChainRef: signature,
       createdAt: new Date(),
     });
@@ -326,20 +326,20 @@ export async function initiateLoanRepayment(
   borrower: string,
   poolAddress: string,
   installmentNumber: number,
-  amount: number,
+  amountLamports: bigint,
 ) {
   const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   const borrowerPubkey = new PublicKey(borrower);
   const poolPubkey = new PublicKey(poolAddress);
   
-  const amountLamports = new BN(amount * 1e9);
+  const amountBN = new BN(amountLamports.toString());
 
   const txBase64 = await buildRepaymentTx(
     ctx,
     poolPubkey,
     borrowerPubkey,
     installmentNumber,
-    amountLamports,
+    amountBN,
     false, // isEarly
     false, // isLate
   );
@@ -356,7 +356,7 @@ export async function verifyAndFinalizeRepayment(
   config: AppConfig,
   signature: string,
   loanId: string,
-  amount: number,
+  amountLamports: bigint,
   db: any,
 ) {
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
@@ -380,10 +380,10 @@ export async function verifyAndFinalizeRepayment(
     if (instruction) {
         const decoded = coder.instruction.decode(Buffer.from(instruction.data), 'base58');
         if (decoded && decoded.name === 'makeRepayment') {
-            const onChainAmount = (decoded.data as any).amount.toNumber() / 1e9;
-            if (Math.abs(onChainAmount - amount) > 0.0001) {
-                console.warn(`[LendingService] Amount mismatch: on-chain ${onChainAmount}, reported ${amount}`);
-                amount = onChainAmount;
+            const onChainAmountLamports = BigInt((decoded.data as any).amount.toString());
+            if (onChainAmountLamports !== amountLamports) {
+                console.warn(`[LendingService] Amount mismatch: on-chain ${onChainAmountLamports}, reported ${amountLamports}`);
+                amountLamports = onChainAmountLamports;
             }
         }
     }
@@ -392,8 +392,8 @@ export async function verifyAndFinalizeRepayment(
   const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, loanId));
   if (!loan) throw new Error("Loan not found");
 
-  const newRepaidAmount = loan.repaid + amount;
-  const newStatus = newRepaidAmount >= loan.amount ? 'repaid' : 'active';
+  const newRepaidAmount = BigInt(loan.repaid) + amountLamports;
+  const newStatus = newRepaidAmount >= BigInt(loan.amount) ? 'repaid' : 'active';
 
   await db.update(loanListings)
     .set({ 

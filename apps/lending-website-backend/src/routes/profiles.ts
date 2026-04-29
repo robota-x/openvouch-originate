@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { createAppDb } from '../db/client.js'
 import { profiles as profilesTable, attestations as attestationsTable, loanListings, loanContributions } from '../db/schema.js'
 import { authenticate } from '../middleware/session.js'
+import { toLamports, toSol } from '../utils/precision.js'
 import { fixtureProfiles } from '../fixtures.js'
 import type { AppEnv } from '../types.js'
 
@@ -63,11 +64,11 @@ profileRoutes.get('/:address', async (c) => {
       .where(eq(loanListings.borrower, loan.borrower))
       .then(rows => rows.filter(r => r.status !== 'open'))
 
-    const totalBorrowed = borrowerSettledLoans.reduce((s, r) => s + r.amount, 0)
-    const totalRepaid   = borrowerSettledLoans.reduce((s, r) => s + r.repaid,  0)
-    const repaymentRate = borrowerSettledLoans.length
-      ? Math.round(totalRepaid / totalBorrowed * 100)
-      : 100
+    const totalBorrowed = borrowerSettledLoans.reduce((s, r) => s + BigInt(r.amount), 0n)
+    const totalRepaid   = borrowerSettledLoans.reduce((s, r) => s + BigInt(r.repaid),  0n)
+    const repaymentRate = borrowerSettledLoans.length && totalBorrowed > 0n
+      ? Math.round(Number(totalRepaid) / Number(totalBorrowed) * 10000)
+      : 10000
 
     const borrowerAttestationCount = await db
       .select()
@@ -82,10 +83,10 @@ profileRoutes.get('/:address', async (c) => {
       borrowerTrustScore:       borrowerProfile?.trustScore ?? 0,
       borrowerAttestationCount,
       borrowerRepaymentRate:    repaymentRate,
-      amount:                   cRow.amount, // The amount this specific user lent
-      totalLoanAmount:          loan.amount,
+      amount:                   cRow.amount.toString(), // The amount this specific user lent
+      totalLoanAmount:          loan.amount.toString(),
       currency:                 loan.currency,
-      apy:                      loan.apy,
+      apy:                      (loan.apy * 100).toString(),
       duration:                 loan.duration,
       status:                   loan.status as 'active' | 'repaid' | 'defaulted',
       dueDate:                  loan.dueDate ?? undefined,
@@ -108,12 +109,12 @@ profileRoutes.get('/:address', async (c) => {
     })),
     loans: borrowedRows.map(l => ({
       id:           l.id,
-      amount:       l.amount,
+      amount:       l.amount.toString(),
       currency:     l.currency,
-      apy:          l.apy,
+      apy:          (l.apy * 100).toString(),
       duration:     l.duration,
       status:       l.status,
-      repaid:       l.repaid,
+      repaid:       l.repaid.toString(),
       dueDate:      l.dueDate ?? undefined,
       counterparty: l.lender ?? undefined,
     })),

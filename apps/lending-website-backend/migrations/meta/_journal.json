@@ -29,6 +29,13 @@
       "when": 1777474494237,
       "tag": "0003_fixed_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1777506154951,
+      "tag": "0004_black_black_bird",
+      "breakpoints": true
     }
   ]
 }

@@ -3,21 +3,22 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { ContractView } from '../types'
 import { truncate, fmtDate } from '../utils/format'
 import { useAuth } from '../composables/useAuth'
+import { toLamports, toSol } from '../utils/precision'
 
 const props = defineProps<{ contract: ContractView }> ()
 const emit  = defineEmits<{ 
   close: []; 
-  fund: [loanId: string, amount: number];
+  fund: [loanId: string, amount: string];
   default: [loanId: string];
 }>()
 
 const auth = useAuth()
-const contributionAmount = ref(props.contract.amount - (props.contract.raisedAmount || 0))
+const contributionAmount = ref(toSol(toLamports(props.contract.amount) - toLamports(props.contract.raisedAmount || '0')))
 watch(() => props.contract.id, () => {
-  contributionAmount.value = props.contract.amount - (props.contract.raisedAmount || 0)
+  contributionAmount.value = toSol(toLamports(props.contract.amount) - toLamports(props.contract.raisedAmount || '0'))
 })
 
-const maxContribution = computed(() => props.contract.amount - (props.contract.raisedAmount || 0))
+const maxContribution = computed(() => toSol(toLamports(props.contract.amount) - toLamports(props.contract.raisedAmount || '0')))
 
 const isParticipant = computed(() => {
   if (!auth.address) return false;
@@ -62,16 +63,22 @@ const statusLabel = computed(() => ({
 }[props.contract.status]))
 
 // ── Financial computations ─────────────────────────────────────────────────
-// Simple interest: interest = principal × (APY/100) × (duration/365)
-const interest = computed(() =>
-  +(props.contract.amount * (props.contract.apy / 100) * (props.contract.duration / 365)).toFixed(2)
-)
-const totalDue = computed(() => +(props.contract.amount + interest.value).toFixed(2))
+// Simple interest: interest = principal × (APY/10000) × (duration/365)
+const interest = computed(() => {
+  const principal = toLamports(props.contract.amount)
+  const interestLamports = (principal * BigInt(props.contract.apy) * BigInt(props.contract.duration)) / (10000n * 365n)
+  return toSol(interestLamports)
+})
+const totalDue = computed(() => {
+  const principal = toLamports(props.contract.amount)
+  const interestLamports = (principal * BigInt(props.contract.apy) * BigInt(props.contract.duration)) / (10000n * 365n)
+  return toSol(principal + interestLamports)
+})
 
 // Net outcome from the lender's perspective
 const netGain = computed(() => {
-  if (props.contract.status === 'repaid')    return `+${fmt(interest.value)} ${props.contract.currency}`
-  if (props.contract.status === 'defaulted') return `−${fmt(props.contract.amount)} ${props.contract.currency}`
+  if (props.contract.status === 'repaid')    return `+${interest.value} ${props.contract.currency}`
+  if (props.contract.status === 'defaulted') return `−${toSol(BigInt(props.contract.amount))} ${props.contract.currency}`
   return null
 })
 const netGainColor = computed(() => {
@@ -93,11 +100,6 @@ const daysRemaining = computed(() => {
   const due = new Date(props.contract.dueDate).getTime()
   return Math.ceil((due - Date.now()) / 86_400_000)
 })
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-function fmt(n: number) {
-  return n.toLocaleString(undefined, { maximumFractionDigits: 2 })
-}
 
 // ── ESC to close ───────────────────────────────────────────────────────────
 function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
@@ -201,21 +203,21 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             <p class="text-[10px] text-muted uppercase tracking-widest mb-1">Funding Progress</p>
             <div class="flex items-baseline justify-between">
               <div class="flex items-baseline gap-2">
-                <span class="font-mono text-2xl font-bold text-white">{{ fmt(contract.raisedAmount || 0) }}</span>
-                <span class="text-white/50 text-sm">/ {{ fmt(contract.amount) }} {{ contract.currency }}</span>
+                <span class="font-mono text-2xl font-bold text-white">{{ toSol(BigInt(contract.raisedAmount || '0')) }}</span>
+                <span class="text-white/50 text-sm">/ {{ toSol(BigInt(contract.amount)) }} {{ contract.currency }}</span>
               </div>
               <span class="font-mono text-xs text-primary font-bold">
-                {{ Math.round(((contract.raisedAmount || 0) / contract.amount) * 100) }}%
+                {{ (toLamports(contract.raisedAmount || '0') * 100n) / toLamports(contract.amount) }}%
               </span>
             </div>
             <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div 
                 class="h-full bg-primary transition-all duration-700"
-                :style="{ width: `${Math.min(100, ((contract.raisedAmount || 0) / contract.amount) * 100)}%` }"
+                :style="{ width: `${Math.min(100n, (toLamports(contract.raisedAmount || '0') * 100n) / toLamports(contract.amount))}%` }"
               />
             </div>
             <div class="flex items-center gap-4 text-sm mt-1">
-              <span class="text-muted">APY <span class="font-mono font-bold text-white">{{ contract.apy }}%</span></span>
+              <span class="text-muted">APY <span class="font-mono font-bold text-white">{{ contract.apy / 100 }}%</span></span>
               <span class="text-white/20">·</span>
               <span class="text-muted">Duration <span class="font-mono font-bold text-white">{{ contract.duration }}d</span></span>
             </div>
@@ -252,30 +254,30 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
             <div class="flex flex-col gap-2 text-sm">
               <div class="flex items-center justify-between">
-                <span class="text-muted">{{ lender === borrower ? 'Principal' : 'Your Position' }}</span>
-                <span class="font-mono text-white">{{ fmt(contract.amount) }} {{ contract.currency }}</span>
+                <span class="text-muted">{{ contract.lender === contract.borrower ? 'Principal' : 'Your Position' }}</span>
+                <span class="font-mono text-white">{{ toSol(BigInt(contract.amount)) }} {{ contract.currency }}</span>
               </div>
               <div v-if="contract.raisedAmount && contract.raisedAmount !== contract.amount" class="flex items-center justify-between text-[10px]">
                 <span class="text-muted italic">Total Loan Size</span>
-                <span class="font-mono text-muted">{{ fmt(contract.raisedAmount) }} {{ contract.currency }}</span>
+                <span class="font-mono text-muted">{{ toSol(BigInt(contract.raisedAmount)) }} {{ contract.currency }}</span>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-muted">Interest ({{ contract.apy }}% × {{ contract.duration }}d)</span>
-                <span class="font-mono text-white">+{{ fmt(interest) }} {{ contract.currency }}</span>
+                <span class="text-muted">Interest ({{ contract.apy / 100 }}% × {{ contract.duration }}d)</span>
+                <span class="font-mono text-white">+{{ interest }} {{ contract.currency }}</span>
               </div>
               <div class="h-px bg-border my-1" />
               <div class="flex items-center justify-between font-bold">
                 <span class="text-muted">Total due</span>
-                <span class="font-mono text-white">{{ fmt(totalDue) }} {{ contract.currency }}</span>
+                <span class="font-mono text-white">{{ totalDue }} {{ contract.currency }}</span>
               </div>
 
               <!-- Settlement row -->
               <div class="flex items-center justify-between mt-1">
                 <span class="text-muted">{{ contract.status === 'repaid' ? 'Repaid' : contract.status === 'defaulted' ? 'Recovered' : 'Expected repayment' }}</span>
                 <span class="font-mono font-bold" :class="contract.status === 'repaid' ? 'text-emerald' : contract.status === 'defaulted' ? 'text-danger' : 'text-muted'">
-                  <template v-if="contract.status === 'repaid'">{{ fmt(totalDue) }} {{ contract.currency }} ✓</template>
+                  <template v-if="contract.status === 'repaid'">{{ totalDue }} {{ contract.currency }} ✓</template>
                   <template v-else-if="contract.status === 'defaulted'">0 {{ contract.currency }}</template>
-                  <template v-else>{{ fmt(totalDue) }} {{ contract.currency }}</template>
+                  <template v-else>{{ totalDue }} {{ contract.currency }}</template>
                 </span>
               </div>
 
@@ -293,14 +295,11 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
         <div class="px-6 py-4 border-t border-border flex items-center justify-between gap-3">
           <div v-if="contract.status === 'open'" class="flex items-center gap-3">
              <div class="relative">
-                <input 
-                  v-model.number="contributionAmount" 
-                  type="number" 
-                  step="0.1" 
-                  :min="0.1" 
-                  :max="maxContribution"
-                  class="w-24 bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white font-mono text-sm focus:border-primary/50 outline-none transition-all"
-                />
+<input 
+  v-model="contributionAmount" 
+  type="text" 
+  class="w-24 bg-white/5 border border-white/10 rounded px-2 py-1.5 text-white font-mono text-sm focus:border-primary/50 outline-none transition-all"
+/>
                 <div class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-muted font-bold pointer-events-none uppercase">SOL</div>
              </div>
              <span class="text-[10px] text-muted">max {{ maxContribution }}</span>
