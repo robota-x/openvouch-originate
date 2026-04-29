@@ -53,31 +53,36 @@ export class BlockchainService {
   }
 
   // ================= PDA DERIVATION =================
+  private encoder = new TextEncoder();
 
   async deriveProfilePDA(user: PublicKey) {
     return PublicKey.findProgramAddress(
-      [Buffer.from("profile"), user.toBuffer()],
+      [this.encoder.encode("profile"), user.toBytes()],
       this.program.programId,
     );
   }
 
   async deriveVaultPDA(pool: PublicKey) {
     return PublicKey.findProgramAddress(
-      [Buffer.from("vault"), pool.toBuffer()],
+      [this.encoder.encode("vault"), pool.toBytes()],
       this.program.programId,
     );
   }
 
   async derivePositionPDA(pool: PublicKey, lender: PublicKey) {
     return PublicKey.findProgramAddress(
-      [Buffer.from("position"), pool.toBuffer(), lender.toBuffer()],
+      [
+        this.encoder.encode("position"),
+        pool.toBytes(),
+        lender.toBytes(),
+      ],
       this.program.programId,
     );
   }
 
   async deriveSchedulePDA(pool: PublicKey) {
     return PublicKey.findProgramAddress(
-      [Buffer.from("schedule"), pool.toBuffer()],
+      [this.encoder.encode("schedule"), pool.toBytes()],
       this.program.programId,
     );
   }
@@ -95,8 +100,8 @@ export class BlockchainService {
     yearsCovered: number,
     currency: string,
     country: string,
-  ): Promise<Transaction> {
-    return await this.program.methods
+  ): Promise<string> {
+    const tx = await this.program.methods
       .createLoanPool(
         targetAmount,
         termOfferId,
@@ -109,6 +114,12 @@ export class BlockchainService {
         borrower,
       })
       .transaction();
+
+    const serialized = tx.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+    return btoa(String.fromCharCode(...new Uint8Array(serialized)));
   }
 
   /**
@@ -120,12 +131,12 @@ export class BlockchainService {
     amount: BN,
     lenderTokenAccount: PublicKey,
     vaultTokenAccount: PublicKey,
-  ): Promise<Transaction> {
+  ): Promise<string> {
     const [vault] = await this.deriveVaultPDA(pool);
     const [position] = await this.derivePositionPDA(pool, lender);
     const [lenderProfile] = await this.deriveProfilePDA(lender);
 
-    return await this.program.methods
+    const tx = await this.program.methods
       .contributeToPool(amount)
       .accounts({
         pool,
@@ -138,6 +149,12 @@ export class BlockchainService {
         tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
       })
       .transaction();
+
+    const serialized = tx.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+    return btoa(String.fromCharCode(...new Uint8Array(serialized)));
   }
 
   /**
@@ -148,11 +165,11 @@ export class BlockchainService {
     borrower: PublicKey,
     borrowerTokenAccount: PublicKey,
     vaultTokenAccount: PublicKey,
-  ): Promise<Transaction> {
+  ): Promise<string> {
     const [vault] = await this.deriveVaultPDA(pool);
     const [borrowerProfile] = await this.deriveProfilePDA(borrower);
 
-    return await this.program.methods
+    const tx = await this.program.methods
       .disburseLoan()
       .accounts({
         pool,
@@ -164,6 +181,13 @@ export class BlockchainService {
         tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
       })
       .transaction();
+
+    // Use Web API btoa for native base64 conversion instead of Buffer
+    const serialized = tx.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+    return btoa(String.fromCharCode(...new Uint8Array(serialized)));
   }
 
   // ================= TOKEN HELPERS =================
