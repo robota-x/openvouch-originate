@@ -14,10 +14,12 @@
   },
   "dependencies": {
     "@wallet-standard/app": "^1.1.0",
+    "lightningcss": "^1.32.0",
     "vue": "^3.5.0",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.2.4",
     "@tailwindcss/vite": "^4.1.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.0",

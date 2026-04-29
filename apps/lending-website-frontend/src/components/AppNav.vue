@@ -45,7 +45,7 @@ async function disconnect() {
           Marketplace
         </RouterLink>
         <RouterLink
-          v-if="auth.isConnected"
+          v-if="auth.isAuthenticated"
           to="/my-loans"
           class="text-sm transition-colors"
           :class="isActive('/my-loans') ? 'text-white' : 'text-muted hover:text-white'"
@@ -57,7 +57,7 @@ async function disconnect() {
       <!-- Wallet area -->
       <div class="flex items-center gap-2">
         <!-- Connected: address + disconnect -->
-        <template v-if="auth.isConnected && auth.address">
+        <template v-if="auth.isAuthenticated && auth.address">
           <RouterLink
             to="/my-profile"
             class="h-8 px-4 rounded-full border border-primary/50 bg-primary/10 text-primary font-mono text-xs font-bold hover:bg-primary/20 transition-colors inline-flex items-center"

@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      tailwindcss(),  // must precede vue()
+      tailwindcss(),
       vue(),
     ],
 

@@ -2,8 +2,9 @@ import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { BN } from "bn.js";
 
-// ✅ FIX: use workspace package instead of fs loading
-import idl from "@openvouch/idl";
+// ✅ FIX: use named imports from Registry
+import { Registry } from "@openvouch/idl";
+const idl = Registry.getIdl("dblt_lending");
 
 const PROGRAM_ID = "6fXix7yZxeoqyL3wNtAHpPZ8dXAXQe3DXbVPeqcH1Gny";
 
@@ -21,11 +22,14 @@ export class BlockchainService {
     this.connection = new Connection(rpcUrl, "confirmed");
     this.providerWallet = providerWallet;
 
+    const provider = new anchor.AnchorProvider(this.connection, providerWallet, {
+      commitment: "confirmed",
+    });
+
     // ⚠️ Anchor expects full IDL object (now imported safely)
     this.program = new anchor.Program(
       idl as anchor.Idl,
-      PROGRAM_ID,
-      providerWallet,
+      provider,
     );
   }
 
@@ -72,7 +76,7 @@ export class BlockchainService {
 
   async createLoanPool(
     borrower: PublicKey,
-    targetAmount: BN,
+    targetAmount: anchor.BN,
     termOfferId: PublicKey,
     yearsDataHash: string,
     yearsCovered: number,
@@ -102,7 +106,7 @@ export class BlockchainService {
   async contributeToPool(
     poolAddress: PublicKey,
     lender: PublicKey,
-    amount: BN,
+    amount: anchor.BN,
     lenderTokenAccount: PublicKey,
     vaultTokenAccount: PublicKey,
   ): Promise<string> {
@@ -164,7 +168,7 @@ export class BlockchainService {
     owner: PublicKey,
     mint: PublicKey,
   ): Promise<PublicKey> {
-    const [associatedTokenAddress] = await anchor.utils.token.associatedAddress(
+    const associatedTokenAddress = await anchor.utils.token.associatedAddress(
       {
         mint,
         owner,
@@ -186,6 +190,6 @@ export class BlockchainService {
 
   async getTokenBalance(tokenAccount: PublicKey): Promise<number> {
     const info = await this.connection.getTokenAccountBalance(tokenAccount);
-    return parseFloat(info.value.uiAmount || "0");
+    return info.value.uiAmount ?? 0;
   }
 }
