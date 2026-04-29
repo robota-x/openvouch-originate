@@ -29,7 +29,11 @@ describe('authenticate middleware', () => {
 
   it('returns 401 for a malformed token even with a secret configured', async () => {
     const secret = 'test-secret-at-least-32-chars!!'
-    const env: Bindings = { DB: undefined as unknown as D1Database, JWT_SECRET: secret }
+    const env: Bindings = { 
+      DB: undefined as unknown as D1Database, 
+      JWT_SECRET: secret,
+      SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+    }
     const res = await makeApp().request('/protected', {
       headers: { Authorization: 'Bearer not.a.valid.jwt' },
     }, env)
@@ -39,7 +43,11 @@ describe('authenticate middleware', () => {
   it('calls next and exposes user for a valid token', async () => {
     const secret = 'test-secret-at-least-32-chars!!'
     const token  = await createToken(secret, '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU')
-    const env: Bindings = { DB: undefined as unknown as D1Database, JWT_SECRET: secret }
+    const env: Bindings = { 
+      DB: undefined as unknown as D1Database, 
+      JWT_SECRET: secret,
+      SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+    }
     const res = await makeApp().request('/protected', {
       headers: { Authorization: `Bearer ${token}` },
     }, env)

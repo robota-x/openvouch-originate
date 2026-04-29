@@ -90,6 +90,7 @@ export const loanListings = sqliteTable('loan_listings', {
   apy:        real('apy').notNull(),
   duration:   integer('duration').notNull(),
   status:     text('status', { enum: ['open', 'active', 'repaid', 'defaulted'] }).notNull().default('open'),
+  raisedAmount: real('raised_amount').notNull().default(0),
   repaid:     real('repaid').notNull().default(0),
   lender:     text('lender'),
   dueDate:    text('due_date'),

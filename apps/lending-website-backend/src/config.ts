@@ -5,9 +5,9 @@ import type { AppEnv, Bindings } from './types.js'
 // ── Config type ───────────────────────────────────────────────────────────────
 
 export interface AppConfig {
-  /** HS256 secret for JWT signing/verification. undefined when not configured. */
-  jwtSecret: string | undefined
-  /** Shared secret Helius sends in Authorization header. undefined = webhook disabled. */
+  /** HS256 secret for JWT signing/verification. */
+  jwtSecret: string
+  /** Shared secret Helius sends in Authorization header. */
   heliusWebhookAuth: string | undefined
   /** When true, routes return fixture data instead of querying D1. */
   fixturesEnabled: boolean
@@ -15,6 +15,9 @@ export interface AppConfig {
   programs: {
     genericRecord: string
     dbltLending: string
+  }
+  blockchain: {
+    rpcUrl: string
   }
 }
 
@@ -30,18 +33,32 @@ export interface AppConfig {
 export function buildConfig(env: Bindings | undefined): AppConfig {
   const genericRecord = Registry.getProgramId('generic_record')
   const dbltLending = Registry.getProgramId('dblt_lending')
+  
   if (!genericRecord || !dbltLending) {
     throw new Error('Required program IDs missing from @openvouch/idl registry')
   }
 
+  const jwtSecret = env?.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET is required');
+  }
+
+  const rpcUrl = env?.SOLANA_RPC_URL;
+  if (!rpcUrl) {
+    throw new Error('SOLANA_RPC_URL is required');
+  }
+
   return {
-    jwtSecret:         env?.JWT_SECRET,
+    jwtSecret,
     heliusWebhookAuth: env?.HELIUS_WEBHOOK_AUTH,
     fixturesEnabled:   env?.FIXTURES_ENABLED === 'true',
     programs: {
       genericRecord,
       dbltLending,
     },
+    blockchain: {
+      rpcUrl,
+    }
   }
 }
 

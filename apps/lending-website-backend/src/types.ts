@@ -4,6 +4,8 @@ import type { AppConfig } from './config.js'
 export type Bindings = {
   DB:              D1Database
   JWT_SECRET:      string
+  SOLANA_RPC_URL:  string
+  SOLANA_PROGRAM_ID?: string
   /**
    * Shared secret that Helius sends in the Authorization header on every webhook
    * delivery. Must match the authHeader configured when creating the webhook.
