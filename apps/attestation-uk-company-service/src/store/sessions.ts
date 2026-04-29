@@ -10,10 +10,7 @@ export const sessionStore = {
       walletAddress:    session.walletAddress,
       companyNumber:    session.companyNumber,
       directorName:     session.directorName,
-      companyEmail:     session.companyEmail,
       challengeMessage: session.challengeMessage,
-      otp:              session.otp,
-      otpExpiresAt:     session.otpExpiresAt,
       status:           session.status,
       createdAt:        session.createdAt,
     })
@@ -30,11 +27,8 @@ export const sessionStore = {
       walletAddress:    row.walletAddress,
       companyNumber:    row.companyNumber,
       directorName:     row.directorName,
-      companyEmail:     row.companyEmail,
       challengeMessage: row.challengeMessage,
-      otp:              row.otp,
-      otpExpiresAt:     row.otpExpiresAt,
-      status:           row.status,
+      status:           row.status as Session['status'],
       createdAt:        row.createdAt,
     }
   },

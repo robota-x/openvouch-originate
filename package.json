@@ -1,11 +1,7 @@
 {
   "name": "defi-hack",
   "private": true,
-  "workspaces": [
-    "apps/lending-website-frontend",
-    "apps/lending-website-backend",
-    "packages/*"
-  ],
+  "workspaces": ["apps/lending-website-frontend", "apps/lending-website-backend", "apps/attestation-uk-company-service", "apps/attestation-identity-service", "apps/playground", "packages/*"],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",

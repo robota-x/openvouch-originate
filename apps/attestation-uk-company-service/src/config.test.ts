@@ -10,21 +10,18 @@ describe('buildConfig', () => {
   it('applies defaults for optional values', () => {
     const config = buildConfig({ COMPANIES_HOUSE_UK_API_KEY: 'key' } as Bindings)
     expect(config.companiesHouseUkApiKey).toBe('key')
-    expect(config.sendgridKey).toBeUndefined()
-    expect(config.emailFrom).toBe('noreply@openvouch.io')
+    expect(config.identityServiceUrl).toBe('http://localhost:8789')
   })
 
   it('uses provided optional values', () => {
     const config = buildConfig({
       COMPANIES_HOUSE_UK_API_KEY: 'key',
-      SENDGRID_KEY: 'sg',
-      EMAIL_FROM: 'ops@openvouch.io',
+      IDENTITY_SERVICE_URL: 'https://identity.example.com',
     } as Bindings)
 
     expect(config).toEqual({
       companiesHouseUkApiKey: 'key',
-      sendgridKey: 'sg',
-      emailFrom: 'ops@openvouch.io',
+      identityServiceUrl: 'https://identity.example.com',
     })
   })
 })

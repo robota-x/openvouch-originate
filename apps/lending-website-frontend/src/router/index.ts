@@ -6,6 +6,8 @@ import MarketplacePage from '../pages/MarketplacePage.vue'
 import ProfilePage     from '../pages/ProfilePage.vue'
 import MyLoansPage     from '../pages/MyLoansPage.vue'
 import DesignPage      from '../pages/DesignPage.vue'
+import VerifyPortalPage from '../verify/VerifyPortalPage.vue'
+import CompanyAttestationFlowPage from '../verify/CompanyAttestationFlowPage.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -32,6 +34,13 @@ const router = createRouter({
     },
     { path: '/profile/:address', component: ProfilePage },
     { path: '/design',           component: DesignPage },
+    // -----------------------------------------------------------------------
+    // Identity verification portal routes.
+    // Kept isolated under /verify/* for clear ownership boundaries.
+    // -----------------------------------------------------------------------
+    { path: '/verify',           redirect: '/verify/company' },
+    { path: '/verify/company',   component: CompanyAttestationFlowPage, meta: { requiresAuth: true } },
+    { path: '/verify/portal',    component: VerifyPortalPage, meta: { requiresAuth: true } },
   ],
 })
 
@@ -39,7 +48,12 @@ const router = createRouter({
 router.beforeEach((to) => {
   if (to.meta.requiresAuth) {
     const auth = useAuth()
-    if (!auth.isConnected) return '/login'
+    if (!auth.isAuthenticated) {
+      return {
+        path: '/login',
+        query: { redirect: to.fullPath },
+      }
+    }
   }
 })
 

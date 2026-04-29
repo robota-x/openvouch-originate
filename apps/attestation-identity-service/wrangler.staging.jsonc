@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "openvouch-attestation-identity-service-staging",
+  "main": "src/worker.ts",
+  "compatibility_date": "2024-04-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "openvouch-attestation-identity-db-staging",
+      "database_id": "5bee51c1-3a1c-4d9c-aa96-5a840983b89b"
+    }
+  ],
+  "vars": {
+    "IDENTITY_PROVIDER_MODE": "mock",
+    "VERIFY_PORTAL_BASE_URL": "https://openvouch-originate-frontend-staging.neuronefunzionante.workers.dev",
+    "SHUFTI_BASE_URL": "https://api.shuftipro.com",
+    "CALLBACK_URL": "https://openvouch-attestation-identity-service-staging.neuronefunzionante.workers.dev/verify/webhook"
+  }
+}

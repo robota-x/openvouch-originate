@@ -13,7 +13,13 @@ describe('getCompany', () => {
       }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         items: [
-          { name: 'Ada Lovelace', officer_role: 'director', appointed_on: '2020-01-01' },
+          {
+            name: 'Ada Lovelace',
+            officer_role: 'director',
+            appointed_on: '2020-01-01',
+            date_of_birth: { year: 1815, month: 12 },
+            nationality: 'GB',
+          },
           { name: 'Grace Hopper', officer_role: 'director', resigned_on: '2022-01-01' },
         ],
       }), { status: 200 }))
@@ -26,7 +32,13 @@ describe('getCompany', () => {
       companyName: 'Acme Ltd',
       status: 'active',
       registeredOfficeAddress: { line_1: 'Somewhere' },
-      directors: [{ name: 'Ada Lovelace', role: 'director', appointedOn: '2020-01-01' }],
+      directors: [{
+        name: 'Ada Lovelace',
+        role: 'director',
+        appointedOn: '2020-01-01',
+        dob: '1815-12-01',
+        country: 'GB',
+      }],
     })
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
@@ -46,12 +58,12 @@ describe('getActiveDirectors', () => {
 
 describe('directorNameMatches', () => {
   it('matches case-insensitively with normalized whitespace', () => {
-    const directors = [{ name: 'Ada   Lovelace', role: 'director', appointedOn: 'x' }]
+    const directors = [{ name: 'Ada   Lovelace', role: 'director', appointedOn: 'x', dob: '1815-12-01', country: 'GB' }]
     expect(directorNameMatches('  ada lovelace ', directors)).toBe(true)
   })
 
   it('returns false when no director name matches', () => {
-    const directors = [{ name: 'Alan Turing', role: 'director', appointedOn: 'x' }]
+    const directors = [{ name: 'Alan Turing', role: 'director', appointedOn: 'x', dob: '1912-06-01', country: 'GB' }]
     expect(directorNameMatches('Ada Lovelace', directors)).toBe(false)
   })
 })

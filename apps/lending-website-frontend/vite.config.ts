@@ -4,11 +4,13 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const backendUrl = env.VITE_API_BASE_URL || 'http://localhost:8787'
+  const lendingApiUrl = env.VITE_API_BASE_URL || 'http://localhost:8787'
+  const attestationApiUrl = env.VITE_ATTESTATION_API_BASE_URL || 'http://localhost:8788'
+  const identityApiUrl = env.VITE_IDENTITY_API_BASE_URL || 'http://localhost:8789'
 
   return {
     plugins: [
-      tailwindcss(),  // must precede vue()
+      tailwindcss(),
       vue(),
     ],
 
@@ -16,10 +18,22 @@ export default defineConfig(({ mode }) => {
     // cross-origin request during development. In production the frontend build
     // uses the full VITE_API_BASE_URL or relies on CF Pages routing.
     server: {
+      port: 5173,
+      strictPort: true,
       proxy: {
         '/api': {
-          target:      backendUrl,
+          target:       lendingApiUrl,
           changeOrigin: true,
+        },
+        '/identity-api': {
+          target:       identityApiUrl,
+          changeOrigin: true,
+          rewrite:      (p) => p.replace(/^\/identity-api/, ''),
+        },
+        '/attestation-api': {
+          target:       attestationApiUrl,
+          changeOrigin: true,
+          rewrite:      (p) => p.replace(/^\/attestation-api/, ''),
         },
       },
     },

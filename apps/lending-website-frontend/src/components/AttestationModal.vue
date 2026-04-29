@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import type { Attestation, AttestationProvider } from '../types'
+import { fmtDate, truncate } from '../utils/format'
 
 const props = defineProps<{
   attestation: Attestation
@@ -32,14 +33,6 @@ const solscanUrl = computed(() =>
     ? `https://solscan.io/tx/${props.attestation.onChainRef}`
     : null
 )
-
-// ── Date formatting ────────────────────────────────────────────────────────
-function fmtDate(iso: string) {
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso))
-}
-function truncate(s: string, chars = 8) {
-  return s.length > chars * 2 + 1 ? `${s.slice(0, chars)}…${s.slice(-4)}` : s
-}
 
 // ── ESC to close ───────────────────────────────────────────────────────────
 function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }

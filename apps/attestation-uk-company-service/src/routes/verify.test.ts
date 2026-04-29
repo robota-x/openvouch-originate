@@ -54,18 +54,6 @@ describe('POST /api/verify/start — validation', () => {
   })
 })
 
-describe('POST /api/verify/email-confirm — validation', () => {
-  it('returns 400 when required fields are missing', async () => {
-    const res = await json('POST', '/api/verify/email-confirm', { sessionId: 'x' })
-    expect(res.status).toBe(400)
-  })
-
-  it('returns 404 for an unknown sessionId', async () => {
-    const res = await json('POST', '/api/verify/email-confirm', { sessionId: 'no-such-id', otp: '123456' }, true)
-    expect(res.status).toBe(404)
-  })
-})
-
 describe('POST /api/verify/sign — validation', () => {
   it('returns 400 when required fields are missing', async () => {
     const res = await json('POST', '/api/verify/sign', { sessionId: 'x' })
@@ -74,6 +62,18 @@ describe('POST /api/verify/sign — validation', () => {
 
   it('returns 404 for an unknown sessionId', async () => {
     const res = await json('POST', '/api/verify/sign', { sessionId: 'no-such-id', signature: 'abc' }, true)
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('POST /api/verify/complete — validation', () => {
+  it('returns 400 when sessionId is missing', async () => {
+    const res = await json('POST', '/api/verify/complete', {})
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 404 for an unknown sessionId', async () => {
+    const res = await json('POST', '/api/verify/complete', { sessionId: 'no-such-id' }, true)
     expect(res.status).toBe(404)
   })
 })

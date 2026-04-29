@@ -5,11 +5,8 @@ export const attestationSessions = sqliteTable('attestation_sessions', {
   walletAddress:    text('wallet_address').notNull(),
   companyNumber:    text('company_number').notNull(),
   directorName:     text('director_name').notNull(),
-  companyEmail:     text('company_email').notNull(),
   challengeMessage: text('challenge_message').notNull(),
-  otp:              text('otp').notNull(),
-  otpExpiresAt:     integer('otp_expires_at').notNull(),
-  status:           text('status', { enum: ['pending', 'email_verified', 'attested'] }).notNull(),
+  status:           text('status', { enum: ['pending', 'attested'] }).notNull(),
   createdAt:        integer('created_at').notNull(),
 })
 

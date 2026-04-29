@@ -3,8 +3,7 @@ node_modules/
 
 # Build outputs
 dist/
-
-# Caches
+.wrangler/
 .turbo/
 .vite/
 .cache/
@@ -16,7 +15,14 @@ npm-debug.log*
 
 # Environment files
 .env
+.dev.vars
+.dev.vars.local
 !.env.example
+
+# Databases
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 # Terraform
 .terraform/
@@ -31,7 +37,8 @@ target/
 # IDE
 .idea/
 .vscode/
+*.swp
+*.swo
 
-#test-ledger/
+# test-ledger
 test-ledger/
-target/

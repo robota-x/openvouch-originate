@@ -9,15 +9,17 @@
     "deploy:production": "wrangler deploy --config wrangler.production.jsonc",
     "dev": "vite",
     "preview": "vite preview",
-    "lint": "echo \"No linter configured yet\"",
+    "lint": "vue-tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@wallet-standard/app": "^1.1.0",
+    "lightningcss": "^1.32.0",
     "vue": "^3.5.0",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.2.4",
     "@tailwindcss/vite": "^4.1.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.0",
@@ -26,6 +28,7 @@
     "typescript": "^5.0.0",
     "vite": "^6.0.0",
     "vitest": "^3.0.0",
+    "vue-tsc": "^3.2.7",
     "wrangler": "^4.83.0"
   }
 }
