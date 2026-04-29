@@ -1,11 +1,7 @@
 {
-  "name": "-hack",
+  "name": "defi-hack",
   "private": true,
-  "workspaces": [
-    "apps/lending-website-frontend",
-    "apps/lending-website-backend",
-    "packages/*"
-  ],
+  "workspaces": ["apps/lending-website-frontend", "apps/lending-website-backend", "apps/attestation-uk-company-service", "apps/attestation-identity-service", "apps/playground", "packages/*"],
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
@@ -13,9 +9,7 @@
     "test": "turbo test"
   },
   "devDependencies": {
-    "@types/bn.js": "^5.2.0",
-    "turbo": "latest",
-    "vue": "^3.5.33"
+    "turbo": "latest"
   },
   "packageManager": "npm@11.4.1",
   "engines": {
