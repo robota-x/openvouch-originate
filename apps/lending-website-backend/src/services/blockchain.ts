@@ -9,18 +9,18 @@ const idl = Registry.getIdl("dblt_lending");
 const PROGRAM_ID = "6fXix7yZxeoqyL3wNtAHpPZ8dXAXQe3DXbVPeqcH1Gny";
 
 /**
- * ⚠️ NOTE:
- * This service MUST run in a Node-compatible environment
- * (NOT Cloudflare Workers runtime).
+ * ⚠️ Backend-only transaction builder
+ * - NO signing
+ * - NO payer wallet
+ * - frontend signs everything
  */
+
 export class BlockchainService {
   private connection: Connection;
   private program: anchor.Program;
-  private providerWallet: anchor.Wallet;
 
-  constructor(rpcUrl: string, providerWallet: anchor.Wallet) {
+  constructor(rpcUrl: string) {
     this.connection = new Connection(rpcUrl, "confirmed");
-    this.providerWallet = providerWallet;
 
     const provider = new anchor.AnchorProvider(this.connection, providerWallet, {
       commitment: "confirmed",
@@ -31,50 +31,46 @@ export class BlockchainService {
       idl as anchor.Idl,
       provider,
     );
+
+    this.program = new anchor.Program(idl as anchor.Idl, provider);
   }
 
-  // ==================== PDA DERIVATION HELPERS ====================
+  // ================= PDA DERIVATION =================
 
-  async deriveProfilePDA(userAddress: PublicKey): Promise<[PublicKey, number]> {
+  async deriveProfilePDA(user: PublicKey) {
     return PublicKey.findProgramAddress(
-      [Buffer.from("profile"), userAddress.toBuffer()],
+      [Buffer.from("profile"), user.toBuffer()],
       this.program.programId,
     );
   }
 
-  async deriveVaultPDA(poolAddress: PublicKey): Promise<[PublicKey, number]> {
+  async deriveVaultPDA(pool: PublicKey) {
     return PublicKey.findProgramAddress(
-      [Buffer.from("vault"), poolAddress.toBuffer()],
+      [Buffer.from("vault"), pool.toBuffer()],
       this.program.programId,
     );
   }
 
-  async derivePositionPDA(
-    poolAddress: PublicKey,
-    lenderAddress: PublicKey,
-  ): Promise<[PublicKey, number]> {
+  async derivePositionPDA(pool: PublicKey, lender: PublicKey) {
     return PublicKey.findProgramAddress(
-      [
-        Buffer.from("position"),
-        poolAddress.toBuffer(),
-        lenderAddress.toBuffer(),
-      ],
+      [Buffer.from("position"), pool.toBuffer(), lender.toBuffer()],
       this.program.programId,
     );
   }
 
-  async deriveSchedulePDA(
-    poolAddress: PublicKey,
-  ): Promise<[PublicKey, number]> {
+  async deriveSchedulePDA(pool: PublicKey) {
     return PublicKey.findProgramAddress(
-      [Buffer.from("schedule"), poolAddress.toBuffer()],
+      [Buffer.from("schedule"), pool.toBuffer()],
       this.program.programId,
     );
   }
 
-  // ==================== LOAN POOL OPERATIONS ====================
+  // ================= TX BUILDERS =================
 
-  async createLoanPool(
+  /**
+   * Create loan pool (borrower signs)
+   */
+  async buildCreateLoanPoolTx(
     borrower: PublicKey,
     targetAmount: anchor.BN,
     termOfferId: PublicKey,
@@ -82,87 +78,78 @@ export class BlockchainService {
     yearsCovered: number,
     currency: string,
     country: string,
-  ): Promise<string> {
-    try {
-      return await this.program.methods
-        .createLoanPool(
-          targetAmount,
-          termOfferId,
-          yearsDataHash,
-          yearsCovered,
-          currency,
-          country,
-        )
-        .accounts({
-          borrower,
-        })
-        .rpc();
-    } catch (error) {
-      console.error("Error creating loan pool:", error);
-      throw error;
-    }
+  ): Promise<Transaction> {
+    return await this.program.methods
+      .createLoanPool(
+        targetAmount,
+        termOfferId,
+        yearsDataHash,
+        yearsCovered,
+        currency,
+        country,
+      )
+      .accounts({
+        borrower,
+      })
+      .transaction();
   }
 
-  async contributeToPool(
-    poolAddress: PublicKey,
+  /**
+   * Lender contributes to pool
+   */
+  async buildContributeToPoolTx(
+    pool: PublicKey,
     lender: PublicKey,
     amount: anchor.BN,
     lenderTokenAccount: PublicKey,
     vaultTokenAccount: PublicKey,
-  ): Promise<string> {
-    try {
-      const [vaultPDA] = await this.deriveVaultPDA(poolAddress);
-      const [positionPDA] = await this.derivePositionPDA(poolAddress, lender);
-      const [lenderProfilePDA] = await this.deriveProfilePDA(lender);
+  ): Promise<Transaction> {
+    const [vault] = await this.deriveVaultPDA(pool);
+    const [position] = await this.derivePositionPDA(pool, lender);
+    const [lenderProfile] = await this.deriveProfilePDA(lender);
 
-      return await this.program.methods
-        .contributeToPool(amount)
-        .accounts({
-          pool: poolAddress,
-          vault: vaultPDA,
-          lender,
-          lenderProfile: lenderProfilePDA,
-          lenderTokenAccount,
-          vaultTokenAccount,
-          position: positionPDA,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-        })
-        .rpc();
-    } catch (error) {
-      console.error("Error contributing to pool:", error);
-      throw error;
-    }
+    return await this.program.methods
+      .contributeToPool(amount)
+      .accounts({
+        pool,
+        vault,
+        lender,
+        lenderProfile,
+        lenderTokenAccount,
+        vaultTokenAccount,
+        position,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      })
+      .transaction();
   }
 
-  async disburseLoan(
-    poolAddress: PublicKey,
+  /**
+   * Borrower receives funds
+   */
+  async buildDisburseLoanTx(
+    pool: PublicKey,
     borrower: PublicKey,
     borrowerTokenAccount: PublicKey,
     vaultTokenAccount: PublicKey,
-  ): Promise<string> {
-    try {
-      const [vaultPDA] = await this.deriveVaultPDA(poolAddress);
-      const [borrowerProfilePDA] = await this.deriveProfilePDA(borrower);
+  ): Promise<Transaction> {
+    const [vault] = await this.deriveVaultPDA(pool);
+    const [borrowerProfile] = await this.deriveProfilePDA(borrower);
 
-      return await this.program.methods
-        .disburseLoan()
-        .accounts({
-          pool: poolAddress,
-          vault: vaultPDA,
-          borrower,
-          borrowerProfile: borrowerProfilePDA,
-          borrowerTokenAccount,
-          vaultTokenAccount,
-          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
-        })
-        .rpc();
-    } catch (error) {
-      console.error("Error disburse loan:", error);
-      throw error;
-    }
+    return await this.program.methods
+      .disburseLoan()
+      .accounts({
+        pool,
+        vault,
+        borrower,
+        borrowerProfile,
+        borrowerTokenAccount,
+        vaultTokenAccount,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      })
+      .transaction();
   }
 
-  // ==================== HELPER METHODS ====================
+  // ================= TOKEN HELPERS =================
 
   async getOrCreateTokenAccount(
     owner: PublicKey,
@@ -175,17 +162,13 @@ export class BlockchainService {
       },
     );
 
-    const accountInfo = await this.connection.getAccountInfo(
-      associatedTokenAddress,
-    );
+    const info = await this.connection.getAccountInfo(ata);
 
-    if (!accountInfo) {
-      console.warn(
-        `Token account ${associatedTokenAddress.toBase58()} does not exist`,
-      );
+    if (!info) {
+      console.warn(`⚠️ ATA missing: ${ata.toBase58()}`);
     }
 
-    return associatedTokenAddress;
+    return ata;
   }
 
   async getTokenBalance(tokenAccount: PublicKey): Promise<number> {
