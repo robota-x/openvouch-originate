@@ -6,12 +6,6 @@ export type Bindings = {
   JWT_SECRET:      string
   SOLANA_RPC_URL:  string
   SOLANA_PROGRAM_ID?: string
-  /**
-   * Shared secret that Helius sends in the Authorization header on every webhook
-   * delivery. Must match the authHeader configured when creating the webhook.
-   * Set via: wrangler secret put HELIUS_WEBHOOK_AUTH --config wrangler.<env>.jsonc
-   */
-  HELIUS_WEBHOOK_AUTH?: string
   /** Set to "true" in .dev.vars to serve fixture data instead of querying D1. */
   FIXTURES_ENABLED?: string
 }

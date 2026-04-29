@@ -7,8 +7,6 @@ import type { AppEnv, Bindings } from './types.js'
 export interface AppConfig {
   /** HS256 secret for JWT signing/verification. */
   jwtSecret: string
-  /** Shared secret Helius sends in Authorization header. */
-  heliusWebhookAuth: string | undefined
   /** When true, routes return fixture data instead of querying D1. */
   fixturesEnabled: boolean
   /** On-chain program IDs. */
@@ -50,7 +48,6 @@ export function buildConfig(env: Bindings | undefined): AppConfig {
 
   return {
     jwtSecret,
-    heliusWebhookAuth: env?.HELIUS_WEBHOOK_AUTH,
     fixturesEnabled:   env?.FIXTURES_ENABLED === 'true',
     programs: {
       genericRecord,
