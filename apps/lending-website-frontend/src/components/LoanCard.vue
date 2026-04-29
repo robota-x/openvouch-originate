@@ -59,10 +59,16 @@ const trustScoreMuted = computed(() => {
 
     <!-- Amount -->
     <div class="flex-1 min-w-0">
-      <p class="font-mono font-bold text-white">
-        {{ amount.toLocaleString() }}
-        <span class="text-white/50 text-sm font-normal">{{ currency }}</span>
+      <p class="font-mono font-bold text-white leading-tight">
+        {{ raisedAmount.toLocaleString() }} / {{ amount.toLocaleString() }}
+        <span class="text-white/50 text-[10px] font-normal uppercase ml-1">{{ currency }}</span>
       </p>
+      <div class="w-24 h-1 bg-white/10 rounded-full mt-1.5 overflow-hidden">
+        <div 
+          class="h-full bg-primary transition-all duration-500" 
+          :style="{ width: `${Math.min(100, (raisedAmount / amount) * 100)}%` }"
+        />
+      </div>
     </div>
 
     <!-- APY -->
@@ -138,11 +144,22 @@ const trustScoreMuted = computed(() => {
 
     <!-- Amount -->
     <div>
-      <p class="text-xs text-muted uppercase tracking-widest mb-1">Amount</p>
+      <div class="flex items-end justify-between mb-1">
+        <p class="text-xs text-muted uppercase tracking-widest">Amount</p>
+        <p class="font-mono text-xs text-white/70">
+          {{ Math.round((raisedAmount / amount) * 100) }}% funded
+        </p>
+      </div>
       <p class="font-mono text-2xl font-bold text-white">
-        {{ amount.toLocaleString() }}
-        <span class="text-base text-white/50 font-normal">{{ currency }}</span>
+        {{ raisedAmount.toLocaleString() }}
+        <span class="text-base text-white/50 font-normal">/ {{ amount.toLocaleString() }} {{ currency }}</span>
       </p>
+      <div class="w-full h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden">
+        <div 
+          class="h-full bg-primary transition-all duration-500 shadow-glow-primary" 
+          :style="{ width: `${Math.min(100, (raisedAmount / amount) * 100)}%` }"
+        />
+      </div>
     </div>
 
     <!-- APY / Duration inset row -->

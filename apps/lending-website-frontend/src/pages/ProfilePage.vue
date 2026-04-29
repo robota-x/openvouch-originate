@@ -2,6 +2,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { useSolana } from '../composables/useSolana'
+import { solanaBridge } from '../utils/solana-bridge'
 import type { Profile, ProfileLoan, ContractView, Attestation, AttestationProvider } from '../types'
 import { ApiError } from '../types'
 import { backendClient, identityClient, attestationClient } from '../api/client'
@@ -13,6 +15,7 @@ import ProfileLoanCard from '../components/ProfileLoanCard.vue'
 import ContractModal from '../components/ContractModal.vue'
 
 const auth    = useAuth()
+const solana  = useSolana()
 const route   = useRoute()
 const router  = useRouter()
 const address = route.params.address as string
@@ -22,6 +25,68 @@ const profile   = ref<Profile | null>(null)
 const providers = ref<AttestationProvider[]>([])
 const loadError = ref<string | null>(null)
 const activeTab = ref<'attestations' | 'loans'>('attestations')
+const isProcessing = ref(false)
+
+async function refreshProfile() {
+  try {
+    const [prof, provs, externalAtts] = await Promise.all([
+      backendClient.getProfile(address),
+      backendClient.getAttestationProviders(),
+      fetchExternalAttestations(address),
+    ])
+
+    profile.value = {
+      ...prof,
+      attestations: [...prof.attestations, ...externalAtts]
+    }
+    providers.value = provs
+    updateModalFromUrl()
+  } catch (e) {
+    console.error('[ProfilePage] Failed to load data:', e)
+    loadError.value = e instanceof ApiError ? e.message : 'Failed to load profile'
+  }
+}
+
+onMounted(refreshProfile)
+
+async function handleDisburse(loanId: string) {
+  if (!auth.isAuthenticated) return
+  
+  isProcessing.value = true
+  try {
+    const { transaction: txBase64 } = await backendClient.initiateDisbursement(auth.token!, loanId)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeDisbursement(auth.token!, loanId, { signature })
+    await refreshProfile()
+    alert('Loan funds disbursed to your wallet!')
+  } catch (e: any) {
+    console.error('[ProfilePage] Disbursement failed:', e)
+    alert(`Disbursement failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+async function handleRepay(loanId: string, amount: number) {
+  if (!auth.isAuthenticated) return
+  
+  isProcessing.value = true
+  try {
+    // Note: We use installment 1 as a placeholder/prototype value
+    const { transaction: txBase64 } = await backendClient.initiateRepayment(auth.token!, loanId, 1, amount)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeRepayment(auth.token!, loanId, { signature, amount })
+    await refreshProfile()
+    alert('Repayment successful!')
+  } catch (e: any) {
+    console.error('[ProfilePage] Repayment failed:', e)
+    alert(`Repayment failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
 
 const activeAttestation = ref<Attestation | null>(null)
 const activeProvider    = ref<AttestationProvider | null>(null)
@@ -107,25 +172,13 @@ async function fetchExternalAttestations(wallet: string): Promise<Attestation[]>
   return attestations
 }
 
-onMounted(async () => {
-  try {
-    const [prof, provs, externalAtts] = await Promise.all([
-      backendClient.getProfile(address),
-      backendClient.getAttestationProviders(),
-      fetchExternalAttestations(address),
-    ])
+// ── Contract modal ─────────────────────────────────────────────────────────
+const activeContract = ref<ContractView | null>(null)
 
-    profile.value = {
-      ...prof,
-      attestations: [...prof.attestations, ...externalAtts]
-    }
-    providers.value = provs
-    updateModalFromUrl()
-  } catch (e) {
-    console.error('[ProfilePage] Failed to load data:', e)
-    loadError.value = e instanceof ApiError ? e.message : 'Failed to load profile'
-  }
-})
+function openContract(loan: ProfileLoan) {
+  if (!profile.value) return
+  activeContract.value = profileLoanToContractView(loan, profile.value)
+}
 
 // ── Trust score color ──────────────────────────────────────────────────────
 const trustColor = computed(() => {
@@ -158,14 +211,6 @@ const repaymentRate = computed(() => {
   return borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
 })
 
-// ── Contract modal ─────────────────────────────────────────────────────────
-const activeContract = ref<ContractView | null>(null)
-
-function openContract(loan: ProfileLoan) {
-  if (!profile.value) return
-  activeContract.value = profileLoanToContractView(loan, profile.value)
-}
-
 // ── Attestation recap ──────────────────────────────────────────────────────
 const verifiedCount = computed(() =>
   profile.value?.attestations.filter(a => a.verified !== false).length ?? 0
@@ -181,7 +226,6 @@ const redirectUrlForIdentity = computed(() => {
 const redirectUrlForCompany = computed(() => {
   return `${window.location.origin}/profile/${address}?viewAttestation=UK+Company+Ownership&justVerified=1`
 })
-
 </script>
 
 <template>
@@ -192,6 +236,15 @@ const redirectUrlForCompany = computed(() => {
       <span class="material-symbols-outlined text-2xl">error_outline</span>
       <p class="text-sm">{{ loadError }}</p>
     </div>
+
+    <!-- ── Loading skeleton ──────────────────────────────────────────── -->
+    <template v-if="!profile && !loadError">
+      <div class="flex flex-col items-center gap-4">
+        <div class="w-24 h-24 rounded-full bg-white/5 animate-pulse" />
+        <div class="h-5 w-32 bg-white/5 rounded animate-pulse" />
+        <div class="h-3 w-64 bg-white/5 rounded animate-pulse" />
+      </div>
+    </template>
 
     <template v-else-if="profile">
 
@@ -315,7 +368,13 @@ const redirectUrlForCompany = computed(() => {
         <template v-if="openLoans.length">
           <p class="text-xs uppercase tracking-widest text-muted">Open offers</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <ProfileLoanCard v-for="loan in openLoans" :key="loan.id" v-bind="loan" @view="openContract(loan)" />
+            <ProfileLoanCard 
+              v-for="loan in openLoans" 
+              :key="loan.id" 
+              v-bind="loan" 
+              @view="openContract(loan)"
+              @disburse="handleDisburse(loan.id)"
+            />
           </div>
         </template>
 
@@ -323,7 +382,13 @@ const redirectUrlForCompany = computed(() => {
         <template v-if="activeLoans.length">
           <p class="text-xs uppercase tracking-widest text-muted">Active loans</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <ProfileLoanCard v-for="loan in activeLoans" :key="loan.id" v-bind="loan" @view="openContract(loan)" />
+            <ProfileLoanCard 
+              v-for="loan in activeLoans" 
+              :key="loan.id" 
+              v-bind="loan" 
+              @view="openContract(loan)"
+              @repay="handleRepay(loan.id, loan.amount / loan.duration)"
+            />
           </div>
         </template>
 
@@ -340,15 +405,6 @@ const redirectUrlForCompany = computed(() => {
 
       </div>
 
-    </template>
-
-    <!-- ── Loading skeleton ──────────────────────────────────────────── -->
-    <template v-else>
-      <div class="flex flex-col items-center gap-4">
-        <div class="w-24 h-24 rounded-full bg-white/5 animate-pulse" />
-        <div class="h-5 w-32 bg-white/5 rounded animate-pulse" />
-        <div class="h-3 w-64 bg-white/5 rounded animate-pulse" />
-      </div>
     </template>
 
   </div>

@@ -3,9 +3,12 @@ import BN from "bn.js";
 import { 
   getBlockchainContext, 
   buildCreateLoanPoolTx, 
+  buildContributeToPoolTx,
   deriveVaultPDA,
 } from "./blockchain/index.js";
 import type { AppConfig } from "../config.js";
+import { loanListings } from "../db/schema.js";
+import { eq } from "drizzle-orm";
 
 /**
  * Initiates a loan creation by building the Solana transaction.
@@ -75,12 +78,73 @@ export async function verifyAndFinalizeLoan(
     throw new Error("Transaction does not involve the lending program");
   }
 
-  // TODO: More granular verification (e.g. parsing instruction data)
-  // For now, confirmation and program involvement is our baseline.
-  
   return { 
     success: true,
     slot: tx.slot,
     timestamp: tx.blockTime
   };
+}
+
+/**
+ * Initiates a contribution to a loan pool.
+ */
+export async function initiateLoanContribution(
+  config: AppConfig,
+  lender: string,
+  poolAddress: string,
+  amount: number,
+) {
+  const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
+  const lenderPubkey = new PublicKey(lender);
+  const poolPubkey = new PublicKey(poolAddress);
+  
+  // Convert SOL to lamports
+  const amountLamports = new BN(amount * 1e9);
+
+  const txBase64 = await buildContributeToPoolTx(
+    ctx,
+    poolPubkey,
+    lenderPubkey,
+    amountLamports,
+  );
+
+  return {
+    transaction: txBase64,
+  };
+}
+
+/**
+ * Verifies a contribution transaction and updates the D1 database.
+ */
+export async function verifyAndFinalizeContribution(
+  config: AppConfig,
+  signature: string,
+  loanId: string,
+  amount: number,
+  db: any,
+) {
+  const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
+  
+  // 1. Wait for confirmation
+  const result = await connection.confirmTransaction(signature, "confirmed");
+  if (result.value.err) {
+    throw new Error(`Transaction failed on-chain: ${JSON.stringify(result.value.err)}`);
+  }
+
+  // 2. Update D1
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, loanId));
+  if (!loan) throw new Error("Loan not found");
+
+  const newRaisedAmount = loan.raisedAmount + amount;
+  const newStatus = newRaisedAmount >= loan.amount ? 'active' : 'open';
+
+  await db.update(loanListings)
+    .set({ 
+      raisedAmount: newRaisedAmount,
+      status: newStatus,
+      updatedAt: new Date()
+    })
+    .where(eq(loanListings.id, loanId));
+
+  return { success: true };
 }

@@ -5,6 +5,7 @@ export interface Loan {
   borrower: string         // wallet address, e.g. "7xKX..."
   nickname: string         // ENS / display name, e.g. "alice.sol"
   amount: number           // in `currency` units
+  raisedAmount: number     // currently raised
   currency: string         // e.g. "USDC"
   apy: number              // percentage, e.g. 12.5
   duration: number         // days
@@ -39,6 +40,7 @@ export interface AttestationProvider {
 export interface ProfileLoan {
   id: string
   amount: number        // original requested / borrowed amount
+  raisedAmount: number  // currently raised
   currency: string
   apy: number
   duration: number      // days
@@ -94,6 +96,7 @@ export interface ContractView {
 
   // Terms
   amount: number
+  raisedAmount?: number
   currency: string
   apy: number
   duration: number             // days

@@ -6,6 +6,8 @@ import WalletConnectModal from '../components/WalletConnectModal.vue'
 import { backendClient } from '../api/client'
 import { ApiError, type Loan, type ContractView } from '../types'
 import { useAuth } from '../composables/useAuth'
+import { useSolana } from '../composables/useSolana'
+import { solanaBridge } from '../utils/solana-bridge'
 
 type View   = 'grid' | 'list'
 type SortBy  = 'trustScore' | 'apy' | 'repaymentRate' | 'attestationCount' | 'amount' | 'duration'
@@ -25,12 +27,14 @@ onMounted(async () => {
 })
 
 const auth = useAuth()
+const solana = useSolana()
 
 // ── Contract modal ────────────────────────────────────────────────────────────
 const activeContract     = ref<ContractView | null>(null)
 const showConnectModal   = ref(false)
+const isFunding          = ref(false)
 // Held while the user completes auth, then the fund action resumes automatically.
-const pendingFundBorrower = ref<string | null>(null)
+const pendingFundLoan    = ref<Loan | null>(null)
 
 function openContract(loan: Loan) {
   activeContract.value = {
@@ -41,6 +45,7 @@ function openContract(loan: Loan) {
     borrowerAttestationCount: loan.attestationCount,
     borrowerRepaymentRate:   loan.repaymentRate,
     amount:   loan.amount,
+    raisedAmount: loan.raisedAmount,
     currency: loan.currency,
     apy:      loan.apy,
     duration: loan.duration,
@@ -51,20 +56,59 @@ function openContract(loan: Loan) {
 // ── Fund action ───────────────────────────────────────────────────────────────
 // NOTE: auth intercept here is an intentional UX funnel, not a security boundary.
 // A non-authed user could fund directly on-chain. We intercept to drive wallet adoption.
-function handleFund(borrower: string) {
+async function handleFund(loanId: string) {
+  const loan = loans.value.find(l => l.id === loanId)
+  if (!loan) return
+
   activeContract.value = null
   if (!auth.isAuthenticated) {
-    pendingFundBorrower.value = borrower
+    pendingFundLoan.value = loan
     showConnectModal.value    = true
     return
   }
-  // TODO: proceed with on-chain funding action for borrower
+
+  isFunding.value = true
+  try {
+    // 1. Get Base64 TX from backend
+    const amountToLend = loan.amount - (loan.raisedAmount || 0)
+    const { transaction: txBase64 } = await backendClient.initiateContribution(
+      auth.token!,
+      loan.id,
+      amountToLend
+    )
+
+    // 2. Deserialize
+    const tx = solanaBridge.deserializeTx(txBase64)
+
+    // 3. Sign and Broadcast
+    // We need to pass the actual connected wallet object.
+    const signature = await solanaBridge.signAndBroadcast(
+      solana.connection,
+      tx,
+      auth.connectedWallet
+    )
+
+    // 4. Finalize with backend
+    await backendClient.finalizeContribution(auth.token!, loan.id, {
+      signature,
+      amount: amountToLend
+    })
+
+    // 5. Refresh
+    loans.value = await backendClient.getOpenRequests()
+    alert('Success! Loan funded.')
+  } catch (e: any) {
+    console.error('[MarketplacePage] Funding failed:', e)
+    alert(`Funding failed: ${e.message}`)
+  } finally {
+    isFunding.value = false
+  }
 }
 
 function onConnected() {
-  if (pendingFundBorrower.value) {
-    // TODO: resume fund action for pendingFundBorrower.value
-    pendingFundBorrower.value = null
+  if (pendingFundLoan.value) {
+    handleFund(pendingFundLoan.value.id)
+    pendingFundLoan.value = null
   }
 }
 

@@ -37,6 +37,7 @@ export interface DetectedWallet {
 // Shared reactive state across components
 const address = ref<string | null>(localStorage.getItem(STORAGE_KEY_ADDRESS));
 const token   = ref<string | null>(localStorage.getItem(STORAGE_KEY_TOKEN));
+const connectedWallet = ref<any>(null);
 
 const isAuthenticated = computed(() => !!address.value && !!token.value);
 
@@ -88,6 +89,7 @@ async function connect(wallet: DetectedWallet): Promise<void> {
   // Atomic state commit
   address.value = walletAddress;
   token.value   = jwt;
+  connectedWallet.value = wallet.raw;
   localStorage.setItem(STORAGE_KEY_ADDRESS, walletAddress);
   localStorage.setItem(STORAGE_KEY_TOKEN, jwt);
 }
@@ -120,6 +122,7 @@ async function disconnect(): Promise<void> {
   
   address.value = null;
   token.value   = null;
+  connectedWallet.value = null;
   localStorage.removeItem(STORAGE_KEY_ADDRESS);
   localStorage.removeItem(STORAGE_KEY_TOKEN);
 }
@@ -132,6 +135,7 @@ export function useAuth() {
   return reactive({ 
     address, 
     token, 
+    connectedWallet,
     isAuthenticated, 
     getSolanaWallets, 
     connect, 

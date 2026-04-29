@@ -3,7 +3,10 @@ import { computed } from 'vue'
 import type { ProfileLoan } from '../types'
 
 const props = defineProps<ProfileLoan>()
-const emit  = defineEmits<{ view: [] }>()
+const emit  = defineEmits<{ view: []; disburse: []; repay: [] }>()
+
+const isFunded = computed(() => props.raisedAmount >= props.amount && props.status === 'open')
+const canRepay = computed(() => props.status === 'active' && props.repaid < props.amount)
 
 // active = grey  ·  closed+fully-repaid = emerald  ·  closed+defaulted = danger
 const statusStyle = computed(() => {
@@ -56,14 +59,32 @@ function fmt(n: number) {
     </div>
 
     <!-- Stats row -->
-    <div class="flex items-center gap-3 text-[11px] text-muted flex-wrap">
-      <span>APY <span class="font-mono font-bold text-white">{{ apy }}%</span></span>
-      <span class="text-white/20">·</span>
-      <span>{{ duration }}d</span>
-      <template v-if="counterparty">
+    <div class="flex items-center justify-between gap-3 text-[11px] text-muted flex-wrap">
+      <div class="flex items-center gap-3">
+        <span>APY <span class="font-mono font-bold text-white">{{ apy }}%</span></span>
         <span class="text-white/20">·</span>
-        <span class="font-mono">{{ counterparty.slice(0, 10) }}…</span>
-      </template>
+        <span>{{ duration }}d</span>
+        <template v-if="counterparty">
+          <span class="text-white/20">·</span>
+          <span class="font-mono">{{ counterparty.slice(0, 10) }}…</span>
+        </template>
+      </div>
+
+      <button 
+        v-if="isFunded"
+        class="px-2.5 py-1 rounded bg-emerald text-white text-[10px] font-bold shadow-glow-emerald hover:shadow-glow-emerald-strong transition-shadow"
+        @click.stop="emit('disburse')"
+      >
+        Disburse
+      </button>
+
+      <button 
+        v-else-if="canRepay"
+        class="px-2.5 py-1 rounded bg-primary text-white text-[10px] font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
+        @click.stop="emit('repay')"
+      >
+        Repay
+      </button>
     </div>
 
   </div>

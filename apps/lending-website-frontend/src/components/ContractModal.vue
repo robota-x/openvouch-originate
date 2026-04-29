@@ -4,7 +4,7 @@ import type { ContractView } from '../types'
 import { truncate, fmtDate } from '../utils/format'
 
 const props = defineProps<{ contract: ContractView }> ()
-const emit  = defineEmits<{ close: []; fund: [borrower: string] }>()
+const emit  = defineEmits<{ close: []; fund: [loanId: string] }>()
 
 // ── Trust score color ──────────────────────────────────────────────────────
 const trustColor = computed(() => {
@@ -171,12 +171,23 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
           <!-- ── Terms ───────────────────────────────────────────────── -->
           <div class="bg-black/20 rounded-lg px-4 py-3 flex flex-col gap-2">
-            <p class="text-[10px] text-muted uppercase tracking-widest mb-1">Terms</p>
-            <div class="flex items-baseline gap-2">
-              <span class="font-mono text-2xl font-bold text-white">{{ fmt(contract.amount) }}</span>
-              <span class="text-white/50 text-base">{{ contract.currency }}</span>
+            <p class="text-[10px] text-muted uppercase tracking-widest mb-1">Funding Progress</p>
+            <div class="flex items-baseline justify-between">
+              <div class="flex items-baseline gap-2">
+                <span class="font-mono text-2xl font-bold text-white">{{ fmt(contract.raisedAmount || 0) }}</span>
+                <span class="text-white/50 text-sm">/ {{ fmt(contract.amount) }} {{ contract.currency }}</span>
+              </div>
+              <span class="font-mono text-xs text-primary font-bold">
+                {{ Math.round(((contract.raisedAmount || 0) / contract.amount) * 100) }}%
+              </span>
             </div>
-            <div class="flex items-center gap-4 text-sm">
+            <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div 
+                class="h-full bg-primary transition-all duration-700"
+                :style="{ width: `${Math.min(100, ((contract.raisedAmount || 0) / contract.amount) * 100)}%` }"
+              />
+            </div>
+            <div class="flex items-center gap-4 text-sm mt-1">
               <span class="text-muted">APY <span class="font-mono font-bold text-white">{{ contract.apy }}%</span></span>
               <span class="text-white/20">·</span>
               <span class="text-muted">Duration <span class="font-mono font-bold text-white">{{ contract.duration }}d</span></span>
@@ -258,7 +269,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
           <button
             v-if="contract.status === 'open'"
             class="px-5 py-2 rounded bg-primary text-white text-sm font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
-            @click="emit('fund', contract.borrower)"
+            @click="emit('fund', contract.id!)"
           >
             Fund Request
           </button>

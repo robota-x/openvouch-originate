@@ -3,7 +3,10 @@ import { computed } from 'vue'
 import type { ProfileLoan } from '../types'
 
 const props = defineProps<ProfileLoan>()
-const emit  = defineEmits<{ view: [] }>()
+const emit  = defineEmits<{ view: []; disburse: []; repay: [] }>()
+
+const isFunded = computed(() => props.raisedAmount >= props.amount && props.status === 'open')
+const canRepay = computed(() => props.status === 'active' && props.repaid < props.amount)
 
 // Status badge
 const statusStyle = computed(() => {
@@ -111,9 +114,27 @@ function truncate(addr: string) {
     </div>
 
     <!-- Total due (borrower's cost) -->
-    <div class="w-28 flex-shrink-0 text-right">
-      <span v-if="netLabel" class="font-mono text-sm font-bold" :class="netColor">{{ netLabel }}</span>
-      <span v-else class="font-mono text-sm text-muted">—</span>
+    <div class="w-28 flex-shrink-0 text-right flex flex-col items-end gap-2">
+      <template v-if="isFunded">
+        <button 
+          class="px-3 py-1.5 rounded bg-emerald text-white text-[10px] font-bold shadow-glow-emerald hover:shadow-glow-emerald-strong transition-shadow"
+          @click.stop="emit('disburse')"
+        >
+          Disburse
+        </button>
+      </template>
+      <template v-else-if="canRepay">
+        <button 
+          class="px-3 py-1.5 rounded bg-primary text-white text-[10px] font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
+          @click.stop="emit('repay')"
+        >
+          Pay Installment
+        </button>
+      </template>
+      <template v-else>
+        <span v-if="netLabel" class="font-mono text-sm font-bold" :class="netColor">{{ netLabel }}</span>
+        <span v-else class="font-mono text-sm text-muted">—</span>
+      </template>
     </div>
   </div>
 </template>

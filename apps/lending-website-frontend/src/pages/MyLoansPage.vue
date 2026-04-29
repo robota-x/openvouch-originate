@@ -7,25 +7,70 @@ import { ApiError } from '../types'
 import { backendClient } from '../api/client'
 import { fmt } from '../utils/format'
 import { profileLoanToContractView } from '../utils/loans'
+import { useSolana } from '../composables/useSolana'
+import { solanaBridge } from '../utils/solana-bridge'
 import BorrowedLoanCard from '../components/BorrowedLoanCard.vue'
 import LentLoanCard from '../components/LentLoanCard.vue'
 import ContractModal from '../components/ContractModal.vue'
 
 // Route is auth-guarded — auth.address is always set when this component mounts.
 const auth       = useAuth()
+const solana     = useSolana()
 const MY_ADDRESS = auth.address!
 
 const profile   = ref<Profile | null>(null)
 const loadError = ref<string | null>(null)
+const isProcessing = ref(false)
 
-onMounted(async () => {
+async function refreshProfile() {
   try {
     profile.value = await backendClient.getProfile(MY_ADDRESS)
   } catch (e) {
     console.error('[MyLoansPage] Failed to load loans:', e)
     loadError.value = e instanceof ApiError ? e.message : 'Failed to load loans'
   }
-})
+}
+
+onMounted(refreshProfile)
+
+async function handleDisburse(loanId: string) {
+  if (!auth.isAuthenticated) return
+  
+  isProcessing.value = true
+  try {
+    const { transaction: txBase64 } = await backendClient.initiateDisbursement(auth.token!, loanId)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeDisbursement(auth.token!, loanId, { signature })
+    await refreshProfile()
+    alert('Loan funds disbursed to your wallet!')
+  } catch (e: any) {
+    console.error('[MyLoansPage] Disbursement failed:', e)
+    alert(`Disbursement failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+async function handleRepay(loanId: string, amount: number) {
+  if (!auth.isAuthenticated) return
+  
+  isProcessing.value = true
+  try {
+    // Note: We use installment 1 as a placeholder/prototype value
+    const { transaction: txBase64 } = await backendClient.initiateRepayment(auth.token!, loanId, 1, amount)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeRepayment(auth.token!, loanId, { signature, amount })
+    await refreshProfile()
+    alert('Repayment successful!')
+  } catch (e: any) {
+    console.error('[MyLoansPage] Repayment failed:', e)
+    alert(`Repayment failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
 
 // ── Borrowed loans ─────────────────────────────────────────────────────────
 const borrowedLoans = computed(() =>
@@ -96,6 +141,13 @@ function openLentContract(loan: LentLoan) {
       <p class="text-sm">{{ loadError }}</p>
     </div>
 
+    <!-- ── Loading skeleton ──────────────────────────────────────────── -->
+    <template v-if="!profile && !loadError">
+      <div class="flex flex-col gap-2">
+        <div v-for="i in 4" :key="i" class="h-16 glass-panel rounded animate-pulse" />
+      </div>
+    </template>
+
     <template v-else-if="profile">
 
       <!-- ── Both empty — full page CTA ──────────────────────────────── -->
@@ -144,12 +196,14 @@ function openLentContract(loan: LentLoan) {
               :key="loan.id"
               v-bind="loan"
               @view="openBorrowedContract(loan)"
+              @disburse="handleDisburse(loan.id)"
             />
             <BorrowedLoanCard
               v-for="loan in borrowedLoans"
               :key="loan.id"
               v-bind="loan"
               @view="openBorrowedContract(loan)"
+              @repay="handleRepay(loan.id, loan.amount / loan.duration)"
             />
           </div>
 
@@ -204,13 +258,6 @@ function openLentContract(loan: LentLoan) {
         </section>
 
       </template>
-    </template>
-
-    <!-- ── Loading skeleton ──────────────────────────────────────────── -->
-    <template v-else-if="!loadError">
-      <div class="flex flex-col gap-2">
-        <div v-for="i in 4" :key="i" class="h-16 glass-panel rounded animate-pulse" />
-      </div>
     </template>
 
   </div>
