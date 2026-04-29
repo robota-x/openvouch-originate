@@ -7,7 +7,7 @@
 .PHONY: help install install-js install-all \
 	build build-js build-programs \
 	dev test test-js test-programs \
-	lint anchor-build anchor-test anchor-keys-sync clean-anchor docker-build
+	lint anchor-build anchor-test anchor-keys-sync clean-anchor
 
 help: ## List targets (start here: Make drives npm and Anchor/cargo)
 	@grep -E '^[a-zA-Z0-9_.-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -52,12 +52,3 @@ anchor-keys-sync: ## Align declare_id! and Anchor.toml with target/deploy keypai
 
 clean-anchor: ## Remove Anchor build outputs (local only)
 	rm -rf target/deploy target/idl target/verifiable .anchor
-
-docker-build: ## lending-api image
-	docker build -t defi-hack/lending-api:local -f apps/lending-api/Dockerfile apps/lending-api
-
-build-java: ## Placeholder
-	@echo "Java build not configured yet"
-
-deploy-infra: ## Placeholder
-	@echo "Infra deploy not wired in Makefile"

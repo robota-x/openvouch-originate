@@ -31,18 +31,17 @@ The lending platform sits on top of the attestation framework and is the primary
 ```
 .
 ├── apps/
-│   ├── gov-uk-company-attestation-demo-app/   # POC: third-party attestation provider using UK Companies House
-│   ├── lending-api/                            # Lending platform API (Node/TypeScript)
-│   └── web/                                   # Lending platform frontend (Vue 3)
-├── contracts/                                  # Attestation framework + lending smart contracts (deferred)
-├── docs/
-│   └── decisions/                             # Architecture Decision Records
-├── infra/
-│   └── terraform/                             # GCP infrastructure (Terraform)
+│   ├── attestation-identity-service/          # Identity attestation worker
+│   ├── attestation-uk-company-service/       # UK Companies House attestation worker
+│   ├── lending-website-backend/              # Lending platform backend worker
+│   ├── lending-website-frontend/             # Lending platform frontend (Vue 3)
+│   └── playground/                            # On-chain interaction playground
 ├── packages/
-│   └── shared-types/                          # Shared TypeScript types
-├── Makefile                                   # Developer task runner
-└── turbo.json                                 # Turborepo pipeline config
+│   ├── d1-client/                            # Shared D1 database client
+│   ├── idl/                                  # Shared IDL and contract types
+│   └── shared-types/                         # Shared TypeScript types
+├── Makefile                                  # Developer task runner
+└── turbo.json                                # Turborepo pipeline config
 ```
 
 ## Prerequisites
@@ -66,13 +65,15 @@ make dev
 
 ## Apps & packages
 
-| Name                                       | Description                                                               |
-| ------------------------------------------ | ------------------------------------------------------------------------- |
-| `apps/web`                                 | Vue 3 + Vite frontend — wallet-integrated lending platform UI             |
-| `apps/lending-api`                         | Fastify 5 API — lending platform backend, reads attestation contracts     |
-| `apps/gov-uk-company-attestation-demo-app` | Java POC — third-party attestation provider using UK Companies House data |
-| `packages/shared-types`                    | Shared TypeScript types used by web and lending-api                       |
-| `contracts/`                               | On-chain attestation framework + lending contracts (deferred)             |
+| Name                                     | Description                                                           |
+| ---------------------------------------- | --------------------------------------------------------------------- |
+| `apps/lending-website-frontend`          | Vue 3 + Vite frontend — wallet-integrated lending platform UI         |
+| `apps/lending-website-backend`           | Cloudflare Worker — lending platform backend and profile management   |
+| `apps/attestation-identity-service`      | Cloudflare Worker — Identity and biometric verification               |
+| `apps/attestation-uk-company-service`    | Cloudflare Worker — UK Companies House verification                   |
+| `packages/shared-types`                  | Shared TypeScript types                                               |
+| `packages/d1-client`                     | Shared D1 database client and schemas                                 |
+| `packages/idl`                           | Shared IDL and contract definitions                                   |
 
 ## Infrastructure
 
@@ -95,14 +96,10 @@ make deploy-infra
 ## Testing
 
 ```bash
-make test
+npm run test
 ```
 
-Runs `npm run test` via Turborepo, which runs Vitest in each package:
-
-- `apps/lending-api` — Vitest node environment, uses `fastify.inject()` (no port bound)
-- `apps/web` — Vitest happy-dom environment, uses `@vue/test-utils`
-- `packages/shared-types` — no tests (stub script satisfies Turbo pipeline)
+Runs `npm run test` via Turborepo, which runs Vitest in each package.
 
 ## Architecture decisions
 
