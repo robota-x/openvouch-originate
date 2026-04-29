@@ -8,7 +8,16 @@ import type { Bindings } from '../types.js'
 // harness exists.
 
 const AUTH = 'test-webhook-secret-32-chars-xxxx'
-const ENV: Bindings = { HELIUS_WEBHOOK_AUTH: AUTH } as Bindings
+const ENV: Bindings = { 
+  HELIUS_WEBHOOK_AUTH: AUTH,
+  JWT_SECRET: 'test-secret',
+  SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+} as Bindings
+
+const BASE_ENV: Bindings = {
+  JWT_SECRET: 'test-secret',
+  SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+} as Bindings
 
 function post(body: unknown, authHeader?: string) {
   return app.request(
@@ -47,7 +56,7 @@ describe('POST /api/webhooks/helius — auth', () => {
         body:    JSON.stringify([]),
       },
       // No HELIUS_WEBHOOK_AUTH in env
-      {} as Bindings,
+      BASE_ENV,
     )
     expect(res.status).toBe(401)
     expect(await res.json()).toMatchObject({ error: 'webhook_not_configured' })

@@ -72,6 +72,44 @@ async function handleRepay(loanId: string, amount: number) {
   }
 }
 
+async function handleCancel(loanId: string) {
+  if (!auth.isAuthenticated) return
+  
+  isProcessing.value = true
+  try {
+    const { transaction: txBase64 } = await backendClient.initiateCancellation(auth.token!, loanId)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeCancellation(auth.token!, loanId, { signature })
+    await refreshProfile()
+    alert('Loan cancelled and positions now refundable!')
+  } catch (e: any) {
+    console.error('[MyLoansPage] Cancellation failed:', e)
+    alert(`Cancellation failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+async function handleTriggerDefault(loanId: string) {
+  if (!auth.isAuthenticated) return
+  
+  isProcessing.value = true
+  try {
+    const { transaction: txBase64 } = await backendClient.initiateTriggerDefault(auth.token!, loanId)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeTriggerDefault(auth.token!, loanId, { signature })
+    await refreshProfile()
+    alert('Loan marked as defaulted!')
+  } catch (e: any) {
+    console.error('[MyLoansPage] Default trigger failed:', e)
+    alert(`Default trigger failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
+
 // ── Borrowed loans ─────────────────────────────────────────────────────────
 const borrowedLoans = computed(() =>
   profile.value?.loans.filter(l => l.status !== 'open') ?? []
@@ -199,6 +237,7 @@ function openLentContract(loan: LentLoan) {
               v-bind="loan"
               @view="openBorrowedContract(loan)"
               @disburse="handleDisburse(loan.id)"
+              @cancel="handleCancel(loan.id)"
             />
             <BorrowedLoanCard
               v-for="loan in borrowedLoans"
@@ -270,5 +309,6 @@ function openLentContract(loan: LentLoan) {
     :contract="activeContract"
     @close="activeContract = null"
     @fund="activeContract = null"
+    @default="handleTriggerDefault"
   />
 </template>

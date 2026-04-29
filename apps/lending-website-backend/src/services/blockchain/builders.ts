@@ -119,3 +119,47 @@ export async function buildRepaymentTx(
 
   return serializeTx(tx);
 }
+
+export async function buildCancelLoanTx(
+  ctx: BlockchainContext,
+  pool: PublicKey,
+  borrower: PublicKey,
+): Promise<string> {
+  const tx = await ctx.program.methods
+    .cancelLoan()
+    .accounts({
+      pool,
+      borrower,
+    })
+    .transaction();
+
+  return serializeTx(tx);
+}
+
+export async function buildTriggerDefaultTx(
+  ctx: BlockchainContext,
+  pool: PublicKey,
+  authority: PublicKey,
+  lenderPosition: PublicKey | null,
+): Promise<string> {
+  const [repaymentSchedule] = await deriveSchedulePDA(pool, ctx);
+  
+  const builder = ctx.program.methods
+    .markDefault()
+    .accounts({
+      authority,
+      pool,
+      repaymentSchedule,
+    });
+
+  if (lenderPosition) {
+    builder.remainingAccounts([{
+      pubkey: lenderPosition,
+      isWritable: false,
+      isSigner: false,
+    }]);
+  }
+
+  const tx = await builder.transaction();
+  return serializeTx(tx);
+}

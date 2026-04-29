@@ -3,7 +3,7 @@ use anchor_lang::system_program;
 // [DEFERRED-SPL]
 // use anchor_spl::token::{self, Transfer};
 use crate::instructions::*; 
-// use crate::state::*;
+use crate::state::*;
 use crate::error::ErrorCode;
 use crate::constants::*;
 
@@ -49,10 +49,15 @@ pub fn make_repayment(
     is_late: bool,
 ) -> Result<()> {
     let schedule = &mut ctx.accounts.repayment_schedule;
+    let pool = &mut ctx.accounts.pool;
     let vault = &mut ctx.accounts.vault;
     let borrower = &ctx.accounts.borrower;
 
     require!(schedule.status == SCHEDULE_ACTIVE, ErrorCode::ScheduleInactive);
+
+    // Over-payment protection
+    let remaining_repayable = schedule.total_repayable.checked_sub(schedule.total_repaid).ok_or(ErrorCode::MathOverflow)?;
+    require!(amount <= remaining_repayable, ErrorCode::Overpayment);
 
     let mut expected = schedule.installment_amount;
 
@@ -65,7 +70,7 @@ pub fn make_repayment(
         expected = expected.checked_add(penalty).unwrap();
     }
 
-    require!(amount >= expected, ErrorCode::InsufficientPayment);
+    require!(amount >= expected || amount == remaining_repayable, ErrorCode::InsufficientPayment);
 
     // Transfer SOL from borrower to vault
     system_program::transfer(
@@ -85,6 +90,7 @@ pub fn make_repayment(
 
     if schedule.total_repaid >= schedule.total_repayable {
         schedule.status = SCHEDULE_COMPLETED;
+        pool.status = PoolStatus::Completed as u8;
     }
 
     Ok(())
@@ -95,8 +101,46 @@ pub fn record_late_payment(_ctx: Context<RecordLatePayment>, _inst: u8, _amt: u6
 }
 
 pub fn mark_default(ctx: Context<MarkDefault>) -> Result<()> {
+    let pool = &mut ctx.accounts.pool;
     let schedule = &mut ctx.accounts.repayment_schedule;
+    let authority = &ctx.accounts.authority;
+    let clock = Clock::get()?;
+
+    // Access control: Authority must be borrower or a lender
+    // In a production environment, we would use a more efficient way to verify participant status.
+    // For the hackathon, we allow any lender with a position account passed in remaining_accounts.
+    let is_borrower = authority.key() == pool.borrower;
+    
+    let is_lender = if ctx.remaining_accounts.is_empty() {
+        false
+    } else {
+        let acc = &ctx.remaining_accounts[0];
+        if acc.owner != ctx.program_id { 
+            false 
+        } else {
+            // Manual check for LenderPosition
+            // LenderPosition: lender (32), pool (32), amount (8), withdrawn (8)
+            let data = acc.try_borrow_data()?;
+            if data.len() < 8 + 32 + 32 { 
+                false 
+            } else {
+                // Offset 8: lender (32 bytes), Offset 40: pool (32 bytes)
+                let lender_in_acc = Pubkey::new_from_array(data[8..40].try_into().unwrap());
+                let pool_in_acc = Pubkey::new_from_array(data[40..72].try_into().unwrap());
+                lender_in_acc == authority.key() && pool_in_acc == pool.key()
+            }
+        }
+    };
+
+    require!(is_borrower || is_lender, ErrorCode::NotParticipant);
+    require!(!is_borrower, ErrorCode::BorrowerCannotDefaultSelf);
+
+    // Timing check: Next due date + 30 days
+    let grace_period = 30 * 24 * 60 * 60;
+    require!(clock.unix_timestamp > schedule.next_due_date.checked_add(grace_period).ok_or(ErrorCode::MathOverflow)?, ErrorCode::GracePeriodNotExceeded);
+
     schedule.status = SCHEDULE_DEFAULTED;
+    pool.status = PoolStatus::Defaulted as u8;
     Ok(())
 }
 

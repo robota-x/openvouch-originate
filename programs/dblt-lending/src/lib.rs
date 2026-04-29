@@ -96,6 +96,11 @@ pub mod dblt_lending {
         handlers::finalize_pool(ctx)
     }
 
+    /// Cancels a loan pool and allows refunds.
+    pub fn cancel_loan(ctx: Context<CancelLoan>) -> Result<()> {
+        handlers::cancel_loan(ctx)
+    }
+
     // --- DISBURSEMENT & WITHDRAWAL ---
     /// Disburses a loan to a borrower.
     pub fn disburse_loan(ctx: Context<DisburseLoan>) -> Result<()> {

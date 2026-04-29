@@ -12,7 +12,11 @@ import {
   verifyAndFinalizeLoan,
   verifyAndFinalizeContribution,
   verifyAndFinalizeDisbursement,
-  verifyAndFinalizeRepayment
+  verifyAndFinalizeRepayment,
+  initiateLoanCancellation,
+  finalizeLoanCancellation,
+  initiateTriggerDefault,
+  finalizeTriggerDefault,
 } from '../services/lending.js'
 
 const loanRoutes = new Hono<AppEnv>()
@@ -104,8 +108,86 @@ function toContractView(r: EnrichedRow) {
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
+/** POST /api/loans/:id/cancel/initiate — returns Base64 TX to cancel. */
+loanRoutes.post('/:id/cancel/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
+
+  try {
+    const result = await initiateLoanCancellation(config, c.var.user.address, loan.onChainRef!)
+    return c.json(result)
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+/** POST /api/loans/:id/cancel/finalize — updates status in D1. */
+loanRoutes.post('/:id/cancel/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature } = await c.req.json<{ signature: string }>()
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  try {
+    await finalizeLoanCancellation(config, signature, id, db)
+    return c.json({ success: true })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400)
+  }
+})
+
+/** POST /api/loans/:id/default/initiate — returns Base64 TX to trigger default. */
+loanRoutes.post('/:id/default/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+
+  try {
+    const result = await initiateTriggerDefault(config, c.var.user.address, loan.onChainRef!)
+    return c.json(result)
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+/** POST /api/loans/:id/default/finalize — updates status in D1. */
+loanRoutes.post('/:id/default/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature } = await c.req.json<{ signature: string }>()
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  try {
+    await finalizeTriggerDefault(config, signature, id, db)
+    return c.json({ success: true })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400)
+  }
+})
+
 /** GET /api/loans — all open loan requests. */
 loanRoutes.get('/', async (c) => {
+  if (c.get('config').fixturesEnabled) {
+    const { fixtureOpenLoans } = await import('../fixtures.js')
+    return c.json(fixtureOpenLoans)
+  }
+
   const d1 = c.env?.DB
   if (!d1) return c.json({ error: 'not_implemented' }, 501)
   const db = createAppDb(d1)
@@ -116,6 +198,13 @@ loanRoutes.get('/', async (c) => {
 /** GET /api/loans/:id — detail view. */
 loanRoutes.get('/:id', async (c) => {
   const id = c.req.param('id')
+
+  if (c.get('config').fixturesEnabled) {
+    const { fixtureContractView } = await import('../fixtures.js')
+    const loan = fixtureContractView(id)
+    return loan ? c.json(loan) : c.json({ error: 'not_found' }, 404)
+  }
+
   const d1 = c.env?.DB
   if (!d1) return c.json({ error: 'not_implemented' }, 501)
   const db = createAppDb(d1)

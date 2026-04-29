@@ -135,6 +135,15 @@ pub struct FinalizePool<'info> {
     pub pool: Account<'info, LoanPool>,
 }
 
+// ==================== CANCEL ====================
+#[derive(Accounts)]
+pub struct CancelLoan<'info> {
+    #[account(mut)]
+    pub borrower: Signer<'info>,
+    #[account(mut)]
+    pub pool: Account<'info, LoanPool>,
+}
+
 // ==================== WITHDRAW ====================
 #[derive(Accounts)]
 pub struct WithdrawFunds<'info> {
@@ -205,7 +214,20 @@ pub struct RecordLatePayment<'info> {
 pub struct MarkDefault<'info> {
     pub authority: Signer<'info>,
     #[account(mut)]
+    pub pool: Account<'info, LoanPool>,
+    #[account(mut, seeds=[b"schedule", pool.key().as_ref()], bump)]
     pub repayment_schedule: Account<'info, RepaymentSchedule>,
+}
+
+#[derive(Accounts)]
+pub struct GetParticipantPosition<'info> {
+    pub pool: Account<'info, LoanPool>,
+    #[account(
+        seeds = [SEED_POSITION, pool.key().as_ref(), participant.key().as_ref()],
+        bump
+    )]
+    pub position: Option<Account<'info, LenderPosition>>,
+    pub participant: Signer<'info>,
 }
 
 #[derive(Accounts)]

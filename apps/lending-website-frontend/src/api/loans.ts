@@ -216,6 +216,66 @@ export const backendClient = {
     return res.json() as Promise<{ success: boolean }>;
   },
 
+  async initiateCancellation(
+    token: string,
+    id: string,
+  ): Promise<{ transaction: string }> {
+    const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}/cancel/initiate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return res.json() as Promise<{ transaction: string }>;
+  },
+
+  async finalizeCancellation(
+    token: string,
+    id: string,
+    data: { signature: string },
+  ): Promise<{ success: boolean }> {
+    const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}/cancel/finalize`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    return res.json() as Promise<{ success: boolean }>;
+  },
+
+  async initiateTriggerDefault(
+    token: string,
+    id: string,
+  ): Promise<{ transaction: string }> {
+    const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}/default/initiate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return res.json() as Promise<{ transaction: string }>;
+  },
+
+  async finalizeTriggerDefault(
+    token: string,
+    id: string,
+    data: { signature: string },
+  ): Promise<{ success: boolean }> {
+    const res = await apiFetch(`/api/loans/${encodeURIComponent(id)}/default/finalize`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    return res.json() as Promise<{ success: boolean }>;
+  },
+
   async createLoan(
     token: string,
     offer: { amount: number; currency: string; apy: number; duration: number },

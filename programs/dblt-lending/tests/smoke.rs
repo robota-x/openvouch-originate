@@ -6,7 +6,7 @@ use dblt_lending::state::{PoolStatus, TermOffer, LoanPool};
 
 /// 1. Verify the Program ID matches the declared ID in lib.rs
 #[test]
-fn declare_id_matches_anchor_localnet_entry() {let expected = Pubkey::from_str("6fXix7yZxeoqyL3wNtAHpPZ8dXAXQe3DXbVPeqcH1Gny").unwrap();
+fn declare_id_matches_anchor_localnet_entry() {let expected = Pubkey::from_str("22bmZ5cp4DdUitMt8okSwygWP1f9oWpG6zXGkVBrgCtV").unwrap();
     assert_eq!(dblt_lending::id(), expected);
 }
 

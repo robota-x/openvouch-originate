@@ -8,6 +8,34 @@
   },
   "instructions": [
     {
+      "name": "cancel_loan",
+      "docs": [
+        "Cancels a loan pool and allows refunds."
+      ],
+      "discriminator": [
+        214,
+        125,
+        161,
+        106,
+        51,
+        186,
+        69,
+        148
+      ],
+      "accounts": [
+        {
+          "name": "borrower",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "contribute_to_pool",
       "docs": [
         "Contributes to an existing loan pool with a specified amount."
@@ -618,8 +646,33 @@
           "signer": true
         },
         {
-          "name": "repayment_schedule",
+          "name": "pool",
           "writable": true
+        },
+        {
+          "name": "repayment_schedule",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  99,
+                  104,
+                  101,
+                  100,
+                  117,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool"
+              }
+            ]
+          }
         }
       ],
       "args": []
@@ -1170,6 +1223,31 @@
       "code": 6025,
       "name": "InsufficientPayment",
       "msg": "Insufficient payment amount"
+    },
+    {
+      "code": 6026,
+      "name": "Overpayment",
+      "msg": "Overpayment"
+    },
+    {
+      "code": 6027,
+      "name": "BorrowerCannotDefaultSelf",
+      "msg": "Borrower cannot trigger default on self"
+    },
+    {
+      "code": 6028,
+      "name": "NotParticipant",
+      "msg": "Only participants (lender or borrower) can trigger this action"
+    },
+    {
+      "code": 6029,
+      "name": "GracePeriodNotExceeded",
+      "msg": "Grace period not yet passed"
+    },
+    {
+      "code": 6030,
+      "name": "ListingNotOpen",
+      "msg": "Listing not open"
     }
   ],
   "types": [

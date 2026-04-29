@@ -1,12 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import app from '../app.js'
+import type { Bindings } from '../types.js'
+
+const ENV: Bindings = { 
+  JWT_SECRET: 'test-secret',
+  SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+} as Bindings
 
 function post(url: string, body: unknown) {
   return app.request(url, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
-  })
+  }, ENV)
 }
 
 describe('POST /api/auth/challenge', () => {
@@ -39,7 +45,7 @@ describe('POST /api/auth/verify', () => {
 
 describe('DELETE /api/auth/session', () => {
   it('returns 401 without a session', async () => {
-    const res = await app.request('/api/auth/session', { method: 'DELETE' })
+    const res = await app.request('/api/auth/session', { method: 'DELETE' }, ENV)
     expect(res.status).toBe(401)
   })
 })

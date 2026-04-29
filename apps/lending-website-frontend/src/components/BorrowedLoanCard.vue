@@ -2,11 +2,18 @@
 import { computed } from 'vue'
 import type { ProfileLoan } from '../types'
 
-const props = defineProps<ProfileLoan>()
-const emit  = defineEmits<{ view: []; disburse: []; repay: [] }>()
+const props = defineProps<ProfileLoan & { createdAt?: number | string | Date }>()
+const emit  = defineEmits<{ view: []; disburse: []; repay: []; cancel: [] }>()
 
 const isFunded = computed(() => props.raisedAmount >= props.amount && props.status === 'open')
 const canRepay = computed(() => props.status === 'active' && props.repaid < props.amount)
+
+const canCancel = computed(() => {
+  if (props.status !== 'open') return false;
+  const created = props.createdAt ? new Date(props.createdAt).getTime() : 0;
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  return Date.now() > created + sevenDays;
+})
 
 // Status badge
 const statusStyle = computed(() => {
@@ -121,6 +128,14 @@ function truncate(addr: string) {
           @click.stop="emit('disburse')"
         >
           Disburse
+        </button>
+      </template>
+      <template v-else-if="canCancel">
+        <button 
+          class="px-3 py-1.5 rounded bg-danger text-white text-[10px] font-bold shadow-glow-danger hover:shadow-glow-danger transition-shadow"
+          @click.stop="emit('cancel')"
+        >
+          Cancel
         </button>
       </template>
       <template v-else-if="canRepay">

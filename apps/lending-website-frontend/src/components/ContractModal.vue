@@ -2,16 +2,36 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { ContractView } from '../types'
 import { truncate, fmtDate } from '../utils/format'
+import { useAuth } from '../composables/useAuth'
 
 const props = defineProps<{ contract: ContractView }> ()
-const emit  = defineEmits<{ close: []; fund: [loanId: string, amount: number] }>()
+const emit  = defineEmits<{ 
+  close: []; 
+  fund: [loanId: string, amount: number];
+  default: [loanId: string];
+}>()
 
+const auth = useAuth()
 const contributionAmount = ref(props.contract.amount - (props.contract.raisedAmount || 0))
 watch(() => props.contract.id, () => {
   contributionAmount.value = props.contract.amount - (props.contract.raisedAmount || 0)
 })
 
 const maxContribution = computed(() => props.contract.amount - (props.contract.raisedAmount || 0))
+
+const isParticipant = computed(() => {
+  if (!auth.address) return false;
+  return props.contract.borrower === auth.address || props.contract.lender === auth.address;
+})
+
+const canTriggerDefault = computed(() => {
+  if (props.contract.status !== 'active' || !isParticipant.value) return false;
+  if (!props.contract.dueDate) return false;
+  
+  const due = new Date(props.contract.dueDate).getTime();
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+  return Date.now() > due + thirtyDays;
+})
 
 // ── Trust score color ──────────────────────────────────────────────────────
 const trustColor = computed(() => {
@@ -286,6 +306,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
              <span class="text-[10px] text-muted">max {{ maxContribution }}</span>
           </div>
           <div class="flex items-center gap-3">
+            <button
+              v-if="canTriggerDefault"
+              class="px-4 py-2 rounded bg-danger/10 text-danger text-sm font-bold border border-danger/20 hover:bg-danger/20 transition-colors"
+              @click="emit('default', contract.id!)"
+            >
+              Trigger Default
+            </button>
             <button
               class="px-4 py-2 rounded text-sm text-muted hover:text-white transition-colors"
               @click="emit('close')"

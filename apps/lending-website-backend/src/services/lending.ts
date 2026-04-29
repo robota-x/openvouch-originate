@@ -7,14 +7,100 @@ import {
   buildContributeToPoolTx,
   buildDisburseLoanTx,
   buildRepaymentTx,
+  buildCancelLoanTx,
+  buildTriggerDefaultTx,
 } from "./blockchain/index.js";
 import type { AppConfig } from "../config.js";
 import { loanListings, loanContributions } from "../db/schema.js";
 import { eq, sql } from "drizzle-orm";
 import { getDbltLendingIdl } from '@openvouch/idl';
+import { derivePositionPDA } from "./blockchain/pdas.js";
 
 const idl = getDbltLendingIdl();
 const coder = new BorshCoder(idl as any);
+
+/**
+ * Initiates a loan cancellation.
+ */
+export async function initiateLoanCancellation(
+  config: AppConfig,
+  borrower: string,
+  poolAddress: string,
+) {
+  const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
+  const borrowerPubkey = new PublicKey(borrower);
+  const poolPubkey = new PublicKey(poolAddress);
+
+  const txBase64 = await buildCancelLoanTx(ctx, poolPubkey, borrowerPubkey);
+
+  return { transaction: txBase64 };
+}
+
+/**
+ * Finalizes loan cancellation in D1.
+ */
+export async function finalizeLoanCancellation(
+  config: AppConfig,
+  signature: string,
+  loanId: string,
+  db: any,
+) {
+  const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
+  await connection.confirmTransaction(signature, "confirmed");
+
+  await db.update(loanListings)
+    .set({ status: 'cancelled', updatedAt: new Date() })
+    .where(eq(loanListings.id, loanId));
+
+  return { success: true };
+}
+
+/**
+ * Initiates triggering default.
+ */
+export async function initiateTriggerDefault(
+  config: AppConfig,
+  authority: string,
+  poolAddress: string,
+) {
+  const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
+  const authorityPubkey = new PublicKey(authority);
+  const poolPubkey = new PublicKey(poolAddress);
+
+  // Derive potential lender position to pass as remaining account
+  const [lenderPosition] = await derivePositionPDA(poolPubkey, authorityPubkey, ctx);
+  
+  // Check if position exists (optional but helps the builder)
+  const posInfo = await ctx.connection.getAccountInfo(lenderPosition);
+
+  const txBase64 = await buildTriggerDefaultTx(
+    ctx, 
+    poolPubkey, 
+    authorityPubkey, 
+    posInfo ? lenderPosition : null
+  );
+
+  return { transaction: txBase64 };
+}
+
+/**
+ * Finalizes default in D1.
+ */
+export async function finalizeTriggerDefault(
+  config: AppConfig,
+  signature: string,
+  loanId: string,
+  db: any,
+) {
+  const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
+  await connection.confirmTransaction(signature, "confirmed");
+
+  await db.update(loanListings)
+    .set({ status: 'defaulted', updatedAt: new Date() })
+    .where(eq(loanListings.id, loanId));
+
+  return { success: true };
+}
 
 /**
  * Initiates a loan creation by building the Solana transaction.

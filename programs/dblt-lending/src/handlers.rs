@@ -91,6 +91,10 @@ pub fn contribute_to_pool(ctx: Context<ContributeToPool>, amount: u64) -> Result
     // Check pool status
     require!(pool.status == PoolStatus::Open as u8, ErrorCode::ListingNotOpen);
 
+    // Over-funding protection
+    let remaining = pool.target_amount.checked_sub(pool.current_amount).ok_or(ErrorCode::MathOverflow)?;
+    require!(amount <= remaining, ErrorCode::OverFunding);
+
     // Transfer SOL from lender to vault
     system_program::transfer(
         CpiContext::new(
@@ -121,8 +125,11 @@ pub fn contribute_to_pool(ctx: Context<ContributeToPool>, amount: u64) -> Result
 
 // --- DISBURSE ---
 pub fn disburse_loan(ctx: Context<DisburseLoan>) -> Result<()> {
+    let pool = &mut ctx.accounts.pool;
     let vault = &mut ctx.accounts.vault;
     let borrower = &ctx.accounts.borrower;
+
+    require!(pool.status == PoolStatus::Funded as u8, ErrorCode::PoolNotFunded);
 
     // TODO [PRODUCTION]: Schedule creation should ideally be atomic with finalization/disbursement 
     // to prevent funds being locked without repayment rules.
@@ -130,27 +137,21 @@ pub fn disburse_loan(ctx: Context<DisburseLoan>) -> Result<()> {
     let amount = vault.total_deposited;
     
     // Transfer SOL from vault to borrower
-    let pool_key = ctx.accounts.pool.key();
-    let seeds = &[
-        b"vault",
-        pool_key.as_ref(),
-        &[ctx.bumps.vault],
-    ];
-    let signer = &[&seeds[..]];
+    // Since vault is a PDA carrying data, we manually adjust lamports
+    let vault_info = vault.to_account_info();
+    let borrower_info = borrower.to_account_info();
 
-    system_program::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.system_program.key(),
-            system_program::Transfer {
-                from: vault.to_account_info(),
-                to: borrower.to_account_info(),
-            },
-            signer,
-        ),
-        amount,
-    )?;
+    **vault_info.try_borrow_mut_lamports()? = vault_info.lamports()
+        .checked_sub(amount)
+        .ok_or(ErrorCode::MathOverflow)?;
+        
+    **borrower_info.try_borrow_mut_lamports()? = borrower_info.lamports()
+        .checked_add(amount)
+        .ok_or(ErrorCode::MathOverflow)?;
 
     vault.total_withdrawn = vault.total_withdrawn.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+    pool.status = PoolStatus::Active as u8;
+
     msg!("Loan disbursed to borrower: {}", borrower.key());
     Ok(())
 }
@@ -162,43 +163,68 @@ pub fn finalize_pool(ctx: Context<FinalizePool>) -> Result<()> {
     Ok(())
 }
 
+// --- CANCEL ---
+pub fn cancel_loan(ctx: Context<CancelLoan>) -> Result<()> {
+    let pool = &mut ctx.accounts.pool;
+    let clock = Clock::get()?;
+
+    // Allow cancellation if Open or Funded (but not yet Disbursed/Active)
+    require!(
+        pool.status == PoolStatus::Open as u8 || pool.status == PoolStatus::Funded as u8, 
+        ErrorCode::InvalidPoolStatus
+    );
+    
+    // Standard funding period of 1 week (7 days)
+    let timeout = pool.created_at.checked_add(7 * 24 * 60 * 60).ok_or(ErrorCode::MathOverflow)?;
+    require!(clock.unix_timestamp >= timeout, ErrorCode::TimeoutNotReached);
+    require!(pool.borrower == ctx.accounts.borrower.key(), ErrorCode::Unauthorized);
+
+    pool.status = PoolStatus::Cancelled as u8;
+    Ok(())
+}
+
 // --- WITHDRAW ---
 pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
     let position = &mut ctx.accounts.position;
     let vault = &mut ctx.accounts.vault;
     let pool = &ctx.accounts.pool;
     let lender = &ctx.accounts.lender;
+    let clock = Clock::get()?;
 
-    // Pro-rata withdrawal logic:
-    // (Lender Position / Total Pool Target) * Total Repaid into Vault
-    let share = (position.amount as u128)
-        .checked_mul(vault.total_repaid as u128)
-        .ok_or(ErrorCode::MathOverflow)?
-        .checked_div(pool.target_amount as u128)
-        .ok_or(ErrorCode::MathOverflow)? as u64;
+    let is_cancelled = pool.status == PoolStatus::Cancelled as u8;
+    // Stale check includes Open and Funded (if borrower didn't disburse)
+    let is_stale = (pool.status == PoolStatus::Open as u8 || pool.status == PoolStatus::Funded as u8) && 
+        clock.unix_timestamp >= pool.created_at.checked_add(7 * 24 * 60 * 60).ok_or(ErrorCode::MathOverflow)?;
 
-    let claimable = share.saturating_sub(position.withdrawn);
+    let claimable = if is_cancelled || is_stale {
+        // Full principal refund
+        position.amount.saturating_sub(position.withdrawn)
+    } else {
+        // Pro-rata withdrawal logic:
+        // (Lender Position / Total Pool Target) * Total Repaid into Vault
+        let share = (position.amount as u128)
+            .checked_mul(vault.total_repaid as u128)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_div(pool.target_amount as u128)
+            .ok_or(ErrorCode::MathOverflow)? as u64;
+
+        share.saturating_sub(position.withdrawn)
+    };
+
     require!(claimable > 0, ErrorCode::InsufficientFunds);
     
-    let pool_key = pool.key();
-    let seeds = &[
-        b"vault",
-        pool_key.as_ref(),
-        &[ctx.bumps.vault],
-    ];
-    let signer = &[&seeds[..]];
+    // Transfer SOL from vault to lender
+    // Since vault is a PDA carrying data, we manually adjust lamports
+    let vault_info = vault.to_account_info();
+    let lender_info = lender.to_account_info();
 
-    system_program::transfer(
-        CpiContext::new_with_signer(
-            ctx.accounts.system_program.key(),
-            system_program::Transfer {
-                from: vault.to_account_info(),
-                to: lender.to_account_info(),
-            },
-            signer,
-        ),
-        claimable,
-    )?;
+    **vault_info.try_borrow_mut_lamports()? = vault_info.lamports()
+        .checked_sub(claimable)
+        .ok_or(ErrorCode::MathOverflow)?;
+        
+    **lender_info.try_borrow_mut_lamports()? = lender_info.lamports()
+        .checked_add(claimable)
+        .ok_or(ErrorCode::MathOverflow)?;
 
     position.withdrawn = position.withdrawn.checked_add(claimable).ok_or(ErrorCode::MathOverflow)?;
     Ok(())

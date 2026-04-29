@@ -2,7 +2,16 @@ import { describe, it, expect } from 'vitest'
 import app from '../app.js'
 import type { Bindings } from '../types.js'
 
-const FIXTURES: Bindings = { FIXTURES_ENABLED: 'true' } as Bindings
+const FIXTURES: Bindings = { 
+  FIXTURES_ENABLED: 'true',
+  JWT_SECRET: 'test-secret',
+  SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+} as Bindings
+
+const BASE_ENV: Bindings = {
+  JWT_SECRET: 'test-secret',
+  SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+} as Bindings
 
 // ── Contract shape: GET /api/attestation-providers ────────────────────────────
 
@@ -35,7 +44,7 @@ describe('GET /api/attestation-providers — contract shape', () => {
 
 describe('GET /api/attestation-providers', () => {
   it('returns 501 (not yet implemented)', async () => {
-    const res = await app.request('/api/attestation-providers')
+    const res = await app.request('/api/attestation-providers', {}, BASE_ENV)
     expect(res.status).toBe(501)
   })
 })

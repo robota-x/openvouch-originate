@@ -7,6 +7,7 @@ pub enum PoolStatus {
     Active,
     Completed,
     Defaulted,
+    Cancelled,
 }
 
 #[account]
