@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+
+    "paths": {
+      "@openvouch/idl": ["packages/idl/src"],
+      "@openvouch/d1-client": ["packages/d1-client/src"],
+      "@openvouch/shared-types": ["packages/shared-types/src"]
+    },
+
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["apps/**/*", "packages/**/*"]
+}

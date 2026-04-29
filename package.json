@@ -1,5 +1,5 @@
 {
-  "name": "defi-hack",
+  "name": "-hack",
   "private": true,
   "workspaces": [
     "apps/lending-website-frontend",
@@ -13,7 +13,9 @@
     "test": "turbo test"
   },
   "devDependencies": {
-    "turbo": "latest"
+    "@types/bn.js": "^5.2.0",
+    "turbo": "latest",
+    "vue": "^3.5.33"
   },
   "packageManager": "npm@11.4.1",
   "engines": {

@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use crate::instructions::*; 
 use crate::state::*;
 use crate::error::ErrorCode;
-use crate::constants::*;
+// use crate::constants::*;
 
 // --- INITIALIZE ---
 pub fn initialize(ctx: Context<Initialize>, admin: Pubkey) -> Result<()> {

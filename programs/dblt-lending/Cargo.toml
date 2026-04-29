@@ -18,5 +18,14 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 anchor-debug = []
 
 [dependencies]
+# Adding solana-program-entrypoint for compatibility with Solana
+solana-program-entrypoint = "1.8.0"  # Replace with the latest version if needed
+
+# Anchor-related dependencies
 anchor-lang = { version = "1.0.0", features = ["init-if-needed"] }
 anchor-spl = "1.0.0"
+
+# You can add any other dependencies you need for the program
+# Example:
+# serde = "1.0"
+# borsh = "0.9"

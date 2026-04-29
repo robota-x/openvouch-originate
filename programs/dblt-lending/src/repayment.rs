@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Transfer};
 use crate::instructions::*; 
-use crate::state::*;
+// use crate::state::*;
 use crate::error::ErrorCode;
 use crate::constants::*;
 

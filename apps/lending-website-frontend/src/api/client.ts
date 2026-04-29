@@ -158,6 +158,8 @@
 //   },
 // }
 
+/// <reference types="vite/client" />
+
 import type { Loan, Profile, AttestationProvider, ProfileLoan } from "../types";
 import { ApiError } from "../types";
 
