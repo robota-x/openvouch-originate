@@ -6,7 +6,13 @@ import { createAppDb, type Db } from '../db/client.js'
 import type { AppEnv } from '../types.js'
 import { 
   initiateLoanCreation, 
-  verifyAndFinalizeLoan 
+  initiateLoanContribution,
+  initiateLoanDisbursement,
+  initiateLoanRepayment,
+  verifyAndFinalizeLoan,
+  verifyAndFinalizeContribution,
+  verifyAndFinalizeDisbursement,
+  verifyAndFinalizeRepayment
 } from '../services/lending.js'
 
 const loanRoutes = new Hono<AppEnv>()
@@ -26,6 +32,7 @@ function enrichedQuery(db: Db) {
       duration:     loanListings.duration,
       status:       loanListings.status,
       dueDate:      loanListings.dueDate,
+      onChainRef:   loanListings.onChainRef,
       nickname:     profilesTable.nickname,
       trustScore:   profilesTable.trustScore,
       attestationCount: sql<number>`(
@@ -91,6 +98,7 @@ function toContractView(r: EnrichedRow) {
     duration:                 r.duration,
     status:                   r.status,
     dueDate:                  r.dueDate ?? undefined,
+    onChainRef:               r.onChainRef ?? undefined,
   }
 }
 
@@ -151,7 +159,7 @@ loanRoutes.post('/finalize', authenticate, async (c) => {
   const config = c.get('config')
 
   try {
-    await verifyAndFinalizeLoan(config, signature, db)
+    await verifyAndFinalizeLoan(config, signature)
 
     const id = crypto.randomUUID()
     const now = new Date()
@@ -171,6 +179,137 @@ loanRoutes.post('/finalize', authenticate, async (c) => {
     })
 
     return c.json({ id, success: true }, 201)
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400)
+  }
+})
+
+/** POST /api/loans/:id/contribute/initiate — returns Base64 TX to contribute to pool. */
+loanRoutes.post('/:id/contribute/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { amount } = await c.req.json<{ amount: number }>()
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
+
+  try {
+    const result = await initiateLoanContribution(
+      config,
+      c.var.user.address,
+      loan.onChainRef,
+      amount
+    )
+    return c.json(result)
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+/** POST /api/loans/:id/contribute/finalize — verify signature and update D1. */
+loanRoutes.post('/:id/contribute/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature, amount } = await c.req.json<{ signature: string, amount: number }>()
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  try {
+    await verifyAndFinalizeContribution(config, signature, id, amount, db)
+    return c.json({ success: true })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400)
+  }
+})
+
+/** POST /api/loans/:id/disburse/initiate — returns Base64 TX to disburse funds. */
+loanRoutes.post('/:id/disburse/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
+
+  try {
+    const result = await initiateLoanDisbursement(
+      config,
+      c.var.user.address,
+      loan.onChainRef
+    )
+    return c.json(result)
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+/** POST /api/loans/:id/disburse/finalize — verify signature and update D1. */
+loanRoutes.post('/:id/disburse/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature } = await c.req.json<{ signature: string }>()
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  try {
+    await verifyAndFinalizeDisbursement(config, signature, id, db)
+    return c.json({ success: true })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400)
+  }
+})
+
+/** POST /api/loans/:id/repay/initiate — returns Base64 TX to repay funds. */
+loanRoutes.post('/:id/repay/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { installmentNumber, amount } = await c.req.json<{ installmentNumber: number, amount: number }>()
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
+
+  try {
+    const result = await initiateLoanRepayment(
+      config,
+      c.var.user.address,
+      loan.onChainRef,
+      installmentNumber,
+      amount
+    )
+    return c.json(result)
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+/** POST /api/loans/:id/repay/finalize — verify signature and update D1. */
+loanRoutes.post('/:id/repay/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature, amount } = await c.req.json<{ signature: string, amount: number }>()
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+  const config = c.get('config')
+
+  try {
+    await verifyAndFinalizeRepayment(config, signature, id, amount, db)
+    return c.json({ success: true })
   } catch (e: any) {
     return c.json({ error: e.message }, 400)
   }

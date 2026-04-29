@@ -1,8 +1,8 @@
-import * as anchor from "@coral-xyz/anchor";
+import * as anchor from "@anchor-lang/core";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import BN from "bn.js";
 import type { BlockchainContext } from "./context.js";
-import { deriveVaultPDA, derivePositionPDA, deriveProfilePDA } from "./pdas.js";
+import { deriveVaultPDA, derivePositionPDA, deriveProfilePDA, deriveSchedulePDA } from "./pdas.js";
 
 /**
  * Serializes a transaction to a Base64 string for transmission to the frontend.
@@ -25,6 +25,9 @@ export async function buildCreateLoanPoolTx(
   currency: string,
   country: string,
 ): Promise<string> {
+  const poolKeypair = anchor.web3.Keypair.generate();
+  const [vault] = await deriveVaultPDA(poolKeypair.publicKey, ctx);
+
   const tx = await ctx.program.methods
     .createLoanPool(
       targetAmount,
@@ -36,7 +39,11 @@ export async function buildCreateLoanPoolTx(
     )
     .accounts({
       borrower,
+      pool: poolKeypair.publicKey,
+      vault,
+      systemProgram: SystemProgram.programId,
     })
+    .signers([poolKeypair])
     .transaction();
 
   return serializeTx(tx);
@@ -73,7 +80,6 @@ export async function buildDisburseLoanTx(
   borrower: PublicKey,
 ): Promise<string> {
   const [vault] = await deriveVaultPDA(pool, ctx);
-  const [borrowerProfile] = await deriveProfilePDA(borrower, ctx);
 
   const tx = await ctx.program.methods
     .disburseLoan()
@@ -81,7 +87,32 @@ export async function buildDisburseLoanTx(
       pool,
       vault,
       borrower,
-      borrowerProfile,
+      systemProgram: SystemProgram.programId,
+    })
+    .transaction();
+
+  return serializeTx(tx);
+}
+
+export async function buildRepaymentTx(
+  ctx: BlockchainContext,
+  pool: PublicKey,
+  borrower: PublicKey,
+  installmentNumber: number,
+  amount: BN,
+  isEarly: boolean,
+  isLate: boolean,
+): Promise<string> {
+  const [repaymentSchedule] = await deriveSchedulePDA(pool, ctx);
+  const [vault] = await deriveVaultPDA(pool, ctx);
+
+  const tx = await ctx.program.methods
+    .makeRepayment(installmentNumber, amount, isEarly, isLate)
+    .accounts({
+      borrower,
+      pool,
+      repaymentSchedule,
+      vault,
       systemProgram: SystemProgram.programId,
     })
     .transaction();

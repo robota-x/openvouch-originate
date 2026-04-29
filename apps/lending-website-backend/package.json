@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@anchor-lang/core": "^1.0.0",
-    "@coral-xyz/anchor": "^0.32.1",
     "@noble/ed25519": "^2.1.0",
     "@openvouch/d1-client": "*",
     "@openvouch/idl": "*",
