@@ -38,6 +38,7 @@ export interface DetectedWallet {
 const address = ref<string | null>(localStorage.getItem(STORAGE_KEY_ADDRESS));
 const token   = ref<string | null>(localStorage.getItem(STORAGE_KEY_TOKEN));
 const connectedWallet = ref<any>(null);
+const attestationCount = ref(0);
 
 const isAuthenticated = computed(() => !!address.value && !!token.value);
 
@@ -136,6 +137,7 @@ export function useAuth() {
     address, 
     token, 
     connectedWallet,
+    attestationCount,
     isAuthenticated, 
     getSolanaWallets, 
     connect, 

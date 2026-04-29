@@ -1,15 +1,29 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { truncate } from '../utils/format'
 import WalletConnectModal from './WalletConnectModal.vue'
+import CreateLoanModal from './CreateLoanModal.vue'
 
 const route  = useRoute()
 const router = useRouter()
 const auth   = useAuth()
 
 const showConnectModal = ref(false)
+
+const showCreateLoanModal = computed({
+  get: () => route.query.action === 'create-loan',
+  set: (val) => {
+    if (val) {
+      router.push({ query: { ...route.query, action: 'create-loan' } })
+    } else {
+      const query = { ...route.query }
+      delete query.action
+      router.push({ query })
+    }
+  }
+})
 
 function isActive(prefix: string) {
   return route.path.startsWith(prefix)
@@ -52,6 +66,13 @@ async function disconnect() {
         >
           My Loans
         </RouterLink>
+        <button
+          v-if="auth.isAuthenticated"
+          @click="showCreateLoanModal = true"
+          class="h-8 px-4 rounded bg-primary text-white text-[10px] font-bold uppercase tracking-wider hover:shadow-glow-primary transition-all"
+        >
+          New Loan
+        </button>
       </div>
 
       <!-- Wallet area -->
@@ -87,4 +108,10 @@ async function disconnect() {
   </nav>
 
   <WalletConnectModal v-model="showConnectModal" />
+  <CreateLoanModal 
+    :show="showCreateLoanModal" 
+    :attestation-count="auth.attestationCount"
+    @close="showCreateLoanModal = false"
+    @success="router.push('/my-loans')"
+  />
 </template>

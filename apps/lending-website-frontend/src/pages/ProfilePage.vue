@@ -40,6 +40,9 @@ async function refreshProfile() {
       attestations: [...prof.attestations, ...externalAtts]
     }
     providers.value = provs
+    if (isOwnProfile.value) {
+      auth.attestationCount = profile.value.attestations.length
+    }
     updateModalFromUrl()
   } catch (e) {
     console.error('[ProfilePage] Failed to load data:', e)
