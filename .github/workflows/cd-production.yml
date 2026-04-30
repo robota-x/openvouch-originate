@@ -41,6 +41,14 @@ jobs:
           workingDirectory: apps/lending-website-frontend
           command: deploy --config wrangler.production.jsonc
 
+      - name: Inject Lending Backend Secrets (Production)
+        working-directory: apps/lending-website-backend
+        run: echo "$JWT_SECRET" | npx wrangler secret put JWT_SECRET --config wrangler.production.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_PRODUCTION }}
+
       - name: Deploy Lending Backend
         uses: cloudflare/wrangler-action@v3
         with:
@@ -48,9 +56,16 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-backend
           command: |
-            echo "${{ secrets.JWT_SECRET_PRODUCTION }}" | npx wrangler secret put JWT_SECRET --config wrangler.production.jsonc
             d1 migrations apply openvouch-originate-db-production --remote --config wrangler.production.jsonc
             deploy --config wrangler.production.jsonc
+
+      - name: Inject UK Company Service Secrets (Production)
+        working-directory: apps/attestation-uk-company-service
+        run: echo "$COMPANIES_HOUSE_UK_API_KEY" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.production.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          COMPANIES_HOUSE_UK_API_KEY: ${{ secrets.COMPANIES_HOUSE_UK_API_KEY_PRODUCTION }}
 
       - name: Deploy UK Company Service
         uses: cloudflare/wrangler-action@v3
@@ -59,9 +74,17 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/attestation-uk-company-service
           command: |
-            echo "${{ secrets.COMPANIES_HOUSE_UK_API_KEY_PRODUCTION }}" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.production.jsonc
             d1 migrations apply openvouch-attestation-uk-company-db-production --remote --config wrangler.production.jsonc
             deploy --config wrangler.production.jsonc
+
+      - name: Inject Identity Service Secrets (Production)
+        working-directory: apps/attestation-identity-service
+        run: |
+          echo "mock-placeholder" | npx wrangler secret put SHUFTI_CLIENT_ID --config wrangler.production.jsonc
+          echo "mock-placeholder" | npx wrangler secret put SHUFTI_SECRET --config wrangler.production.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Identity Service
         uses: cloudflare/wrangler-action@v3
@@ -69,7 +92,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/attestation-identity-service
-          command: |
-            echo "mock-placeholder" | npx wrangler secret put SHUFTI_CLIENT_ID --config wrangler.production.jsonc
-            echo "mock-placeholder" | npx wrangler secret put SHUFTI_SECRET --config wrangler.production.jsonc
-            deploy --config wrangler.production.jsonc
+          command: deploy --config wrangler.production.jsonc
