@@ -45,11 +45,14 @@ jobs:
 
       - name: Inject Lending Backend Secrets (Staging)
         working-directory: apps/lending-website-backend
-        run: echo "$JWT_SECRET" | npx wrangler secret put JWT_SECRET --config wrangler.staging.jsonc
+        run: |
+          echo "$JWT_SECRET" | npx wrangler secret put JWT_SECRET --config wrangler.staging.jsonc
+          echo "$SOLANA_RPC_URL" | npx wrangler secret put SOLANA_RPC_URL --config wrangler.staging.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           JWT_SECRET: ${{ secrets.JWT_SECRET_STAGING }}
+          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL_STAGING }}
 
       - name: Deploy Lending Backend
         uses: cloudflare/wrangler-action@v3
