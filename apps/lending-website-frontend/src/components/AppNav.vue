@@ -53,7 +53,7 @@ async function disconnect() {
       <div class="flex items-center gap-6">
         <RouterLink
           to="/marketplace"
-          class="text-sm transition-colors"
+          class="text-sm font-medium transition-colors"
           :class="isActive('/marketplace') ? 'text-white' : 'text-muted hover:text-white'"
         >
           Marketplace
@@ -61,7 +61,7 @@ async function disconnect() {
         <RouterLink
           v-if="auth.isAuthenticated"
           to="/my-loans"
-          class="text-sm transition-colors"
+          class="text-sm font-medium transition-colors"
           :class="isActive('/my-loans') ? 'text-white' : 'text-muted hover:text-white'"
         >
           My Loans
@@ -69,9 +69,9 @@ async function disconnect() {
         <button
           v-if="auth.isAuthenticated"
           @click="showCreateLoanModal = true"
-          class="h-8 px-4 rounded bg-primary text-white text-[10px] font-bold uppercase tracking-wider hover:shadow-glow-primary transition-all"
+          class="text-sm font-medium text-muted hover:text-white transition-colors"
         >
-          New Loan
+          Request Loan
         </button>
       </div>
 
@@ -123,6 +123,6 @@ async function disconnect() {
     :show="showCreateLoanModal" 
     :attestation-count="auth.attestationCount"
     @close="showCreateLoanModal = false"
-    @success="router.push('/my-loans')"
+    @success="(loanId) => router.push('/my-loans?contract=' + loanId)"
   />
 </template>

@@ -73,7 +73,7 @@ export const backendClient = {
   async initiateLoan(
     token: string,
     offer: { amount: string; currency: string; duration: number },
-  ): Promise<{ transaction: string }> {
+  ): Promise<{ transaction: string; poolAddress: string }> {
     const res = await apiFetch("/api/loans/initiate", {
       method: "POST",
       headers: {
@@ -90,6 +90,7 @@ export const backendClient = {
     token: string,
     data: {
       signature: string;
+      poolAddress: string;
       amount: string;
       currency: string;
       duration: number;

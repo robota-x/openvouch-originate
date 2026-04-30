@@ -6,8 +6,9 @@
 
 .PHONY: help install install-js install-all \
 	build build-js build-programs \
-	dev test test-js test-programs \
-	lint anchor-build anchor-test anchor-keys-sync clean-anchor
+	dev dev-localchain test test-js test-programs \
+	lint anchor-build anchor-test anchor-keys-sync clean-anchor \
+	localnet localnet-stop
 
 help: ## List targets (start here: Make drives npm and Anchor/cargo)
 	@grep -E '^[a-zA-Z0-9_.-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -31,8 +32,17 @@ build-programs: anchor-build ## On-chain artifacts (IDL, .so)
 anchor-build: ## anchor build (from repo root; requires Anchor CLI 1.0.x)
 	anchor build
 
-dev: ## Start dev servers (Turbo)
+dev: ## Start dev servers (Turbo) — fixtures mode, no validator needed
 	npm run dev
+
+dev-localchain: ## Start all services against localnet with real on-chain txns (requires: make localnet)
+	npm run dev:localchain
+
+localnet: ## Build+deploy programs to local validator, fund demo wallet (slow first run)
+	bash scripts/localnet.sh
+
+localnet-stop: ## Stop the local Solana validator
+	@pkill -f solana-test-validator && echo "Validator stopped." || echo "No validator running."
 
 test: test-js test-programs ## All tests: JS workspaces then Rust program crate
 

@@ -80,13 +80,7 @@ pub struct ContributeToPool<'info> {
     pub vault: Account<'info, LoanVault>,
     #[account(mut)]
     pub lender: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [SEED_PROFILE, lender.key().as_ref()],
-        bump
-    )]
-    pub lender_profile: Account<'info, UserProfile>,
-    
+
     // [DEFERRED-SPL]
     // #[account(mut)]
     // pub lender_token_account: Account<'info, TokenAccount>,

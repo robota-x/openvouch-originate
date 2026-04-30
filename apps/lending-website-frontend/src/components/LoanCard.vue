@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Loan } from '../types'
-import { toSol, toLamports } from '../utils/precision'
+import { toSol } from '../utils/precision'
 
 const props = defineProps<Loan & { variant?: 'card' | 'list' }>()
 
@@ -9,8 +9,8 @@ const emit = defineEmits<{ fund: [borrower: string]; view: [] }>()
 
 // Progress bar percentage
 const progressPercent = computed(() => {
-  const raised = toLamports(props.raisedAmount || '0')
-  const total = toLamports(props.amount || '1')
+  const raised = BigInt(props.raisedAmount || '0')
+  const total = BigInt(props.amount || '1')
   if (total === 0n) return 0n
   const pct = (raised * 100n) / total
   return pct > 100n ? 100n : pct
@@ -35,6 +35,31 @@ const trustScoreMuted = computed(() => {
   if (props.trustScore >= 400) return 'bg-orange/10  text-orange'
   return                              'bg-danger/10  text-danger'
 })
+
+// Fully funded check
+const isFullyFunded = computed(() => progressPercent.value >= 100n)
+
+// Progress bar color: green when 100%, primary otherwise
+const progressBarClass = computed(() =>
+  isFullyFunded.value ? 'bg-emerald shadow-glow-emerald' : 'bg-primary shadow-glow-primary'
+)
+
+// Funded text color: green when 100%, white otherwise
+const fundedTextClass = computed(() =>
+  isFullyFunded.value ? 'text-emerald' : 'text-white/70'
+)
+
+// Button style: emerald when 100%, primary otherwise
+const buttonClass = computed(() =>
+  isFullyFunded.value
+    ? 'bg-emerald/20 text-emerald border border-emerald/40 hover:bg-emerald/30'
+    : 'bg-primary text-white shadow-glow-primary hover:shadow-glow-primary-strong'
+)
+
+// Button text
+const buttonText = computed(() =>
+  isFullyFunded.value ? 'View Loan' : 'Fund Request'
+)
 </script>
 
 <template>
@@ -69,12 +94,13 @@ const trustScoreMuted = computed(() => {
     <!-- Amount -->
     <div class="flex-1 min-w-0">
       <p class="font-mono font-bold text-white leading-tight">
-        {{ toSol(raisedAmount || '0') }} / {{ toSol(amount) }}
+        {{ toSol(BigInt(raisedAmount || '0')) }} / {{ toSol(BigInt(amount)) }}
         <span class="text-white/50 text-[10px] font-normal uppercase ml-1">{{ currency }}</span>
       </p>
       <div class="w-24 h-1 bg-white/10 rounded-full mt-1.5 overflow-hidden">
-        <div 
-          class="h-full bg-primary transition-all duration-500" 
+        <div
+          class="h-full transition-all duration-500"
+          :class="progressBarClass"
           :style="{ width: `${progressPercent}%` }"
         />
       </div>
@@ -106,10 +132,11 @@ const trustScoreMuted = computed(() => {
 
     <!-- CTA -->
     <button
-      class="w-16 flex-shrink-0 px-3 py-1.5 rounded bg-primary text-white text-xs font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
+      class="w-16 flex-shrink-0 px-3 py-1.5 rounded text-xs font-bold transition-shadow"
+      :class="isFullyFunded ? 'bg-emerald/20 text-emerald border border-emerald/40 hover:bg-emerald/30' : 'bg-primary text-white shadow-glow-primary hover:shadow-glow-primary-strong'"
       @click.stop="emit('view')"
     >
-      Fund
+      {{ isFullyFunded ? 'View' : 'Fund' }}
     </button>
   </div>
 
@@ -155,17 +182,18 @@ const trustScoreMuted = computed(() => {
     <div>
       <div class="flex items-end justify-between mb-1">
         <p class="text-xs text-muted uppercase tracking-widest">Amount</p>
-        <p class="font-mono text-xs text-white/70">
+        <p class="font-mono text-xs" :class="fundedTextClass">
           {{ progressPercent }}% funded
         </p>
       </div>
       <p class="font-mono text-2xl font-bold text-white">
-        {{ toSol(raisedAmount || '0') }}
-        <span class="text-base text-white/50 font-normal">/ {{ toSol(amount) }} {{ currency }}</span>
+        {{ toSol(BigInt(raisedAmount || '0')) }}
+        <span class="text-base text-white/50 font-normal">/ {{ toSol(BigInt(amount)) }} {{ currency }}</span>
       </p>
       <div class="w-full h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden">
-        <div 
-          class="h-full bg-primary transition-all duration-500 shadow-glow-primary" 
+        <div
+          class="h-full transition-all duration-500"
+          :class="progressBarClass"
           :style="{ width: `${progressPercent}%` }"
         />
       </div>
@@ -185,10 +213,11 @@ const trustScoreMuted = computed(() => {
 
     <!-- CTA -->
     <button
-      class="w-full py-2.5 rounded bg-primary text-white text-sm font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
+      class="w-full py-2.5 rounded text-sm font-bold transition-shadow"
+      :class="buttonClass"
       @click.stop="emit('view')"
     >
-      Fund Request
+      {{ buttonText }}
     </button>
   </div>
 </template>

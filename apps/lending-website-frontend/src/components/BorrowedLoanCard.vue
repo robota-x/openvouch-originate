@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ProfileLoan } from '../types'
-import { toSol, toLamports } from '../utils/precision'
+import { toSol } from '../utils/precision'
 import { truncate } from '../utils/format'
 
 const props = defineProps<ProfileLoan & { createdAt?: number | string | Date }>()
 const emit  = defineEmits<{ view: []; disburse: []; repay: []; cancel: [] }>()
 
-const isFunded = computed(() => toLamports(props.raisedAmount) >= toLamports(props.amount) && props.status === 'open')
-const canRepay = computed(() => props.status === 'active' && toLamports(props.repaid) < toLamports(props.amount))
+const isFunded = computed(() => BigInt(props.raisedAmount || '0') >= BigInt(props.amount) && props.status === 'open')
+const canRepay = computed(() => props.status === 'active' && BigInt(props.repaid) < BigInt(props.amount))
 
 const canCancel = computed(() => {
   if (props.status !== 'open') return false;
@@ -18,7 +18,7 @@ const canCancel = computed(() => {
 })
 
 // Status badge
-const isRepaid = computed(() => toLamports(props.repaid) >= toLamports(props.amount))
+const isRepaid = computed(() => BigInt(props.repaid) >= BigInt(props.amount))
 
 const statusStyle = computed(() => {
   if (props.status === 'open')   return 'border-primary/40 bg-primary/10 text-primary'
@@ -36,7 +36,7 @@ const statusLabel = computed(() => {
 
 // Total due (principal + simple interest)
 const totalDueLamports = computed(() => {
-  const principal = toLamports(props.amount)
+  const principal = BigInt(props.amount)
   const interest = (principal * BigInt(props.apy) * BigInt(props.duration)) / (10000n * 365n)
   return principal + interest
 })
@@ -47,7 +47,7 @@ const netLabel = computed(() => {
   return `${sol.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${props.currency}`
 })
 const netColor = computed(() => {
-  if (toLamports(props.repaid) >= toLamports(props.amount))         return 'text-emerald'
+  if (BigInt(props.repaid) >= BigInt(props.amount))         return 'text-emerald'
   if (props.status === 'active')            return 'text-muted'
   if (props.status === 'open')              return 'text-muted'
   return                                           'text-danger'
@@ -94,7 +94,7 @@ const daysRemaining = computed(() => {
     <!-- Amount -->
     <div class="flex-1 min-w-0">
       <p class="font-mono font-bold text-white">
-        {{ toSol(amount) }}
+        {{ toSol(BigInt(amount)) }}
         <span class="text-white/50 text-sm font-normal">{{ currency }}</span>
       </p>
     </div>

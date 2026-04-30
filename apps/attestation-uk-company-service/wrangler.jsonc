@@ -1,0 +1,19 @@
+{
+  // Local dev only — never deployed. Staging and production use their own wrangler.*.jsonc files.
+  // COMPANIES_HOUSE_UK_API_KEY must be set in .dev.vars (gitignored).
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "openvouch-attestation-uk-company-service-local",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-04-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "IDENTITY_SERVICE_URL": "http://localhost:8789"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "openvouch-attestation-uk-company-db-local",
+      "database_id": "45f4717b-7680-474a-af36-6fb69f06fc55"
+    }
+  ]
+}

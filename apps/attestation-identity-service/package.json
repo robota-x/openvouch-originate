@@ -6,10 +6,11 @@
   "scripts": {
     "build": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply openvouch-attestation-identity-db-staging --local --config wrangler.staging.jsonc",
+    "db:migrate:local": "wrangler d1 migrations apply openvouch-attestation-identity-db-local --local",
     "db:migrate:staging": "wrangler d1 migrations apply openvouch-attestation-identity-db-staging --remote --config wrangler.staging.jsonc",
     "db:migrate:production": "wrangler d1 migrations apply openvouch-attestation-identity-db-production --remote --config wrangler.production.jsonc",
-    "dev": "wrangler dev --config wrangler.jsonc --port 8789 --inspector-port 9231",
+    "dev": "wrangler dev --port 8789 --inspector-port 9231",
+    "dev:localchain": "wrangler dev --port 8789 --inspector-port 9231",
     "lint": "tsc --noEmit",
     "test": "vitest run"
   },

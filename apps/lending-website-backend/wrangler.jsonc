@@ -1,18 +1,19 @@
 {
-  // JWT_SECRET must be set as a Cloudflare secret: wrangler secret put JWT_SECRET --config wrangler.staging.jsonc
+  // Local dev only — never deployed. Staging and production use their own wrangler.*.jsonc files.
+  // JWT_SECRET must be set in .dev.vars (gitignored).
   "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
-  "name": "openvouch-originate-backend-staging",
+  "name": "openvouch-originate-backend-local",
   "main": "src/worker.ts",
   "compatibility_date": "2026-04-13",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "SOLANA_RPC_URL": "https://api.devnet.solana.com",
+    "SOLANA_RPC_URL": "http://localhost:8899",
     "FIXTURES_ENABLED": "true"
   },
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "openvouch-originate-db-staging",
+      "database_name": "openvouch-originate-db-local",
       "database_id": "ed5f0a6e-7b54-4bd8-86f0-ac83bfb0932d"
     }
   ]

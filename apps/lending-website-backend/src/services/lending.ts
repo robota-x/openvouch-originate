@@ -1,4 +1,4 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, type Connection } from "@solana/web3.js";
 import BN from "bn.js";
 import { BorshCoder } from '@anchor-lang/core';
 import { 
@@ -18,6 +18,15 @@ import { derivePositionPDA } from "./blockchain/pdas.js";
 
 const idl = getDbltLendingIdl();
 const coder = new BorshCoder(idl as any);
+
+// Uses getSignatureStatuses (plain HTTP) instead of confirmTransaction (WebSocket)
+// because Cloudflare Workers don't support outgoing WebSocket connections reliably.
+// The transaction is already confirmed by the frontend before finalize is called.
+async function assertTxSucceeded(connection: Connection, signature: string): Promise<void> {
+  const { value: [status] } = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true });
+  if (!status) throw new Error(`Transaction ${signature} not found on-chain`);
+  if (status.err) throw new Error(`Transaction ${signature} failed on-chain: ${JSON.stringify(status.err)}`);
+}
 
 /**
  * Initiates a loan cancellation.
@@ -49,10 +58,7 @@ export async function finalizeLoanCancellation(
   console.info(`[LendingService] Finalizing loan cancellation for loanId: ${loanId}, signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
-  const result = await connection.confirmTransaction(signature, "confirmed");
-  if (result.value.err) {
-    throw new Error(`On-chain confirmation failed for loan cancellation (${loanId}): ${JSON.stringify(result.value.err)}`);
-  }
+  await assertTxSucceeded(connection, signature);
   console.debug(`[LendingService] Transaction confirmed for cancellation: ${signature}`);
 
   await db.update(loanListings)
@@ -105,10 +111,7 @@ export async function finalizeTriggerDefault(
   console.info(`[LendingService] Finalizing trigger default for loanId: ${loanId}, signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
-  const result = await connection.confirmTransaction(signature, "confirmed");
-  if (result.value.err) {
-    throw new Error(`On-chain confirmation failed for trigger default (${loanId}): ${JSON.stringify(result.value.err)}`);
-  }
+  await assertTxSucceeded(connection, signature);
   console.debug(`[LendingService] Transaction confirmed for default: ${signature}`);
 
   await db.update(loanListings)
@@ -138,20 +141,18 @@ export async function initiateLoanCreation(
   const termOfferId = PublicKey.default; 
   const amountBN = new BN(amountLamports.toString());
 
-  const txBase64 = await buildCreateLoanPoolTx(
+  const { transaction, poolAddress } = await buildCreateLoanPoolTx(
     ctx,
     borrowerPubkey,
     amountBN,
     termOfferId,
-    "", 
-    0,  
+    "",
+    0,
     currency,
     "UK",
   );
 
-  return {
-    transaction: txBase64,
-  };
+  return { transaction, poolAddress };
 }
 
 /**
@@ -164,10 +165,7 @@ export async function verifyAndFinalizeLoan(
   console.info(`[LendingService] Verifying and finalizing loan for signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
-  const result = await connection.confirmTransaction(signature, "confirmed");
-  if (result.value.err) {
-    throw new Error(`Transaction failed on-chain during loan finalization: ${JSON.stringify(result.value.err)} for signature ${signature}`);
-  }
+  await assertTxSucceeded(connection, signature);
 
   const tx = await connection.getTransaction(signature, {
     commitment: "confirmed",
@@ -237,10 +235,7 @@ export async function verifyAndFinalizeContribution(
   console.info(`[LendingService] Verifying contribution for loanId: ${loanId}, lender: ${lender}, signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
-  const result = await connection.confirmTransaction(signature, "confirmed");
-  if (result.value.err) {
-    throw new Error(`Transaction failed on-chain for contribution (${loanId}): ${JSON.stringify(result.value.err)}`);
-  }
+  await assertTxSucceeded(connection, signature);
 
   const tx = await connection.getTransaction(signature, {
     commitment: "confirmed",
@@ -272,22 +267,22 @@ export async function verifyAndFinalizeContribution(
 
   const newRaisedAmount = BigInt(loan.raisedAmount) + amountLamports;
 
-  await db.transaction(async (tx: any) => {
-    await tx.update(loanListings)
-      .set({ 
-        raisedAmount: newRaisedAmount,
-        updatedAt: new Date()
-      })
-      .where(eq(loanListings.id, loanId));
+  // Update raised amount
+  await db.update(loanListings)
+    .set({
+      raisedAmount: newRaisedAmount,
+      updatedAt: new Date()
+    })
+    .where(eq(loanListings.id, loanId));
 
-    await tx.insert(loanContributions).values({
-      id: crypto.randomUUID(),
-      loanId,
-      lender,
-      amount: amountLamports,
-      onChainRef: signature,
-      createdAt: new Date(),
-    });
+  // Insert contribution record
+  await db.insert(loanContributions).values({
+    id: crypto.randomUUID(),
+    loanId,
+    lender,
+    amount: amountLamports,
+    onChainRef: signature,
+    createdAt: new Date(),
   });
 
   console.info(`[LendingService] Contribution of ${amountLamports} recorded for loan ${loanId}`);
@@ -331,10 +326,7 @@ export async function verifyAndFinalizeDisbursement(
   console.info(`[LendingService] Verifying disbursement for loanId: ${loanId}, signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
-  const result = await connection.confirmTransaction(signature, "confirmed");
-  if (result.value.err) {
-    throw new Error(`Transaction failed on-chain for disbursement (${loanId}): ${JSON.stringify(result.value.err)}`);
-  }
+  await assertTxSucceeded(connection, signature);
 
   await db.update(loanListings)
     .set({ 
@@ -393,10 +385,7 @@ export async function verifyAndFinalizeRepayment(
   console.info(`[LendingService] Verifying repayment for loanId: ${loanId}, signature: ${signature}, reported amount: ${amountLamports}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
-  const result = await connection.confirmTransaction(signature, "confirmed");
-  if (result.value.err) {
-    throw new Error(`Transaction failed on-chain for repayment (${loanId}): ${JSON.stringify(result.value.err)}`);
-  }
+  await assertTxSucceeded(connection, signature);
 
   const tx = await connection.getTransaction(signature, {
     commitment: "confirmed",
@@ -405,7 +394,7 @@ export async function verifyAndFinalizeRepayment(
 
   if (tx) {
     const programId = config.programs.dbltLending;
-    const instruction = tx.transaction.message.compiledInstructions.find(ix => 
+    const instruction = tx.transaction.message.compiledInstructions.find(ix =>
         tx.transaction.message.staticAccountKeys[ix.programIdIndex].toBase58() === programId
     );
 

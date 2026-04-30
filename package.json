@@ -5,6 +5,7 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "dev:localchain": "turbo dev:localchain",
     "lint": "turbo lint",
     "test": "turbo test",
     "anchor:sync": "./scripts/sync-idl.sh"

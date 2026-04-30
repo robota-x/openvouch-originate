@@ -1,24 +1,25 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "openvouch-attestation-identity-service",
+  // Local dev only — never deployed. Staging and production use their own wrangler.*.jsonc files.
+  // SHUFTI_CLIENT_ID and SHUFTI_SECRET must be set in .dev.vars (gitignored).
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "openvouch-attestation-identity-service-local",
   "main": "src/worker.ts",
   "compatibility_date": "2024-04-01",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "openvouch-attestation-identity-db-staging",
+      "database_name": "openvouch-attestation-identity-db-local",
       "database_id": "5bee51c1-3a1c-4d9c-aa96-5a840983b89b"
     }
   ],
   "vars": {
     "IDENTITY_PROVIDER_MODE": "mock",
     "VERIFY_PORTAL_BASE_URL": "http://localhost:5173",
-    "SHUFTI_BASE_URL": "https://api.shuftipro.com"
+    "SHUFTI_BASE_URL": "https://api.shuftipro.com",
+    "CALLBACK_URL": "http://localhost:8789/verify/webhook"
   }
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { LentLoan } from '../types'
-import { toSol, toLamports } from '../utils/precision'
+import { toSol } from '../utils/precision'
 import { truncate } from '../utils/format'
 
 const props = defineProps<LentLoan>()
@@ -26,13 +26,13 @@ const trustColor = computed(() => {
 
 // Net outcome for the lender
 const interest = computed(() => {
-  const principal = toLamports(props.amount)
+  const principal = BigInt(props.amount)
   const interestLamports = (principal * BigInt(props.apy) * BigInt(props.duration)) / (10000n * 365n)
   return toSol(interestLamports)
 })
 const netLabel = computed(() => {
   if (props.status === 'repaid')    return `+${interest.value} ${props.currency}`
-  if (props.status === 'defaulted') return `−${toSol(toLamports(props.amount))} ${props.currency}`
+  if (props.status === 'defaulted') return `−${toSol(BigInt(props.amount))} ${props.currency}`
   return null
 })
 const netColor = computed(() => {
@@ -80,17 +80,17 @@ const daysRemaining = computed(() => {
     <!-- Amount -->
     <div class="flex-1 min-w-0 flex flex-col">
       <p class="font-mono font-bold text-white">
-        {{ toSol(toLamports(amount)) }}
+        {{ toSol(BigInt(amount)) }}
         <span class="text-white/50 text-sm font-normal">{{ currency }}</span>
       </p>
       <span v-if="totalLoanAmount" class="text-[9px] text-muted uppercase tracking-tighter">
-        of {{ toSol(toLamports(totalLoanAmount)) }} {{ currency }} pool
+        of {{ toSol(BigInt(totalLoanAmount)) }} {{ currency }} pool
       </span>
     </div>
 
     <!-- APY -->
     <div class="w-20 flex-shrink-0">
-      <p class="font-mono font-bold text-white">{{ apy / 100 }}%</p>
+      <p class="font-mono font-bold text-white">{{ (Number(apy) / 100).toFixed(2) }}%</p>
     </div>
 
     <!-- Duration -->

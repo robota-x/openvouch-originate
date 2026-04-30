@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import type { Profile, LentLoan, ProfileLoan, ContractView } from '../types'
 import { ApiError } from '../types'
@@ -17,6 +17,8 @@ import ContractModal from '../components/ContractModal.vue'
 // Route is auth-guarded — auth.address is always set when this component mounts.
 const auth       = useAuth()
 const solana     = useSolana()
+const route      = useRoute()
+const router     = useRouter()
 const MY_ADDRESS = auth.address!
 
 const profile   = ref<Profile | null>(null)
@@ -32,7 +34,19 @@ async function refreshProfile() {
   }
 }
 
-onMounted(refreshProfile)
+onMounted(async () => {
+  await refreshProfile()
+  await openContractFromRoute()
+})
+
+// When already on the page and the URL gains/changes a ?contract= param
+// (e.g. user navigates back here with a deeplink), refresh data then open.
+watch(() => route.query.contract, async (contractId) => {
+  if (contractId) {
+    await refreshProfile()
+    await openContractFromRoute()
+  }
+})
 
 async function ensureWallet() {
   if (!auth.connectedWallet) {
@@ -90,7 +104,7 @@ async function handleRepay(loanId: string, amount: string) {
 async function handleCancel(loanId: string) {
   if (!auth.isAuthenticated) return
   if (!(await ensureWallet())) return
-  
+
   isProcessing.value = true
   try {
     const { transaction: txBase64 } = await backendClient.initiateCancellation(auth.token!, loanId)
@@ -98,7 +112,9 @@ async function handleCancel(loanId: string) {
     const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
     await backendClient.finalizeCancellation(auth.token!, loanId, { signature })
     await refreshProfile()
-    alert('Loan cancelled and positions now refundable!')
+    // Open the cancelled contract modal to show updated state
+    router.replace({ query: { contract: loanId } })
+    await openContractFromRoute()
   } catch (e: any) {
     console.error('[MyLoansPage] Cancellation failed:', e)
     alert(`Cancellation failed: ${e.message}`)
@@ -177,6 +193,7 @@ const activeContract = ref<ContractView | null>(null)
 function openBorrowedContract(loan: ProfileLoan) {
   if (!profile.value) return
   activeContract.value = profileLoanToContractView(loan, profile.value)
+  router.replace({ query: { contract: loan.id } })
 }
 
 function openLentContract(loan: LentLoan) {
@@ -187,11 +204,35 @@ function openLentContract(loan: LentLoan) {
     borrowerAttestationCount: loan.borrowerAttestationCount,
     borrowerRepaymentRate:   loan.borrowerRepaymentRate,
     lender:   MY_ADDRESS,
-    amount:   loan.amount, // This is the user's position
-    raisedAmount: loan.totalLoanAmount, // We'll repurpose this field to show total context in the modal
+    amount:   loan.amount,
+    raisedAmount: loan.totalLoanAmount,
     currency: loan.currency,
     apy:      loan.apy,    duration: loan.duration,
     status:   loan.status, dueDate:  loan.dueDate,
+  }
+  router.replace({ query: { contract: loan.id } })
+}
+
+function closeContract() {
+  activeContract.value = null
+  router.replace({ query: {} })
+}
+
+async function openContractFromRoute(retries = 3) {
+  const contractId = route.query.contract as string | undefined
+  if (!contractId || !profile.value) return
+
+  const borrowed = profile.value.loans.find(l => l.id === contractId)
+  if (borrowed) { openBorrowedContract(borrowed); return }
+
+  const lent = profile.value.lentLoans?.find(l => l.id === contractId)
+  if (lent) { openLentContract(lent); return }
+
+  // Loan not found — might be a newly created loan still propagating. Retry.
+  if (retries > 0) {
+    await new Promise(r => setTimeout(r, 500))
+    await refreshProfile()
+    openContractFromRoute(retries - 1)
   }
 }
 </script>
@@ -333,8 +374,9 @@ function openLentContract(loan: LentLoan) {
   <ContractModal
     v-if="activeContract"
     :contract="activeContract"
-    @close="activeContract = null"
-    @fund="activeContract = null"
+    :hide-contribute="true"
+    @close="closeContract"
+    @fund="closeContract"
     @default="handleTriggerDefault"
   />
 </template>

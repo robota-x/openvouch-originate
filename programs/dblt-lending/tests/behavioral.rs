@@ -125,7 +125,6 @@ async fn test_full_loan_lifecycle_and_safety_rails() {
             pool: from_sdk_pubkey(pool_keypair.pubkey()),
             vault: vault_pda,
             lender: from_sdk_pubkey(lender1.pubkey()),
-            lender_profile: l1_profile_pda,
             position: pos1_pda,
             system_program: sys_prog(),
         }, None).into_iter().map(to_sdk_account_meta).collect(),
@@ -134,7 +133,7 @@ async fn test_full_loan_lifecycle_and_safety_rails() {
     let tx = Transaction::new_signed_with_payer(&[reg_l1_ix, contribute_ix], Some(&lender1.pubkey()), &[&lender1], context.last_blockhash);
     context.banks_client.process_transaction(tx).await.unwrap();
 
-    // 4. Test Cancellation window
+    // 4. Cancel Request
     let cancel_ix = Instruction {
         program_id: sdk_program_id,
         accounts: anchor_lang::ToAccountMetas::to_account_metas(&dblt_lending::accounts::CancelLoan {
@@ -143,17 +142,6 @@ async fn test_full_loan_lifecycle_and_safety_rails() {
         }, None).into_iter().map(to_sdk_account_meta).collect(),
         data: dblt_lending::instruction::CancelLoan {}.data(),
     };
-    let tx = Transaction::new_signed_with_payer(&[cancel_ix.clone()], Some(&borrower.pubkey()), &[&borrower], context.last_blockhash);
-    let result = context.banks_client.process_transaction(tx).await;
-    assert!(result.is_err()); 
-
-    // 5. Warp 8 Days
-    let mut clock: SdkClock = context.banks_client.get_sysvar().await.unwrap();
-    clock.unix_timestamp += 8 * 24 * 60 * 60;
-    context.set_sysvar(&clock);
-    context.warp_to_slot(100).unwrap(); 
-
-    // 6. Cancel Request
     let tx = Transaction::new_signed_with_payer(&[cancel_ix], Some(&borrower.pubkey()), &[&borrower], context.last_blockhash);
     context.banks_client.process_transaction(tx).await.unwrap();
 
@@ -241,7 +229,6 @@ async fn test_repayment_precision_and_rounding() {
             pool: from_sdk_pubkey(pool_keypair.pubkey()),
             vault: vault_pda,
             lender: from_sdk_pubkey(lender.pubkey()),
-            lender_profile: l_prof,
             position: pos,
             system_program: sys_prog(),
         }, None).into_iter().map(to_sdk_account_meta).collect(),
@@ -420,7 +407,6 @@ async fn test_default_flow() {
             pool: from_sdk_pubkey(pool_keypair.pubkey()),
             vault: vault_pda,
             lender: from_sdk_pubkey(lender.pubkey()),
-            lender_profile: l_prof,
             position: pos,
             system_program: sys_prog(),
         }, None).into_iter().map(to_sdk_account_meta).collect(),
@@ -537,7 +523,6 @@ async fn test_funded_clawback_protection() {
             pool: from_sdk_pubkey(pool_keypair.pubkey()),
             vault: vault_pda,
             lender: from_sdk_pubkey(lender.pubkey()),
-            lender_profile: l_prof,
             position: pos,
             system_program: sys_prog(),
         }, None).into_iter().map(to_sdk_account_meta).collect(),

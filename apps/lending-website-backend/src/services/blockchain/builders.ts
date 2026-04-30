@@ -53,7 +53,7 @@ export async function buildCreateLoanPoolTx(
   yearsCovered: number,
   currency: string,
   country: string,
-): Promise<string> {
+): Promise<{ transaction: string; poolAddress: string }> {
   console.info(`[Builders] Building CreateLoanPool transaction for borrower: ${borrower.toBase58()}`);
   try {
     const poolKeypair = anchor.web3.Keypair.generate();
@@ -78,7 +78,8 @@ export async function buildCreateLoanPoolTx(
       })
       .transaction();
 
-    return serializeTx(ctx, tx, borrower, [poolKeypair]);
+    const transaction = await serializeTx(ctx, tx, borrower, [poolKeypair]);
+    return { transaction, poolAddress: poolKeypair.publicKey.toBase58() };
   } catch (error) {
     throw new Error(`RPC Failure in buildCreateLoanPoolTx: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -94,7 +95,6 @@ export async function buildContributeToPoolTx(
   try {
     const [vault] = await deriveVaultPDA(pool, ctx);
     const [position] = await derivePositionPDA(pool, lender, ctx);
-    const [lenderProfile] = await deriveProfilePDA(lender, ctx);
 
     const tx = await ctx.program.methods
       .contributeToPool(amount)
@@ -102,7 +102,6 @@ export async function buildContributeToPoolTx(
         pool,
         vault,
         lender,
-        lenderProfile,
         position,
         systemProgram: SystemProgram.programId,
       })

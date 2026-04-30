@@ -91,7 +91,7 @@ profileRoutes.get('/:address', async (c) => {
         id:                       loan.id,
         borrower:                 loan.borrower,
         borrowerNickname:         borrowerProfile?.nickname ?? loan.borrower.slice(0, 8),
-        borrowerTrustScore:       borrowerProfile?.trustScore ?? 0,
+        borrowerTrustScore:       borrowerProfile?.trustScore ?? computeTrustScore(loan.borrower, borrowerAttestationCount),
         borrowerAttestationCount,
         borrowerRepaymentRate:    repaymentRate,
         amount:                   cRow.amount.toString(), // The amount this specific user lent

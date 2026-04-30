@@ -34,10 +34,19 @@ const solana = useSolana()
 const activeContract     = ref<ContractView | null>(null)
 const showConnectModal   = ref(false)
 const isFunding          = ref(false)
+const fundingSuccess     = ref(false)
+const hideContribute     = ref(false)
 // Held while the user completes auth, then the fund action resumes automatically.
 const pendingFundLoan    = ref<Loan | null>(null)
 
 function openContract(loan: Loan) {
+  fundingSuccess.value = false
+
+  // Check if fully funded
+  const raised = BigInt(loan.raisedAmount || '0')
+  const total = BigInt(loan.amount || '1')
+  const isFullyFunded = raised >= total
+
   activeContract.value = {
     id:                      loan.id,
     borrower:                loan.borrower,
@@ -52,6 +61,13 @@ function openContract(loan: Loan) {
     duration: loan.duration,
     status:   'open',
   }
+
+  // Hide contribute button if fully funded
+  if (isFullyFunded) {
+    hideContribute.value = true
+  } else {
+    hideContribute.value = false
+  }
 }
 
 // ── Fund action ───────────────────────────────────────────────────────────────
@@ -61,10 +77,10 @@ async function handleFund(loanId: string, amountToLend?: string) {
   const loan = loans.value.find(l => l.id === loanId)
   if (!loan) return
 
-  activeContract.value = null
   if (!auth.isAuthenticated) {
+    activeContract.value = null
     pendingFundLoan.value = loan
-    showConnectModal.value    = true
+    showConnectModal.value = true
     return
   }
 
@@ -107,9 +123,9 @@ async function handleFund(loanId: string, amountToLend?: string) {
       amount: contributionLamports
     })
 
-    // 5. Refresh
+    // 5. Refresh and show success
     loans.value = await backendClient.getOpenRequests()
-    alert('Success! Contribution made.')
+    fundingSuccess.value = true
   } catch (e: any) {
     console.error('[MarketplacePage] Funding failed:', e)
     alert(`Funding failed: ${e.message}`)
@@ -212,11 +228,11 @@ const visibleLoans = computed(() => {
   const f = filters
   return loans.value
     .filter(l =>
-      l.apy              >= f.apyMin                                   &&
-      (f.apyMaxUnbound      || l.apy      <= f.apyMax)                 &&
+      Number(l.apy)      >= f.apyMin                                   &&
+      (f.apyMaxUnbound      || Number(l.apy) <= f.apyMax)              &&
       (f.durationMaxUnbound || l.duration <= durationMax.value)        &&
-      toLamports(l.amount)  >= amountMinLamports.value                 &&
-      (f.amountMaxUnbound   || toLamports(l.amount) <= amountMaxLamports.value) &&
+      BigInt(l.amount)   >= amountMinLamports.value                    &&
+      (f.amountMaxUnbound   || BigInt(l.amount) <= amountMaxLamports.value) &&
       l.attestationCount >= f.attestationMin                           &&
       l.repaymentRate    >= f.repaymentMin                             &&
       l.trustScore       >= f.trustScoreMin
@@ -225,10 +241,10 @@ const visibleLoans = computed(() => {
       let diff: number | bigint
       switch (sortBy.value) {
         case 'trustScore':   diff = b.trustScore       - a.trustScore;       break
-        case 'apy':          diff = b.apy              - a.apy;              break
+        case 'apy':          diff = Number(b.apy)       - Number(a.apy);      break
         case 'repaymentRate':    diff = b.repaymentRate    - a.repaymentRate;    break
         case 'attestationCount': diff = b.attestationCount - a.attestationCount; break
-        case 'amount':       diff = toLamports(b.amount) - toLamports(a.amount); break
+        case 'amount':       diff = BigInt(b.amount)     - BigInt(a.amount);     break
         case 'duration':     diff = b.duration         - a.duration;         break
         default:             diff = 0;
       }
@@ -560,7 +576,9 @@ const visibleLoans = computed(() => {
   <ContractModal
     v-if="activeContract"
     :contract="activeContract"
-    @close="activeContract = null"
+    :success="fundingSuccess"
+    :hide-contribute="hideContribute"
+    @close="activeContract = null; fundingSuccess = false"
     @fund="handleFund"
   />
 
