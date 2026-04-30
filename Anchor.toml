@@ -7,16 +7,16 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-dblt_lending = "22bmZ5cp4DdUitMt8okSwygWP1f9oWpG6zXGkVBrgCtV"
-generic_record = "EL1vHbKVUwHDneBhwqC28o1xrzNSx2Dk2AmxytfQpote"
+dblt_lending = "2LRG4eWXpiWDWHWwVZREDfnX86tTavfBXva2Dsr6Xt5o"
+generic_record = "HKoaujx8mQN6jKh2fsBKGBoDnWufMDufPNcahDrypYk5"
 
 [programs.localnet]
 dblt_lending = "22bmZ5cp4DdUitMt8okSwygWP1f9oWpG6zXGkVBrgCtV"
 generic_record = "EL1vHbKVUwHDneBhwqC28o1xrzNSx2Dk2AmxytfQpote"
 
 [provider]
-cluster = "devnet"
-wallet = "keys/devnet/authority.json"
+cluster = "localnet"
+wallet = "keys/localnet/authority.json"
 
 [scripts]
 test = "make test-programs"

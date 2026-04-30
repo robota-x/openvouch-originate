@@ -12,7 +12,7 @@ pub mod constants;
 use instructions::*;
 
 // Declare the program ID
-declare_id!("22bmZ5cp4DdUitMt8okSwygWP1f9oWpG6zXGkVBrgCtV");
+declare_id!("2LRG4eWXpiWDWHWwVZREDfnX86tTavfBXva2Dsr6Xt5o");
 
 #[program]
 pub mod dblt_lending {

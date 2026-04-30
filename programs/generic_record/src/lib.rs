@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("EL1vHbKVUwHDneBhwqC28o1xrzNSx2Dk2AmxytfQpote");
+declare_id!("HKoaujx8mQN6jKh2fsBKGBoDnWufMDufPNcahDrypYk5");
 
 #[program]
 pub mod generic_record {
