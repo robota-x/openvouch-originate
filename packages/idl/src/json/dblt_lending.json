@@ -297,52 +297,11 @@
         },
         {
           "name": "late_penalty_bps",
-          "type": "u16"
+          "type": "u64"
         },
         {
           "name": "early_repayment_discount_bps",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "create_term_offer",
-      "docs": [
-        "Creates a lending term offer with specific parameters."
-      ],
-      "discriminator": [
-        136,
-        80,
-        74,
-        151,
-        148,
-        104,
-        247,
-        133
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        }
-      ],
-      "args": [
-        {
-          "name": "min_interest_rate_bps",
           "type": "u64"
-        },
-        {
-          "name": "max_duration_days",
-          "type": "u64"
-        },
-        {
-          "name": "collateral_required",
-          "type": "bool"
-        },
-        {
-          "name": "description",
-          "type": "string"
         }
       ]
     },
@@ -676,38 +635,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "record_late_payment",
-      "docs": [
-        "Records a late payment made by the borrower."
-      ],
-      "discriminator": [
-        92,
-        243,
-        199,
-        111,
-        94,
-        166,
-        88,
-        237
-      ],
-      "accounts": [
-        {
-          "name": "authority",
-          "signer": true
-        }
-      ],
-      "args": [
-        {
-          "name": "inst",
-          "type": "u8"
-        },
-        {
-          "name": "amt",
-          "type": "u64"
-        }
-      ]
     },
     {
       "name": "register_borrower",
@@ -1186,66 +1113,71 @@
     },
     {
       "code": 6018,
+      "name": "TimeoutNotReached",
+      "msg": "Timeout not reached"
+    },
+    {
+      "code": 6019,
       "name": "InsufficientFunds",
       "msg": "The vault has insufficient funds for this operation."
     },
     {
-      "code": 6019,
+      "code": 6020,
       "name": "InvalidNumInstallments",
       "msg": "Invalid number of installments"
     },
     {
-      "code": 6020,
+      "code": 6021,
       "name": "TooManyInstallments",
       "msg": "Too many installments"
     },
     {
-      "code": 6021,
+      "code": 6022,
       "name": "InvalidInstallmentInterval",
       "msg": "Invalid installment interval"
     },
     {
-      "code": 6022,
+      "code": 6023,
       "name": "PenaltyTooHigh",
       "msg": "Late penalty too high"
     },
     {
-      "code": 6023,
+      "code": 6024,
       "name": "DiscountTooHigh",
       "msg": "Early repayment discount too high"
     },
     {
-      "code": 6024,
+      "code": 6025,
       "name": "ScheduleInactive",
       "msg": "Repayment schedule inactive"
     },
     {
-      "code": 6025,
+      "code": 6026,
       "name": "InsufficientPayment",
       "msg": "Insufficient payment amount"
     },
     {
-      "code": 6026,
+      "code": 6027,
       "name": "Overpayment",
       "msg": "Overpayment"
     },
     {
-      "code": 6027,
+      "code": 6028,
       "name": "BorrowerCannotDefaultSelf",
       "msg": "Borrower cannot trigger default on self"
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "NotParticipant",
       "msg": "Only participants (lender or borrower) can trigger this action"
     },
     {
-      "code": 6029,
+      "code": 6030,
       "name": "GracePeriodNotExceeded",
       "msg": "Grace period not yet passed"
     },
     {
-      "code": 6030,
+      "code": 6031,
       "name": "ListingNotOpen",
       "msg": "Listing not open"
     }
@@ -1266,7 +1198,7 @@
           },
           {
             "name": "platform_fee_bps",
-            "type": "u16"
+            "type": "u64"
           },
           {
             "name": "total_borrowers",
@@ -1406,11 +1338,11 @@
           },
           {
             "name": "late_penalty_bps",
-            "type": "u16"
+            "type": "u64"
           },
           {
             "name": "early_repayment_discount_bps",
-            "type": "u16"
+            "type": "u64"
           },
           {
             "name": "status",

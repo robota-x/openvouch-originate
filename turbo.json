@@ -9,6 +9,10 @@
       "persistent": true,
       "cache": false
     },
+    "dev:localchain": {
+      "persistent": true,
+      "cache": false
+    },
     "lint": {
       "dependsOn": ["^build"],
       "outputs": []

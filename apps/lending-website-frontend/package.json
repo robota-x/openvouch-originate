@@ -8,6 +8,7 @@
     "deploy:staging": "wrangler deploy --config wrangler.staging.jsonc",
     "deploy:production": "wrangler deploy --config wrangler.production.jsonc",
     "dev": "vite",
+    "dev:localchain": "vite",
     "preview": "vite preview",
     "lint": "vue-tsc --noEmit",
     "test": "vitest run"
