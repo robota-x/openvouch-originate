@@ -42,3 +42,7 @@ target/
 
 # test-ledger
 test-ledger/
+
+# Devnet keys (contain private keys — never commit)
+keys/devnet/*
+!keys/devnet/.gitkeep

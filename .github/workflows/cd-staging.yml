@@ -1,6 +1,7 @@
 name: CD Staging
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: ["CI"]
     types:
@@ -10,7 +11,7 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'pull_request') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,9 +29,11 @@ jobs:
       - name: Build only
         run: npm run build
         env:
-          VITE_API_BASE_URL: https://openvouch-originate-backend-staging.neuronefunzionante.workers.dev
-          VITE_IDENTITY_API_BASE_URL: https://openvouch-attestation-identity-service-staging.neuronefunzionante.workers.dev
-          VITE_ATTESTATION_API_BASE_URL: https://openvouch-attestation-uk-company-service-staging.neuronefunzionante.workers.dev
+          VITE_SOLANA_RPC_URL: https://api.devnet.solana.com
+          VITE_API_BASE_URL: https://api.openvouch-originate-dev.robota.dev
+          VITE_IDENTITY_API_BASE_URL: https://identity-attestation.openvouch-originate-dev.robota.dev
+          VITE_ATTESTATION_API_BASE_URL: https://company-attestation.openvouch-originate-dev.robota.dev
+
 
       - name: Deploy Frontend
         uses: cloudflare/wrangler-action@v3
@@ -39,6 +42,14 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-frontend
           command: deploy --config wrangler.staging.jsonc
+
+      - name: Inject Lending Backend Secrets (Staging)
+        working-directory: apps/lending-website-backend
+        run: echo "$JWT_SECRET" | npx wrangler secret put JWT_SECRET --config wrangler.staging.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_STAGING }}
 
       - name: Deploy Lending Backend
         uses: cloudflare/wrangler-action@v3
@@ -50,6 +61,14 @@ jobs:
             d1 migrations apply openvouch-originate-db-staging --remote --config wrangler.staging.jsonc
             deploy --config wrangler.staging.jsonc
 
+      - name: Inject UK Company Service Secrets (Staging)
+        working-directory: apps/attestation-uk-company-service
+        run: echo "$COMPANIES_HOUSE_UK_API_KEY" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          COMPANIES_HOUSE_UK_API_KEY: ${{ secrets.COMPANIES_HOUSE_UK_API_KEY_STAGING }}
+
       - name: Deploy UK Company Service
         uses: cloudflare/wrangler-action@v3
         with:
@@ -57,9 +76,17 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/attestation-uk-company-service
           command: |
-            echo "${{ secrets.COMPANIES_HOUSE_UK_API_KEY_STAGING }}" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
             d1 migrations apply openvouch-attestation-uk-company-db-staging --remote --config wrangler.staging.jsonc
             deploy --config wrangler.staging.jsonc
+
+      - name: Inject Identity Service Secrets (Staging)
+        working-directory: apps/attestation-identity-service
+        run: |
+          echo "mock-placeholder" | npx wrangler secret put SHUFTI_CLIENT_ID --config wrangler.staging.jsonc
+          echo "mock-placeholder" | npx wrangler secret put SHUFTI_SECRET --config wrangler.staging.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Identity Service
         uses: cloudflare/wrangler-action@v3
@@ -67,7 +94,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/attestation-identity-service
-          command: |
-            echo "mock-placeholder" | npx wrangler secret put SHUFTI_CLIENT_ID --config wrangler.staging.jsonc
-            echo "mock-placeholder" | npx wrangler secret put SHUFTI_SECRET --config wrangler.staging.jsonc
-            deploy --config wrangler.staging.jsonc
+          command: deploy --config wrangler.staging.jsonc

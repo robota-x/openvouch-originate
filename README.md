@@ -1,6 +1,13 @@
-# defi-hack
+# OpenVouch Originate
 
-A DeFi project built around a **general-purpose on-chain attestation framework** and a lending platform that consumes it.
+A peer-to-peer lending platform for unsecured crypto loans, built on Solana. Borrowers anchor their real-world identity and creditworthiness to their wallets through an open attestation protocol—no oracles, no gatekeeping. Lenders fund loans based on verifiable on-chain claims, from government-backed business registries to biometric identity verification, creating a bridge between crypto primitives and traditional credit signals.
+
+**🌐 Live Demo:** [openvouch-originate.robota.dev](https://openvouch-originate.robota.dev) *(Solana Devnet - Hackathon Demo)*
+
+---
+
+> **⚠️ DISCLAIMER**  
+> This is a hackathon project built for demonstration purposes. It is **NOT production-ready** and has not undergone security audits. Do not use with real funds or sensitive data. Smart contracts are deployed on Solana devnet only.
 
 ## Project overview
 
@@ -44,24 +51,112 @@ The lending platform sits on top of the attestation framework and is the primary
 └── turbo.json                                # Turborepo pipeline config
 ```
 
-## Prerequisites
+
+## Local Development
+
+### Prerequisites
 
 | Tool      | Version | Install                                           |
 | --------- | ------- | ------------------------------------------------- |
-| Node.js   | 22 LTS  | https://nodejs.org                                |
-| npm       | 10+     | Bundled with Node 22                              |
-| Java      | 21 LTS  | https://adoptium.net                              |
-| Terraform | >= 1.9  | https://developer.hashicorp.com/terraform/install |
-| Docker    | latest  | https://docs.docker.com/get-docker/               |
+| Node.js   | ≥22     | https://nodejs.org                                |
+| Rust      | ≥1.75   | https://rustup.rs                                 |
+| Solana CLI| ≥1.18   | https://docs.solana.com/cli/install-solana-cli-tools |
+| Anchor    | ≥1.0    | https://www.anchor-lang.com/docs/installation     |
 
-## Getting started
+### Quick Start
+
+1. **Clone and install dependencies**
+   ```bash
+   git clone https://github.com/yourusername/openvouch-originate.git
+   cd openvouch-originate
+   npm install
+   ```
+
+2. **Set up environment files**
+   ```bash
+   # Frontend - copy example and modify if needed
+   cp apps/lending-website-frontend/.env.example apps/lending-website-frontend/.env
+   
+   # Backend - create .dev.vars with JWT secret
+   echo "JWT_SECRET=$(openssl rand -base64 32)" > apps/lending-website-backend/.dev.vars
+   ```
+
+3. **Start local Solana validator with deployed programs**
+   ```bash
+   make localnet
+   ```
+   This command will:
+   - Reset and start a fresh Solana test validator on `localhost:8899`
+   - Wipe and re-migrate the local D1 database
+   - Build and deploy all Solana programs (attestation + lending contracts)
+   - Fund three test wallets with 100 SOL each
+   - Copy fresh IDLs to the shared package
+
+4. **Run the full development stack**
+   ```bash
+   make dev-localchain
+   ```
+   This starts all services in parallel (frontend + backend workers) configured for localnet with real on-chain transactions.
+
+5. **Access the application**
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:8787
+   - Identity Service: http://localhost:8789
+   - Company Attestation: http://localhost:8788
+
+### Available Make Commands
+
+| Command                | Description                                                      |
+| ---------------------- | ---------------------------------------------------------------- |
+| `make localnet`        | Bootstrap local Solana validator with programs and funded wallets|
+| `make localnet-stop`   | Stop the local validator                                         |
+| `make dev-localchain`  | Run backend services against localnet                            |
+| `make test`            | Run full test suite across all packages                          |
+| `make lint`            | Run linters across the monorepo                                  |
+
+### Testing Locally
+
+The project includes comprehensive test coverage:
 
 ```bash
-git clone <repo-url> defi-hack
-cd defi-hack
-npm install
-make dev
+# Run all tests
+npm test
+
+# Run Solana program tests
+cd programs/dblt-lending && anchor test
+cd programs/attestation-registry && anchor test
+
+# Run backend tests
+cd apps/lending-website-backend && npm test
 ```
+
+### Funded Test Wallets
+
+The localnet bootstrap automatically funds these wallets with 100 SOL each:
+- `9KAQLuUTgJnjuhmPoUUrsS8gVG86pB8e3thW3ZTWSB1r` (demo wallet)
+- `vhoYtZGs6KXzwrnb2gw4tZFgxh3ZY2qRiEGEQVFNA6c`
+- `EAy5RYr18CmVD52hWJ1RoYemPa6GRpnyQvqPqrD7Bvao`
+
+Connect with any Solana-compatible wallet (Phantom, Solflare) set to localnet to interact with the platform.
+
+### Fixture Mode (Quick Frontend Testing)
+
+For rapid frontend development without running localnet, use fixture mode:
+
+```bash
+# Start backend with fixtures (no blockchain required)
+cd apps/lending-website-backend && npm run dev
+
+# Start frontend (in separate terminal)
+cd apps/lending-website-frontend && npm run dev
+```
+
+In fixture mode (`FIXTURES_ENABLED=true`), the backend serves mock data for:
+- Pre-populated loan listings with synthetic borrower profiles
+- Mock trust scores and attestations
+- Simulated transaction responses (no real Solana transactions)
+
+This is useful for UI development, but all blockchain operations are stubbed. Use `make dev-localchain` for full end-to-end testing with real on-chain state.
 
 ## Apps & packages
 
@@ -75,31 +170,15 @@ make dev
 | `packages/d1-client`                     | Shared D1 database client and schemas                                 |
 | `packages/idl`                           | Shared IDL and contract definitions                                   |
 
-## Infrastructure
+## Deployment
 
-Terraform configuration targets **Google Cloud Platform** (`europe-west2` by default). Resources are not yet defined — see `infra/terraform/main.tf`.
+The live demo is deployed using:
+- **Frontend**: Cloudflare Pages (static SPA)
+- **Backend**: Cloudflare Workers (serverless API + D1 database)
+- **Solana Programs**: Devnet (`https://api.devnet.solana.com`)
 
-Before applying, configure a GCS backend by uncommenting the `backend "gcs"` block in `infra/terraform/terraform.tf` and setting your state bucket.
+Deployment is automated via GitHub Actions on push to main.
 
-```bash
-make deploy-infra
-```
-
-## CI/CD
-
-| Workflow            | Trigger                  | Action                                    |
-| ------------------- | ------------------------ | ----------------------------------------- |
-| `ci.yml`            | PR or push to `main`     | lint → test → build + Docker image verify |
-| `cd-staging.yml`    | CI passes on `main`      | build → deploy to staging                 |
-| `cd-production.yml` | GitHub release published | build → deploy to production              |
-
-## Testing
-
-```bash
-npm run test
-```
-
-Runs `npm run test` via Turborepo, which runs Vitest in each package.
 
 ## Architecture decisions
 

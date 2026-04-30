@@ -50,7 +50,11 @@ for dir in programs/*/; do
 done
 
 echo "==> Syncing keys & Building"
+# anchor keys sync updates [programs.<cluster>] in Anchor.toml using the active provider cluster.
+# Temporarily override to $ENV so the correct section is updated regardless of the default provider.
+sed -i "s/^cluster = \"[^\"]*\"/cluster = \"$ENV\"/" Anchor.toml
 anchor keys sync
+sed -i "s/^cluster = \"$ENV\"/cluster = \"localnet\"/" Anchor.toml
 anchor build
 
 echo "==> Distributing IDLs"

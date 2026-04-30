@@ -82,7 +82,7 @@ export const backendClient = {
       },
       body: JSON.stringify(offer),
     });
-    return res.json() as Promise<{ transaction: string }>;
+    return res.json() as Promise<{ transaction: string; poolAddress: string }>;
   },
 
   /** POST /api/loans/finalize — verify signature and save to D1. */
