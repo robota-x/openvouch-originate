@@ -48,6 +48,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/lending-website-backend
           command: |
+            echo "${{ secrets.JWT_SECRET_PRODUCTION }}" | npx wrangler secret put JWT_SECRET --config wrangler.production.jsonc
             d1 migrations apply openvouch-originate-db-production --remote --config wrangler.production.jsonc
             deploy --config wrangler.production.jsonc
 
