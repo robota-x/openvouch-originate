@@ -9,3 +9,5 @@ pub const SEED_POSITION: &[u8] = b"position";
 pub const SCHEDULE_ACTIVE: u8 = 0;
 pub const SCHEDULE_DEFAULTED: u8 = 1;
 pub const SCHEDULE_COMPLETED: u8 = 2;
+
+pub const BPS_DIVIDER: u64 = 10_000;

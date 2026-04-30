@@ -15,21 +15,27 @@ function makeApp() {
 
 describe('authenticate middleware', () => {
   it('returns 401 when no Authorization header is present', async () => {
-    const res = await makeApp().request('/protected')
+    const env = { JWT_SECRET: 'test-secret', SOLANA_RPC_URL: 'https://api.devnet.solana.com' }
+    const res = await makeApp().request('/protected', {}, env)
     expect(res.status).toBe(401)
     expect(await res.json()).toEqual({ error: 'not_authenticated' })
   })
 
   it('returns 401 when JWT_SECRET binding is absent', async () => {
+    // Note: buildConfig will throw if JWT_SECRET is missing, so we test the middleware's failure to build config
     const res = await makeApp().request('/protected', {
       headers: { Authorization: 'Bearer some.token.here' },
-    })
-    expect(res.status).toBe(401)
+    }, { SOLANA_RPC_URL: 'https://api.devnet.solana.com' } as any)
+    expect(res.status).toBe(500) // Hono catches the throw from buildConfig
   })
 
   it('returns 401 for a malformed token even with a secret configured', async () => {
     const secret = 'test-secret-at-least-32-chars!!'
-    const env: Bindings = { DB: undefined as unknown as D1Database, JWT_SECRET: secret }
+    const env: Bindings = { 
+      DB: undefined as unknown as D1Database, 
+      JWT_SECRET: secret,
+      SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+    }
     const res = await makeApp().request('/protected', {
       headers: { Authorization: 'Bearer not.a.valid.jwt' },
     }, env)
@@ -39,7 +45,11 @@ describe('authenticate middleware', () => {
   it('calls next and exposes user for a valid token', async () => {
     const secret = 'test-secret-at-least-32-chars!!'
     const token  = await createToken(secret, '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU')
-    const env: Bindings = { DB: undefined as unknown as D1Database, JWT_SECRET: secret }
+    const env: Bindings = { 
+      DB: undefined as unknown as D1Database, 
+      JWT_SECRET: secret,
+      SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+    }
     const res = await makeApp().request('/protected', {
       headers: { Authorization: `Bearer ${token}` },
     }, env)

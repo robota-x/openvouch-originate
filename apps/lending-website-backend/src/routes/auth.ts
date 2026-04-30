@@ -23,94 +23,106 @@ const authRoutes = new Hono<AppEnv>();
  * POST /api/auth/challenge — issue a unique nonce for a wallet address to sign.
  */
 authRoutes.post("/challenge", async (c) => {
-  const { address } = await c.req.json<{ address?: string }>();
-  if (!address) return c.json({ error: "address_required" }, 400);
+  let address: string | undefined;
+  try {
+    const body = await c.req.json<{ address?: string }>();
+    address = body.address;
+    if (!address) return c.json({ error: "address_required" }, 400);
 
-  const d1 = c.env?.DB;
-  if (!d1) return c.json({ error: "not_implemented" }, 501);
-  const db = createAppDb(d1);
+    const d1 = c.env?.DB;
+    if (!d1) return c.json({ error: "not_implemented" }, 501);
+    const db = createAppDb(d1);
 
-  const nonce = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const nonce = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-  await db
-    .insert(authNonces)
-    .values({ address, nonce, expiresAt })
-    .onConflictDoUpdate({
-      target: authNonces.address,
-      set: { nonce, expiresAt },
-    });
+    await db
+      .insert(authNonces)
+      .values({ address, nonce, expiresAt })
+      .onConflictDoUpdate({
+        target: authNonces.address,
+        set: { nonce, expiresAt },
+      });
 
-  return c.json({ nonce });
+    return c.json({ nonce });
+  } catch (e) {
+    console.error("[auth/challenge] Failure", { address }, e);
+    return c.json({ error: "internal_server_error" }, 500);
+  }
 });
 
 /**
  * POST /api/auth/verify — verify signed nonce, create profile if needed, and return JWT.
  */
 authRoutes.post("/verify", async (c) => {
-  const {
-    address,
-    nonce: clientNonce,
-    signature,
-  } = await c.req.json<{
-    address?: string;
-    nonce?: string;
-    signature?: string;
-  }>();
-
-  if (!address || !clientNonce || !signature) {
-    return c.json({ error: "missing_fields" }, 400);
-  }
-
-  const d1 = c.env?.DB;
-  if (!d1) return c.json({ error: "not_implemented" }, 501);
-  const db = createAppDb(d1);
-
-  const [row] = await db
-    .select()
-    .from(authNonces)
-    .where(eq(authNonces.address, address));
-
-  if (!row) return c.json({ error: "nonce_not_found" }, 401);
-  if (row.expiresAt < new Date()) return c.json({ error: "nonce_expired" }, 401);
-  if (row.nonce !== clientNonce) return c.json({ error: "nonce_mismatch" }, 401);
-
-  let sigBytes: Uint8Array;
+  let address: string | undefined;
   try {
-    sigBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0));
-  } catch {
-    return c.json({ error: "invalid_signature_encoding" }, 400);
+    const body = await c.req.json<{
+      address?: string;
+      nonce?: string;
+      signature?: string;
+    }>();
+    address = body.address;
+    const clientNonce = body.nonce;
+    const signature = body.signature;
+
+    if (!address || !clientNonce || !signature) {
+      return c.json({ error: "missing_fields" }, 400);
+    }
+
+    const d1 = c.env?.DB;
+    if (!d1) return c.json({ error: "not_implemented" }, 501);
+    const db = createAppDb(d1);
+
+    const [row] = await db
+      .select()
+      .from(authNonces)
+      .where(eq(authNonces.address, address));
+
+    if (!row) return c.json({ error: "nonce_not_found" }, 401);
+    if (row.expiresAt < new Date()) return c.json({ error: "nonce_expired" }, 401);
+    if (row.nonce !== clientNonce) return c.json({ error: "nonce_mismatch" }, 401);
+
+    let sigBytes: Uint8Array;
+    try {
+      sigBytes = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0));
+    } catch {
+      return c.json({ error: "invalid_signature_encoding" }, 400);
+    }
+
+    let pubKeyBytes: Uint8Array;
+    try {
+      pubKeyBytes = bs58.decode(address);
+    } catch {
+      return c.json({ error: "invalid_address" }, 400);
+    }
+
+    const isValid = await ed25519Verify(
+      sigBytes,
+      buildSignMessage(row.nonce),
+      pubKeyBytes,
+    );
+    if (!isValid) return c.json({ error: "invalid_signature" }, 401);
+
+    await db.delete(authNonces).where(eq(authNonces.address, address));
+
+    // Auto-create profile on first successful login
+    const now = new Date();
+    await db
+      .insert(profiles)
+      .values({ address, createdAt: now, updatedAt: now })
+      .onConflictDoNothing();
+
+    const secret = c.get("config").jwtSecret;
+    if (!secret) return c.json({ error: "not_configured" }, 501);
+
+    const token = await createToken(secret, address);
+
+    return c.json({ token });
+  } catch (e) {
+    console.error("[auth/verify] Failure", { address }, e);
+    return c.json({ error: "internal_server_error" }, 500);
   }
-
-  let pubKeyBytes: Uint8Array;
-  try {
-    pubKeyBytes = bs58.decode(address);
-  } catch {
-    return c.json({ error: "invalid_address" }, 400);
-  }
-
-  const isValid = await ed25519Verify(
-    sigBytes,
-    buildSignMessage(row.nonce),
-    pubKeyBytes,
-  );
-  if (!isValid) return c.json({ error: "invalid_signature" }, 401);
-
-  await db.delete(authNonces).where(eq(authNonces.address, address));
-
-  // Auto-create profile on first successful login
-  const now = new Date();
-  await db
-    .insert(profiles)
-    .values({ address, createdAt: now, updatedAt: now })
-    .onConflictDoNothing();
-
-  const secret = c.get("config").jwtSecret;
-  if (!secret) return c.json({ error: "not_configured" }, 501);
-
-  const token = await createToken(secret, address);
-
-  return c.json({ token });
 });
 
 /**
@@ -118,16 +130,27 @@ authRoutes.post("/verify", async (c) => {
  */
 authRoutes.get("/me", authenticate, async (c) => {
   const user = c.get("user");
-  return c.json({
-    address: user.address,
-  });
+  try {
+    return c.json({
+      address: user.address,
+    });
+  } catch (e) {
+    console.error("[auth/me] Failure", { address: user.address }, e);
+    return c.json({ error: "internal_server_error" }, 500);
+  }
 });
 
 /**
  * DELETE /api/auth/session — stateless logout.
  */
 authRoutes.delete("/session", authenticate, async (c) => {
-  return c.body(null, 204);
+  const user = c.get("user");
+  try {
+    return c.body(null, 204);
+  } catch (e) {
+    console.error("[auth/session DELETE] Failure", { address: user.address }, e);
+    return c.json({ error: "internal_server_error" }, 500);
+  }
 });
 
 export default authRoutes;

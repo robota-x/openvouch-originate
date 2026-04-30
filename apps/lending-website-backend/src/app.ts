@@ -5,7 +5,6 @@ import authRoutes from './routes/auth.js'
 import profileRoutes from './routes/profiles.js'
 import attestationProviderRoutes from './routes/attestationProviders.js'
 import loanRoutes from './routes/loans.js'
-import { webhookRoutes } from './routes/webhooks.js'
 import type { AppEnv } from './types.js'
 
 export type { AppEnv }
@@ -37,7 +36,6 @@ app.route('/api/auth',                  authRoutes)
 app.route('/api/profiles',             profileRoutes)
 app.route('/api/attestation-providers', attestationProviderRoutes)
 app.route('/api/loans',                loanRoutes)
-app.route('/api/webhooks/helius',      webhookRoutes)
 
 export default app
 

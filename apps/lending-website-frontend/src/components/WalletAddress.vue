@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { truncate } from '../utils/format'
 
 // Using `full` instead of `truncated?: boolean` to avoid Vue's absent-boolean-prop
 // casting (absent boolean prop → false), which would invert the default behaviour.
@@ -9,7 +10,7 @@ const props = defineProps<{ address: string; full?: boolean }>()
 const display = computed(() =>
   props.full
     ? props.address
-    : `${props.address.slice(0, 4)}...${props.address.slice(-4)}`
+    : truncate(props.address, 4)
 )
 </script>
 

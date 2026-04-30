@@ -6,6 +6,9 @@ import WalletConnectModal from '../components/WalletConnectModal.vue'
 import { backendClient } from '../api/client'
 import { ApiError, type Loan, type ContractView } from '../types'
 import { useAuth } from '../composables/useAuth'
+import { useSolana } from '../composables/useSolana'
+import { solanaBridge } from '../utils/solana-bridge'
+import { toLamports, LAMPORTS_PER_SOL } from '../utils/precision'
 
 type View   = 'grid' | 'list'
 type SortBy  = 'trustScore' | 'apy' | 'repaymentRate' | 'attestationCount' | 'amount' | 'duration'
@@ -25,12 +28,14 @@ onMounted(async () => {
 })
 
 const auth = useAuth()
+const solana = useSolana()
 
 // ── Contract modal ────────────────────────────────────────────────────────────
 const activeContract     = ref<ContractView | null>(null)
 const showConnectModal   = ref(false)
+const isFunding          = ref(false)
 // Held while the user completes auth, then the fund action resumes automatically.
-const pendingFundBorrower = ref<string | null>(null)
+const pendingFundLoan    = ref<Loan | null>(null)
 
 function openContract(loan: Loan) {
   activeContract.value = {
@@ -41,6 +46,7 @@ function openContract(loan: Loan) {
     borrowerAttestationCount: loan.attestationCount,
     borrowerRepaymentRate:   loan.repaymentRate,
     amount:   loan.amount,
+    raisedAmount: loan.raisedAmount,
     currency: loan.currency,
     apy:      loan.apy,
     duration: loan.duration,
@@ -51,20 +57,71 @@ function openContract(loan: Loan) {
 // ── Fund action ───────────────────────────────────────────────────────────────
 // NOTE: auth intercept here is an intentional UX funnel, not a security boundary.
 // A non-authed user could fund directly on-chain. We intercept to drive wallet adoption.
-function handleFund(borrower: string) {
+async function handleFund(loanId: string, amountToLend?: string) {
+  const loan = loans.value.find(l => l.id === loanId)
+  if (!loan) return
+
   activeContract.value = null
   if (!auth.isAuthenticated) {
-    pendingFundBorrower.value = borrower
+    pendingFundLoan.value = loan
     showConnectModal.value    = true
     return
   }
-  // TODO: proceed with on-chain funding action for borrower
+
+  isFunding.value = true
+  try {
+    // 1. Get Base64 TX from backend
+    // Convert user-entered SOL to lamport string; fallback uses remaining from API (already lamports).
+    const contributionLamports = amountToLend
+      ? toLamports(amountToLend).toString()
+      : (BigInt(loan.amount) - BigInt(loan.raisedAmount || '0')).toString()
+
+    const { transaction: txBase64 } = await backendClient.initiateContribution(
+      auth.token!,
+      loan.id,
+      contributionLamports
+    )
+
+    // 2. Sign and Broadcast
+    if (!auth.connectedWallet) {
+      try {
+        await auth.reconnect()
+      } catch (err) {
+        alert('Wallet session lost. Please click "Re-authorize" in the top navigation.')
+        return
+      }
+    }
+
+    // Deserialize
+    const tx = solanaBridge.deserializeTx(txBase64)
+
+    const signature = await solanaBridge.signAndBroadcast(
+      solana.connection,
+      tx,
+      auth.connectedWallet
+    )
+
+    // 4. Finalize with backend
+    await backendClient.finalizeContribution(auth.token!, loan.id, {
+      signature,
+      amount: contributionLamports
+    })
+
+    // 5. Refresh
+    loans.value = await backendClient.getOpenRequests()
+    alert('Success! Contribution made.')
+  } catch (e: any) {
+    console.error('[MarketplacePage] Funding failed:', e)
+    alert(`Funding failed: ${e.message}`)
+  } finally {
+    isFunding.value = false
+  }
 }
 
 function onConnected() {
-  if (pendingFundBorrower.value) {
-    // TODO: resume fund action for pendingFundBorrower.value
-    pendingFundBorrower.value = null
+  if (pendingFundLoan.value) {
+    handleFund(pendingFundLoan.value.id)
+    pendingFundLoan.value = null
   }
 }
 
@@ -103,6 +160,7 @@ function fmtDays(d: number): string {
 }
 
 function fmtAmount(n: number): string {
+  if (n === undefined || n === null) return '0'
   if (n >= 1_000_000) return '1M'
   if (n >= 100_000)   return `${(n / 1000).toFixed(0)}k`
   if (n >= 1_000)     return `${(n / 1000).toFixed(1)}k`
@@ -111,8 +169,8 @@ function fmtAmount(n: number): string {
 
 // ── Filter state (defaults = show everything) ────────────────────────────────
 const DEFAULTS = {
-  apyMin:             0,    // direct value, 0–50
-  apyMax:             50,   // direct value, 0–50  (ignored when apyMaxUnbound)
+  apyMin:             0,    // BPS, 0–5000
+  apyMax:             5000, // BPS, 0–5000  (ignored when apyMaxUnbound)
   apyMaxUnbound:      true,
 
   durationMaxSlider:  100,  // exponential, 0–100  (ignored when durationMaxUnbound)
@@ -133,8 +191,11 @@ const filters = reactive({ ...DEFAULTS })
 const durationMax = computed(() => sliderToDays(filters.durationMaxSlider))
 const amountMin   = computed(() => sliderToAmount(filters.amountMinSlider))
 const amountMax   = computed(() => sliderToAmount(filters.amountMaxSlider))
+const amountMinLamports = computed(() => BigInt(amountMin.value) * LAMPORTS_PER_SOL)
+const amountMaxLamports = computed(() => BigInt(amountMax.value) * LAMPORTS_PER_SOL)
 
 function reset() { Object.assign(filters, DEFAULTS) }
+
 
 function clampApy(which: 'min' | 'max') {
   if (which === 'min' && filters.apyMin > filters.apyMax) filters.apyMax = filters.apyMin
@@ -154,23 +215,27 @@ const visibleLoans = computed(() => {
       l.apy              >= f.apyMin                                   &&
       (f.apyMaxUnbound      || l.apy      <= f.apyMax)                 &&
       (f.durationMaxUnbound || l.duration <= durationMax.value)        &&
-      l.amount           >= amountMin.value                            &&
-      (f.amountMaxUnbound   || l.amount   <= amountMax.value)          &&
+      toLamports(l.amount)  >= amountMinLamports.value                 &&
+      (f.amountMaxUnbound   || toLamports(l.amount) <= amountMaxLamports.value) &&
       l.attestationCount >= f.attestationMin                           &&
       l.repaymentRate    >= f.repaymentMin                             &&
       l.trustScore       >= f.trustScoreMin
     )
     .sort((a, b) => {
-      let diff: number
+      let diff: number | bigint
       switch (sortBy.value) {
         case 'trustScore':   diff = b.trustScore       - a.trustScore;       break
         case 'apy':          diff = b.apy              - a.apy;              break
         case 'repaymentRate':    diff = b.repaymentRate    - a.repaymentRate;    break
         case 'attestationCount': diff = b.attestationCount - a.attestationCount; break
-        case 'amount':       diff = b.amount           - a.amount;           break
+        case 'amount':       diff = toLamports(b.amount) - toLamports(a.amount); break
         case 'duration':     diff = b.duration         - a.duration;         break
+        default:             diff = 0;
       }
-      return sortDir.value === 'desc' ? diff : -diff
+      if (diff === 0n || diff === 0) return 0
+      return sortDir.value === 'desc' 
+        ? (diff > 0 ? 1 : -1) 
+        : (diff > 0 ? -1 : 1)
     })
 })
 </script>
@@ -254,18 +319,18 @@ const visibleLoans = computed(() => {
             <!-- Min -->
             <div class="flex items-center justify-between">
               <span class="text-xs text-muted">Min</span>
-              <span class="font-mono text-xs text-white">{{ filters.apyMin }}%</span>
+              <span class="font-mono text-xs text-white">{{ filters.apyMin / 100 }}%</span>
             </div>
             <input
               v-model.number="filters.apyMin"
-              type="range" min="0" max="50" step="0.5"
+              type="range" min="0" max="5000" step="50"
               class="w-full accent-primary"
               @input="clampApy('min')"
             />
             <!-- Max -->
             <div class="flex items-center justify-between">
               <span class="text-xs text-muted">
-                Max<span v-if="!filters.apyMaxUnbound" class="font-mono text-white ml-1">{{ filters.apyMax }}%</span>
+                Max<span v-if="!filters.apyMaxUnbound" class="font-mono text-white ml-1">{{ filters.apyMax / 100 }}%</span>
               </span>
               <label class="flex items-center gap-1.5 cursor-pointer select-none">
                 <input v-model="filters.apyMaxUnbound" type="checkbox" class="accent-primary cursor-pointer" />
@@ -274,7 +339,7 @@ const visibleLoans = computed(() => {
             </div>
             <input
               v-model.number="filters.apyMax"
-              type="range" min="0" max="50" step="0.5"
+              type="range" min="0" max="5000" step="50"
               class="w-full accent-primary transition-opacity"
               :class="filters.apyMaxUnbound ? 'opacity-30 pointer-events-none' : ''"
               :disabled="filters.apyMaxUnbound"
@@ -285,7 +350,7 @@ const visibleLoans = computed(() => {
 
         <!-- Amount range (exponential) -->
         <div class="flex flex-col gap-3">
-          <p class="text-xs text-muted uppercase tracking-widest">Amount (USDC)</p>
+          <p class="text-xs text-muted uppercase tracking-widest">Amount (SOL)</p>
           <div class="flex flex-col gap-2">
             <!-- Min -->
             <div class="flex items-center justify-between">

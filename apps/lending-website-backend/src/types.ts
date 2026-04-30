@@ -4,12 +4,8 @@ import type { AppConfig } from './config.js'
 export type Bindings = {
   DB:              D1Database
   JWT_SECRET:      string
-  /**
-   * Shared secret that Helius sends in the Authorization header on every webhook
-   * delivery. Must match the authHeader configured when creating the webhook.
-   * Set via: wrangler secret put HELIUS_WEBHOOK_AUTH --config wrangler.<env>.jsonc
-   */
-  HELIUS_WEBHOOK_AUTH?: string
+  SOLANA_RPC_URL:  string
+  SOLANA_PROGRAM_ID?: string
   /** Set to "true" in .dev.vars to serve fixture data instead of querying D1. */
   FIXTURES_ENABLED?: string
 }
@@ -24,4 +20,37 @@ export type Variables = {
 export type AppEnv = {
   Bindings: Bindings
   Variables: Variables
+}
+
+export interface Loan {
+  id:               string
+  borrower:         string
+  nickname:         string
+  amount:           string
+  raisedAmount:     string
+  currency:         string
+  apy:              string
+  duration:         number
+  trustScore:       number
+  repaymentRate:    number
+  attestationCount: number
+}
+
+export interface ContractView {
+  id:                       string
+  borrower:                 string
+  borrowerNickname:         string
+  borrowerTrustScore:       number
+  borrowerAttestationCount: number
+  borrowerRepaymentRate:    number
+  lender?:                  string
+  amount:                   string
+  raisedAmount:             string
+  repaid:                   string
+  currency:                 string
+  apy:                      string
+  duration:                 number
+  status:                   string
+  dueDate?:                 string
+  onChainRef?:              string
 }

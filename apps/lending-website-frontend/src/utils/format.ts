@@ -1,7 +1,8 @@
 /** Abbreviated money display — $1.5k, $500. Used for recap stat pills. */
-export function fmt(n: number): string {
-  if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`
-  return `$${n.toFixed(0)}`
+export function fmt(n: number | string): string {
+  const val = typeof n === 'string' ? parseFloat(n) : n
+  if (val >= 1000) return `$${(val / 1000).toFixed(1)}k`
+  return `$${val.toFixed(0)}`
 }
 
 /** Truncate a wallet address to first N + … + last 4 chars. */

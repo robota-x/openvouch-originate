@@ -7,25 +7,125 @@ import { ApiError } from '../types'
 import { backendClient } from '../api/client'
 import { fmt } from '../utils/format'
 import { profileLoanToContractView } from '../utils/loans'
+import { toSol } from '../utils/precision'
+import { useSolana } from '../composables/useSolana'
+import { solanaBridge } from '../utils/solana-bridge'
 import BorrowedLoanCard from '../components/BorrowedLoanCard.vue'
 import LentLoanCard from '../components/LentLoanCard.vue'
 import ContractModal from '../components/ContractModal.vue'
 
 // Route is auth-guarded — auth.address is always set when this component mounts.
 const auth       = useAuth()
+const solana     = useSolana()
 const MY_ADDRESS = auth.address!
 
 const profile   = ref<Profile | null>(null)
 const loadError = ref<string | null>(null)
+const isProcessing = ref(false)
 
-onMounted(async () => {
+async function refreshProfile() {
   try {
     profile.value = await backendClient.getProfile(MY_ADDRESS)
   } catch (e) {
     console.error('[MyLoansPage] Failed to load loans:', e)
     loadError.value = e instanceof ApiError ? e.message : 'Failed to load loans'
   }
-})
+}
+
+onMounted(refreshProfile)
+
+async function ensureWallet() {
+  if (!auth.connectedWallet) {
+    try {
+      await auth.reconnect()
+    } catch (err) {
+      alert('Wallet session lost. Please click "Re-authorize" in the top navigation.')
+      return false
+    }
+  }
+  return true
+}
+
+async function handleDisburse(loanId: string) {
+  if (!auth.isAuthenticated) return
+  if (!(await ensureWallet())) return
+  
+  isProcessing.value = true
+  try {
+    const { transaction: txBase64 } = await backendClient.initiateDisbursement(auth.token!, loanId)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeDisbursement(auth.token!, loanId, { signature })
+    await refreshProfile()
+    alert('Loan funds disbursed to your wallet!')
+  } catch (e: any) {
+    console.error('[MyLoansPage] Disbursement failed:', e)
+    alert(`Disbursement failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+async function handleRepay(loanId: string, amount: string) {
+  if (!auth.isAuthenticated) return
+  if (!(await ensureWallet())) return
+  
+  isProcessing.value = true
+  try {
+    // Note: We use installment 1 as a placeholder/prototype value
+    const { transaction: txBase64 } = await backendClient.initiateRepayment(auth.token!, loanId, 1, amount)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeRepayment(auth.token!, loanId, { signature, amount })
+    await refreshProfile()
+    alert('Repayment successful!')
+  } catch (e: any) {
+    console.error('[MyLoansPage] Repayment failed:', e)
+    alert(`Repayment failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+async function handleCancel(loanId: string) {
+  if (!auth.isAuthenticated) return
+  if (!(await ensureWallet())) return
+  
+  isProcessing.value = true
+  try {
+    const { transaction: txBase64 } = await backendClient.initiateCancellation(auth.token!, loanId)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeCancellation(auth.token!, loanId, { signature })
+    await refreshProfile()
+    alert('Loan cancelled and positions now refundable!')
+  } catch (e: any) {
+    console.error('[MyLoansPage] Cancellation failed:', e)
+    alert(`Cancellation failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+async function handleTriggerDefault(loanId: string) {
+  if (!auth.isAuthenticated) return
+  if (!(await ensureWallet())) return
+  
+  isProcessing.value = true
+  try {
+    const { transaction: txBase64 } = await backendClient.initiateTriggerDefault(auth.token!, loanId)
+    const tx = solanaBridge.deserializeTx(txBase64)
+    const signature = await solanaBridge.signAndBroadcast(solana.connection, tx, auth.connectedWallet)
+    await backendClient.finalizeTriggerDefault(auth.token!, loanId, { signature })
+    await refreshProfile()
+    alert('Loan marked as defaulted!')
+  } catch (e: any) {
+    console.error('[MyLoansPage] Default trigger failed:', e)
+    alert(`Default trigger failed: ${e.message}`)
+  } finally {
+    isProcessing.value = false
+  }
+}
 
 // ── Borrowed loans ─────────────────────────────────────────────────────────
 const borrowedLoans = computed(() =>
@@ -41,26 +141,35 @@ const lentLoans = computed(() => profile.value?.lentLoans ?? [])
 // ── Recap stats ────────────────────────────────────────────────────────────
 const borrowRepaymentRate = computed(() => {
   const settled = borrowedLoans.value.filter(l => l.status === 'repaid' || l.status === 'defaulted')
-  const borrowed = settled.reduce((s, l) => s + l.amount, 0)
-  const repaid   = settled.reduce((s, l) => s + l.repaid, 0)
-  return borrowed > 0 ? Math.round(repaid / borrowed * 100) : 100
+  const borrowed = settled.reduce((s, l) => s + BigInt(l.amount), 0n)
+  const repaid   = settled.reduce((s, l) => s + BigInt(l.repaid), 0n)
+  return borrowed > 0n ? Number((repaid * 100n) / borrowed) : 100
 })
 
-const lendInterest = computed(() =>
-  lentLoans.value
+const lendInterest = computed(() => {
+  const totalInterestLamports = lentLoans.value
     .filter(l => l.status === 'repaid')
-    .reduce((s, l) => s + l.amount * (l.apy / 100) * (l.duration / 365), 0)
-)
-const lendLost = computed(() =>
-  lentLoans.value
+    .reduce((s, l) => {
+      const amount = BigInt(l.amount)
+      return s + (amount * BigInt(l.apy) * BigInt(l.duration)) / (10000n * 365n)
+    }, 0n)
+  return toSol(totalInterestLamports)
+})
+const lendLost = computed(() => {
+  const totalLostLamports = lentLoans.value
     .filter(l => l.status === 'defaulted')
-    .reduce((s, l) => s + l.amount, 0)
-)
-const lendOutstanding = computed(() =>
-  lentLoans.value
+    .reduce((s, l) => s + BigInt(l.amount), 0n)
+  return toSol(totalLostLamports)
+})
+const lendOutstanding = computed(() => {
+  const totalOutstandingLamports = lentLoans.value
     .filter(l => l.status === 'active')
-    .reduce((s, l) => s + l.amount, 0)
-)
+    .reduce((s, l) => {
+      const amount = BigInt(l.amount)
+      return s + (amount * BigInt(l.apy) * BigInt(l.duration)) / (10000n * 365n)
+    }, 0n)
+  return toSol(totalOutstandingLamports)
+})
 
 // ── Contract modal ─────────────────────────────────────────────────────────
 const activeContract = ref<ContractView | null>(null)
@@ -78,7 +187,9 @@ function openLentContract(loan: LentLoan) {
     borrowerAttestationCount: loan.borrowerAttestationCount,
     borrowerRepaymentRate:   loan.borrowerRepaymentRate,
     lender:   MY_ADDRESS,
-    amount:   loan.amount, currency: loan.currency,
+    amount:   loan.amount, // This is the user's position
+    raisedAmount: loan.totalLoanAmount, // We'll repurpose this field to show total context in the modal
+    currency: loan.currency,
     apy:      loan.apy,    duration: loan.duration,
     status:   loan.status, dueDate:  loan.dueDate,
   }
@@ -95,6 +206,13 @@ function openLentContract(loan: LentLoan) {
       <span class="material-symbols-outlined text-2xl">error_outline</span>
       <p class="text-sm">{{ loadError }}</p>
     </div>
+
+    <!-- ── Loading skeleton ──────────────────────────────────────────── -->
+    <template v-if="!profile && !loadError">
+      <div class="flex flex-col gap-2">
+        <div v-for="i in 4" :key="i" class="h-16 glass-panel rounded animate-pulse" />
+      </div>
+    </template>
 
     <template v-else-if="profile">
 
@@ -144,12 +262,15 @@ function openLentContract(loan: LentLoan) {
               :key="loan.id"
               v-bind="loan"
               @view="openBorrowedContract(loan)"
+              @disburse="handleDisburse(loan.id)"
+              @cancel="handleCancel(loan.id)"
             />
             <BorrowedLoanCard
               v-for="loan in borrowedLoans"
               :key="loan.id"
               v-bind="loan"
               @view="openBorrowedContract(loan)"
+              @repay="handleRepay(loan.id, (BigInt(loan.amount) / BigInt(loan.duration)).toString())"
             />
           </div>
 
@@ -169,9 +290,9 @@ function openLentContract(loan: LentLoan) {
               <span class="text-muted font-normal text-sm ml-1.5">{{ lentLoans.length }}</span>
             </h2>
             <div v-if="lentLoans.length" class="flex items-center gap-4 font-mono text-sm text-muted flex-wrap justify-end">
-              <span v-if="lendOutstanding > 0">{{ fmt(lendOutstanding) }} outstanding</span>
-              <span v-if="lendInterest > 0" class="text-emerald">+{{ fmt(lendInterest) }} earned</span>
-              <span v-if="lendLost > 0" class="text-danger">−{{ fmt(lendLost) }} lost</span>
+              <span v-if="lendOutstanding !== '0'">{{ lendOutstanding }} SOL outstanding</span>
+              <span v-if="lendInterest !== '0'" class="text-emerald">+{{ lendInterest }} SOL earned</span>
+              <span v-if="lendLost !== '0'" class="text-danger">−{{ lendLost }} SOL lost</span>
             </div>
           </div>
 
@@ -206,13 +327,6 @@ function openLentContract(loan: LentLoan) {
       </template>
     </template>
 
-    <!-- ── Loading skeleton ──────────────────────────────────────────── -->
-    <template v-else-if="!loadError">
-      <div class="flex flex-col gap-2">
-        <div v-for="i in 4" :key="i" class="h-16 glass-panel rounded animate-pulse" />
-      </div>
-    </template>
-
   </div>
 
   <!-- Contract modal -->
@@ -221,5 +335,6 @@ function openLentContract(loan: LentLoan) {
     :contract="activeContract"
     @close="activeContract = null"
     @fund="activeContract = null"
+    @default="handleTriggerDefault"
   />
 </template>

@@ -1,51 +1,36 @@
 # ADR 004 — Backend stack
 
-**Status:** Accepted
-**Date:** 2026-04-06
+**Status:** Superseded by Cloudflare Workers Migration
+**Date:** 2026-04-06 (Updated 2026-04-29)
 
 ## Context
 
-`apps/lending-api` is a Node.js HTTP API. It needs a framework, a dev runtime, a production build strategy, a test approach, and a container story.
+The original backend was designed as a Node.js Fastify API. This has been replaced by a **Cloudflare Workers** architecture to leverage global low latency and atomic D1 database integration.
 
 ## Decisions
 
-### Fastify 5 (not Express)
+### 1. Cloudflare Workers (Hono)
+Instead of Fastify, we use **Hono**. 
+- **Reason:** Hono is specifically optimized for Edge runtimes (Workers, Bun, Deno) while maintaining a Fastify-like middleware and routing experience.
+- **Typed by default:** Full TypeScript support for context and environment.
 
-Fastify over Express for three reasons:
-1. **Typed by default** — route handlers and schemas are typed end-to-end without third-party adapters
-2. **Faster** — lower overhead per request (relevant for a DeFi API where latency matters)
-3. **`inject()` for tests** — Fastify's built-in `inject()` method allows full HTTP-level testing without binding a port or starting a server. This is cleaner than Express's `supertest` pattern.
+### 2. No-Custody Blockchain Bridging
+The backend serves as a **Transaction Builder**, not a signer.
+- **Reason:** To maintain non-custodial principles, the backend constructs and serializes transactions (using `@solana/web3.js` and `@coral-xyz/anchor`) and returns them as Base64 strings to the frontend.
+- **Security:** Private keys never touch the backend. The user's wallet is the only entity that signs.
 
-### App factory pattern
+### 3. Native Web APIs vs Node.js Polyfills
+We prioritize Native Web APIs (Web Crypto, TextEncoder, Uint8Array) over Node.js built-ins (`Buffer`, `crypto`).
+- **Buffer Strategy:** 
+    - **External SDKs:** We use `nodejs_compat` in `wrangler.jsonc` to provide polyfills for third-party libraries (like Anchor) that internally rely on `Buffer`.
+    - **Internal Logic:** Our direct calls (PDA derivation, seed encoding) use `new TextEncoder().encode()` and `publicKey.toBytes()` to remain compatible with pure Web environments and minimize polyfill overhead.
 
-`src/app.ts` exports `buildApp()` — a pure factory that constructs and returns a `FastifyInstance`. It never calls `.listen()`.
-
-`src/index.ts` is the entry point only: it calls `buildApp()` then `.listen()`. Nothing else lives there.
-
-**Why:** Separating construction from binding allows tests to call `buildApp()` and use `app.inject()` without touching the network. `index.ts` becomes a thin shell that is never imported by tests. This is the pattern recommended by Fastify's own documentation.
-
-### tsx for development
-
-`tsx` (esbuild-based TypeScript runner) powers `npm run dev`. It starts in milliseconds with no separate compile step. Used only for local development — it is not a production dependency.
-
-### tsc for production build
-
-`npm run build` runs `tsc`, emitting clean JavaScript to `dist/`. The production container runs `node dist/index.js`. No runtime TypeScript dependency, no esbuild in prod. TypeScript is a dev-time concern.
-
-### Vitest in a standalone `vitest.config.ts`
-
-`apps/lending-api` has no Vite pipeline, so the Vitest config is a standalone `vitest.config.ts` using `vitest/config` (not `vite`). Environment is `node` — no DOM simulation needed.
-
-Test files under `src/` will be compiled into `dist/` by tsc. This is harmless — the emitted JS is never executed. Excluding test files from the tsc output is deferred (YAGNI until it causes a problem).
-
-### Self-contained Dockerfile
-
-The `Dockerfile` builds and runs the API from `apps/lending-api/` as the Docker context. It does not require the repo root because `shared-types` is not yet a dependency.
-
-**Caveat:** If `shared-types` is added as a dependency of `lending-api`, the Docker build strategy must be revisited — the context will need to include the workspace root or the package will need to be pre-built and copied in.
+### 4. D1 Database (Drizzle ORM)
+Instead of a traditional SQL server, we use Cloudflare D1.
+- **ORM:** Drizzle ORM provides a type-safe interface for D1 with zero-overhead migrations.
 
 ## Consequences
 
-- `src/index.ts` must never contain application logic — only the `buildApp()` call and `.listen()`.
-- All local imports in `src/` must use `.js` extensions (NodeNext module resolution requires this; TypeScript resolves them to `.ts` at compile time, Node runs the emitted `.js`).
-- If shared-types becomes a dependency, update this ADR and revise the Dockerfile strategy.
+- The `Dockerfile` and `Fastify` references are deprecated.
+- All backend services must respect Worker memory (128MB) and CPU limits.
+- The `BlockchainService` must be "Dummy Wallet" aware to satisfy Anchor without requiring a filesystem (`fs`) for keypairs.

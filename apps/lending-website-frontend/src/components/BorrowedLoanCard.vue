@@ -1,39 +1,53 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ProfileLoan } from '../types'
+import { toSol, toLamports } from '../utils/precision'
+import { truncate } from '../utils/format'
 
-const props = defineProps<ProfileLoan>()
-const emit  = defineEmits<{ view: [] }>()
+const props = defineProps<ProfileLoan & { createdAt?: number | string | Date }>()
+const emit  = defineEmits<{ view: []; disburse: []; repay: []; cancel: [] }>()
+
+const isFunded = computed(() => toLamports(props.raisedAmount) >= toLamports(props.amount) && props.status === 'open')
+const canRepay = computed(() => props.status === 'active' && toLamports(props.repaid) < toLamports(props.amount))
+
+const canCancel = computed(() => {
+  if (props.status !== 'open') return false;
+  const created = props.createdAt ? new Date(props.createdAt).getTime() : 0;
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  return Date.now() > created + sevenDays;
+})
 
 // Status badge
+const isRepaid = computed(() => toLamports(props.repaid) >= toLamports(props.amount))
+
 const statusStyle = computed(() => {
-  if (props.status === 'open')                return 'border-primary/40 bg-primary/10 text-primary'
-  if (props.status === 'active')              return 'border-white/20   bg-white/5   text-muted'
-  if (props.repaid >= props.amount)           return 'border-emerald/40 bg-emerald/10 text-emerald'
-  return                                             'border-danger/40  bg-danger/10  text-danger'
+  if (props.status === 'open')   return 'border-primary/40 bg-primary/10 text-primary'
+  if (isRepaid.value)            return 'border-emerald/40 bg-emerald/10 text-emerald'
+  if (props.status === 'active') return 'border-white/20   bg-white/5   text-muted'
+  return                                'border-danger/40  bg-danger/10  text-danger'
 })
+
 const statusLabel = computed(() => {
-  if (props.status === 'open')                return 'Open offer'
-  if (props.status === 'active')              return 'Active'
-  if (props.repaid >= props.amount)           return 'Repaid'
-  return                                             'Defaulted'
+  if (props.status === 'open')   return 'Open offer'
+  if (isRepaid.value)            return 'Repaid'
+  if (props.status === 'active') return 'Active'
+  return                                'Defaulted'
 })
 
 // Total due (principal + simple interest)
-const interest = computed(() =>
-  +(props.amount * (props.apy / 100) * (props.duration / 365)).toFixed(2)
-)
-const totalDue = computed(() => +(props.amount + interest.value).toFixed(2))
+const totalDueLamports = computed(() => {
+  const principal = toLamports(props.amount)
+  const interest = (principal * BigInt(props.apy) * BigInt(props.duration)) / (10000n * 365n)
+  return principal + interest
+})
 
-// Net column label — borrower's cost perspective
 const netLabel = computed(() => {
-  if (props.status === 'open')              return null
-  if (props.repaid >= props.amount)         return `${totalDue.value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${props.currency}`
-  if (props.status === 'active')            return `${totalDue.value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${props.currency}`
-  return                                           `${totalDue.value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${props.currency}`
+  if (props.status === 'open') return null
+  const sol = Number(toSol(totalDueLamports.value))
+  return `${sol.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${props.currency}`
 })
 const netColor = computed(() => {
-  if (props.repaid >= props.amount)         return 'text-emerald'
+  if (toLamports(props.repaid) >= toLamports(props.amount))         return 'text-emerald'
   if (props.status === 'active')            return 'text-muted'
   if (props.status === 'open')              return 'text-muted'
   return                                           'text-danger'
@@ -43,13 +57,9 @@ const netColor = computed(() => {
 const daysRemaining = computed(() => {
   if (!props.dueDate) return null
   const due   = new Date(props.dueDate).getTime()
-  const today = new Date('2026-04-12').getTime()
+  const today = new Date().getTime()
   return Math.ceil((due - today) / 86_400_000)
 })
-
-function truncate(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
-}
 </script>
 
 <template>
@@ -84,14 +94,14 @@ function truncate(addr: string) {
     <!-- Amount -->
     <div class="flex-1 min-w-0">
       <p class="font-mono font-bold text-white">
-        {{ amount.toLocaleString() }}
+        {{ toSol(amount) }}
         <span class="text-white/50 text-sm font-normal">{{ currency }}</span>
       </p>
     </div>
 
     <!-- APY -->
     <div class="w-20 flex-shrink-0">
-      <p class="font-mono font-bold text-white">{{ apy }}%</p>
+      <p class="font-mono font-bold text-white">{{ (Number(apy) / 100).toFixed(2) }}%</p>
     </div>
 
     <!-- Duration -->
@@ -111,9 +121,35 @@ function truncate(addr: string) {
     </div>
 
     <!-- Total due (borrower's cost) -->
-    <div class="w-28 flex-shrink-0 text-right">
-      <span v-if="netLabel" class="font-mono text-sm font-bold" :class="netColor">{{ netLabel }}</span>
-      <span v-else class="font-mono text-sm text-muted">—</span>
+    <div class="w-28 flex-shrink-0 text-right flex flex-col items-end gap-2">
+      <template v-if="isFunded">
+        <button 
+          class="px-3 py-1.5 rounded bg-emerald text-white text-[10px] font-bold shadow-glow-emerald hover:shadow-glow-emerald-strong transition-shadow"
+          @click.stop="emit('disburse')"
+        >
+          Disburse
+        </button>
+      </template>
+      <template v-else-if="canCancel">
+        <button 
+          class="px-3 py-1.5 rounded bg-danger text-white text-[10px] font-bold shadow-glow-danger hover:shadow-glow-danger transition-shadow"
+          @click.stop="emit('cancel')"
+        >
+          Cancel
+        </button>
+      </template>
+      <template v-else-if="canRepay">
+        <button 
+          class="px-3 py-1.5 rounded bg-primary text-white text-[10px] font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-shadow"
+          @click.stop="emit('repay')"
+        >
+          Pay Installment
+        </button>
+      </template>
+      <template v-else>
+        <span v-if="netLabel" class="font-mono text-sm font-bold" :class="netColor">{{ netLabel }}</span>
+        <span v-else class="font-mono text-sm text-muted">—</span>
+      </template>
     </div>
   </div>
 </template>

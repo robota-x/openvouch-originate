@@ -1,4 +1,4 @@
-import { ref, computed, reactive } from "vue";
+import { ref, computed, reactive, markRaw } from "vue";
 import { getWallets } from "@wallet-standard/app";
 import { backendClient } from "../api/client";
 
@@ -8,6 +8,7 @@ import { backendClient } from "../api/client";
 
 const STORAGE_KEY_ADDRESS = 'openvouch_auth_address'
 const STORAGE_KEY_TOKEN   = 'openvouch_auth_token'
+const STORAGE_KEY_WALLET  = 'openvouch_auth_wallet'
 
 interface WalletAccount {
   address: string;
@@ -34,19 +35,18 @@ export interface DetectedWallet {
 // Global Auth State
 // ─────────────────────────────────────────────────────────────
 
-// Shared reactive state across components
 const address = ref<string | null>(localStorage.getItem(STORAGE_KEY_ADDRESS));
 const token   = ref<string | null>(localStorage.getItem(STORAGE_KEY_TOKEN));
+const connectedWallet = ref<any>(null);
+const attestationCount = ref(0);
 
 const isAuthenticated = computed(() => !!address.value && !!token.value);
+const isWalletMissing = computed(() => isAuthenticated.value && !connectedWallet.value);
 
 // ─────────────────────────────────────────────────────────────
 // Actions
 // ─────────────────────────────────────────────────────────────
 
-/**
- * Discovers and returns Solana-compatible wallets available in the browser.
- */
 function getSolanaWallets(): DetectedWallet[] {
   const { get } = getWallets();
   return get()
@@ -59,13 +59,6 @@ function getSolanaWallets(): DetectedWallet[] {
     }));
 }
 
-/**
- * Standardizes the login flow: 
- * 1. Wallet Connection
- * 2. Backend Challenge (Nonce)
- * 3. Message Signing
- * 4. Signature Verification & JWT issuance
- */
 async function connect(wallet: DetectedWallet): Promise<void> {
   const connectFeature = wallet.raw.features["standard:connect"] as WalletFeatureConnect;
   const { accounts } = await connectFeature.connect();
@@ -88,31 +81,70 @@ async function connect(wallet: DetectedWallet): Promise<void> {
   // Atomic state commit
   address.value = walletAddress;
   token.value   = jwt;
+  // NOTE: markRaw is essential for Metamask (Solana Snaps) compatibility.
+  // Vue proxies can interfere with private fields/methods in the wallet provider object.
+  connectedWallet.value = markRaw(wallet.raw);
+  
   localStorage.setItem(STORAGE_KEY_ADDRESS, walletAddress);
   localStorage.setItem(STORAGE_KEY_TOKEN, jwt);
+  localStorage.setItem(STORAGE_KEY_WALLET, wallet.name);
 }
 
 /**
- * Validates any persisted session against the backend.
- * Clears state silently on failure.
+ * Called on every page load. Verifies the stored JWT, then silently reconnects
+ * the wallet without prompting the user. If the wallet is locked, connectedWallet
+ * stays null and isWalletMissing shows the Re-authorize button.
  */
 async function restoreSession(): Promise<void> {
-  const savedToken = localStorage.getItem(STORAGE_KEY_TOKEN);
-  if (!savedToken) return;
+  const savedToken      = localStorage.getItem(STORAGE_KEY_TOKEN);
+  const savedAddress    = localStorage.getItem(STORAGE_KEY_ADDRESS);
+  const savedWalletName = localStorage.getItem(STORAGE_KEY_WALLET);
+
+  if (!savedToken || !savedAddress) return;
 
   try {
     const me = await backendClient.me(savedToken);
     address.value = me.address;
-    token.value = savedToken;
-  } catch (err) {
-    console.warn('[useAuth] Session restoration failed (likely expired token)');
+    token.value   = savedToken;
+  } catch {
+    // JWT expired or backend unreachable — clear persisted session.
     await disconnect();
+    return;
+  }
+
+  if (!savedWalletName) return;
+
+  const match = getSolanaWallets().find(w => w.name === savedWalletName);
+  if (!match) return;
+
+  try {
+    // silent:true reconnects without a popup when the wallet is already unlocked
+    // and the site is trusted. Falls through to the Re-authorize button otherwise.
+    const connectFeature = match.raw.features['standard:connect'] as WalletFeatureConnect;
+    const { accounts } = await connectFeature.connect({ silent: true });
+    if (accounts.some((a: WalletAccount) => a.address === savedAddress)) {
+      connectedWallet.value = markRaw(match.raw);
+    }
+  } catch {
+    // Wallet locked — isWalletMissing will display the Re-authorize button.
   }
 }
 
 /**
- * Clears local state and optionally notifies the backend.
+ * Explicitly triggers reconnection for the stored wallet provider.
  */
+async function reconnect(): Promise<void> {
+  const savedWalletName = localStorage.getItem(STORAGE_KEY_WALLET);
+  if (!savedWalletName) throw new Error("No wallet provider stored");
+
+  const wallets = getSolanaWallets();
+  const match = wallets.find(w => w.name === savedWalletName);
+  if (!match) throw new Error(`Wallet ${savedWalletName} not found`);
+
+  // We re-run connect but it should be fast since they are already authorized in the backend
+  await connect(match);
+}
+
 async function disconnect(): Promise<void> {
   if (token.value) {
     await backendClient.logout(token.value).catch(() => {});
@@ -120,21 +152,23 @@ async function disconnect(): Promise<void> {
   
   address.value = null;
   token.value   = null;
+  connectedWallet.value = null;
   localStorage.removeItem(STORAGE_KEY_ADDRESS);
   localStorage.removeItem(STORAGE_KEY_TOKEN);
+  localStorage.removeItem(STORAGE_KEY_WALLET);
 }
-
-// ─────────────────────────────────────────────────────────────
-// Composable
-// ─────────────────────────────────────────────────────────────
 
 export function useAuth() {
   return reactive({ 
     address, 
     token, 
-    isAuthenticated, 
+    connectedWallet,
+    attestationCount,
+    isAuthenticated,
+    isWalletMissing,
     getSolanaWallets, 
     connect, 
+    reconnect,
     disconnect, 
     restoreSession 
   })

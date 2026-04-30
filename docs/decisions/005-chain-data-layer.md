@@ -27,9 +27,16 @@ The matchmaking layer (open loan requests, lender marketplace) is **entirely off
 
 ## Decision
 
-### The backend owns all chain reads
+### The backend owns all chain reads and transaction building
 
-The frontend never calls Solana RPC directly. All chain data is fetched, cached, and served by the backend via the existing REST API surface:
+The frontend never calls Solana RPC directly for reads or for final transaction serialization. 
+- **Reads:** The backend fetches, caches, and serves chain data via REST.
+- **Writes:** The backend constructs and serializes transactions into Base64 strings. These are sent to the frontend for signing. Once signed, the frontend broadcasts the transaction to the network.
+
+### Hybrid Polyfill Strategy
+To maintain performance and compatibility on Cloudflare Workers:
+- **`nodejs_compat`**: Enabled for third-party SDKs (Anchor, Web3.js) that require `Buffer` or `crypto` polyfills.
+- **Native-First Logic**: All internal code uses `TextEncoder` and `Uint8Array` for PDA derivation and seed encoding to minimize reliance on the Node.js emulation layer.
 
 ```
 GET /api/profile/:address          → Profile (attestations + loan history)

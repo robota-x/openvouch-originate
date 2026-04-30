@@ -2,38 +2,44 @@ import { Hono } from 'hono'
 import { eq, sql } from 'drizzle-orm'
 import { loanListings, profiles as profilesTable, attestations as attestationsTable } from '../db/schema.js'
 import { authenticate } from '../middleware/session.js'
-import { fixtureOpenLoans, fixtureContractView } from '../fixtures.js'
 import { createAppDb, type Db } from '../db/client.js'
-import type { AppEnv } from '../types.js'
+import type { AppEnv, Loan, ContractView } from '../types.js'
+import { 
+  initiateLoanCreation, 
+  verifyAndFinalizeLoan, 
+  initiateLoanContribution, 
+  verifyAndFinalizeContribution,
+  initiateLoanDisbursement,
+  verifyAndFinalizeDisbursement,
+  initiateLoanRepayment,
+  verifyAndFinalizeRepayment,
+  initiateLoanCancellation,
+  finalizeLoanCancellation,
+  initiateTriggerDefault,
+  finalizeTriggerDefault
+} from '../services/lending.js'
 
 const loanRoutes = new Hono<AppEnv>()
 
 // ── Shared enriched query ─────────────────────────────────────────────────────
-//
-// Single query: loan row + borrower profile + computed borrower stats.
-// Uses correlated subqueries so all aggregation happens in one DB round-trip
-// instead of 3×N separate queries (profile, settled loans, attestations per listing).
-//
-// ${loanListings.borrower} in sql`` emits the outer table column reference
-// (loan_listings.borrower), which is the correct correlated reference for SQLite.
 
 function enrichedQuery(db: Db) {
   return db
     .select({
-      // Loan fields
       id:           loanListings.id,
       borrower:     loanListings.borrower,
       lender:       loanListings.lender,
       amount:       loanListings.amount,
+      raisedAmount: loanListings.raisedAmount,
+      repaid:       loanListings.repaid,
       currency:     loanListings.currency,
       apy:          loanListings.apy,
       duration:     loanListings.duration,
       status:       loanListings.status,
       dueDate:      loanListings.dueDate,
-      // Borrower profile (joined)
+      onChainRef:   loanListings.onChainRef,
       nickname:     profilesTable.nickname,
       trustScore:   profilesTable.trustScore,
-      // Borrower stats (correlated subqueries — aggregated DB-side)
       attestationCount: sql<number>`(
         SELECT COUNT(*) FROM ${attestationsTable}
         WHERE ${attestationsTable.address} = ${loanListings.borrower}
@@ -44,12 +50,12 @@ function enrichedQuery(db: Db) {
         WHERE sub.borrower = ${loanListings.borrower}
         AND   sub.status  != 'open'
       )`,
-      totalBorrowed: sql<number>`(
+      totalBorrowed: sql<bigint>`(
         SELECT COALESCE(SUM(sub.amount), 0) FROM ${loanListings} sub
         WHERE sub.borrower = ${loanListings.borrower}
         AND   sub.status  != 'open'
       )`,
-      totalRepaid: sql<number>`(
+      totalRepaid: sql<bigint>`(
         SELECT COALESCE(SUM(sub.repaid), 0) FROM ${loanListings} sub
         WHERE sub.borrower = ${loanListings.borrower}
         AND   sub.status  != 'open'
@@ -62,18 +68,20 @@ function enrichedQuery(db: Db) {
 type EnrichedRow = Awaited<ReturnType<typeof enrichedQuery>>[number]
 
 function repaymentRate(r: EnrichedRow): number {
-  return r.settledCount > 0 ? Math.round(r.totalRepaid / r.totalBorrowed * 100) : 100
+  const borrowed = BigInt(r.totalBorrowed)
+  const repaid = BigInt(r.totalRepaid)
+  return r.settledCount > 0 ? Math.round(Number(repaid) / Number(borrowed) * 10000) : 10000
 }
 
-/** Shape returned by GET /api/loans — used by LoanCard (list + grid) and ContractModal. */
-function toListItem(r: EnrichedRow) {
+function toListItem(r: EnrichedRow): Loan {
   return {
     id:               r.id,
     borrower:         r.borrower,
     nickname:         r.nickname ?? r.borrower.slice(0, 8),
-    amount:           r.amount,
+    amount:           r.amount.toString(),
+    raisedAmount:     r.raisedAmount.toString(),
     currency:         r.currency,
-    apy:              r.apy,
+    apy:              (r.apy * 10000).toString(), // Convert back to BPS for frontend
     duration:         r.duration,
     trustScore:       r.trustScore ?? 0,
     repaymentRate:    repaymentRate(r),
@@ -81,8 +89,7 @@ function toListItem(r: EnrichedRow) {
   }
 }
 
-/** Shape returned by GET /api/loans/:id — used by ContractModal detail view. */
-function toContractView(r: EnrichedRow) {
+function toContractView(r: EnrichedRow): ContractView {
   return {
     id:                       r.id,
     borrower:                 r.borrower,
@@ -91,20 +98,108 @@ function toContractView(r: EnrichedRow) {
     borrowerRepaymentRate:    repaymentRate(r),
     borrowerAttestationCount: r.attestationCount,
     lender:                   r.lender ?? undefined,
-    amount:                   r.amount,
+    amount:                   r.amount.toString(),
+    raisedAmount:             r.raisedAmount.toString(),
+    repaid:                   r.repaid.toString(),
     currency:                 r.currency,
-    apy:                      r.apy,
+    apy:                      (r.apy * 10000).toString(), // Convert back to BPS for frontend
     duration:                 r.duration,
     status:                   r.status,
     dueDate:                  r.dueDate ?? undefined,
+    onChainRef:               r.onChainRef ?? undefined,
   }
 }
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
-/** GET /api/loans — open loan requests enriched with borrower stats (list + card view). */
+// Sentinel returned by every initiate route when fixtures are enabled.
+// The frontend bridge detects 'fixture' (non-base64), skips sign+broadcast,
+// and passes a dummy signature to the finalize route (which also no-ops in fixture mode).
+const FIXTURE_TX = 'fixture'
+
+/** POST /api/loans/initiate — returns Base64 TX to create pool. */
+loanRoutes.post('/initiate', authenticate, async (c) => {
+  const body = await c.req.json<{ amount: string; currency: string; duration: number }>()
+  const config = c.get('config')
+  
+  if (config.fixturesEnabled) {
+    return c.json({ transaction: FIXTURE_TX })
+  }
+
+  try {
+    const result = await initiateLoanCreation(
+      config,
+      c.var.user.address,
+      BigInt(body.amount),
+      body.currency,
+      body.duration
+    )
+    return c.json(result)
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Failed to initiate loan for ${c.var.user.address}:`, e)
+    
+    if (e.message.includes('403') || e.message.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Internal server error during loan initiation' }, 500)
+  }
+})
+
+/** POST /api/loans/finalize — verify signature and record in D1. */
+loanRoutes.post('/finalize', authenticate, async (c) => {
+  const { signature, amount, currency, duration, apy } = await c.req.json<{ 
+    signature: string, 
+    amount: string, 
+    currency: string, 
+    duration: number,
+    apy: string 
+  }>()
+  
+  const config = c.get('config')
+  if (config.fixturesEnabled) {
+    return c.json({ id: crypto.randomUUID(), success: true }, 201)
+  }
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'D1 database not found' }, 501)
+  const db = createAppDb(d1)
+
+  try {
+    await verifyAndFinalizeLoan(config, signature)
+
+    const id = crypto.randomUUID()
+    const now = new Date()
+    await db.insert(loanListings).values({
+      id, 
+      borrower: c.var.user.address,
+      amount: BigInt(amount),
+      currency, 
+      apy: parseInt(apy) / 10000, 
+      duration,
+      status: 'open', 
+      raisedAmount: 0n,
+      repaid: 0n,
+      onChainRef: signature,
+      createdAt: now, 
+      updatedAt: now,
+    })
+
+    return c.json({ id, success: true }, 201)
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Finalization failed for sig ${signature}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Verification or database storage failed' }, 400)
+  }
+})
+
+/** GET /api/loans — all open loan requests. */
 loanRoutes.get('/', async (c) => {
-  if (c.get('config').fixturesEnabled) return c.json(fixtureOpenLoans)
+  if (c.get('config').fixturesEnabled) {
+    const { fixtureOpenLoans } = await import('../fixtures.js')
+    return c.json(fixtureOpenLoans)
+  }
 
   const d1 = c.env?.DB
   if (!d1) return c.json({ error: 'not_implemented' }, 501)
@@ -113,14 +208,14 @@ loanRoutes.get('/', async (c) => {
   return c.json(rows.map(toListItem))
 })
 
-/** GET /api/loans/:id — single loan with full ContractView detail. */
+/** GET /api/loans/:id — detail view. */
 loanRoutes.get('/:id', async (c) => {
   const id = c.req.param('id')
 
   if (c.get('config').fixturesEnabled) {
-    const contract = fixtureContractView(id)
-    if (!contract) return c.json({ error: 'not_found' }, 404)
-    return c.json(contract)
+    const { fixtureContractView } = await import('../fixtures.js')
+    const loan = fixtureContractView(id)
+    return loan ? c.json(loan) : c.json({ error: 'not_found' }, 404)
   }
 
   const d1 = c.env?.DB
@@ -131,144 +226,284 @@ loanRoutes.get('/:id', async (c) => {
   return c.json(toContractView(row))
 })
 
-/** POST /api/loans — borrower posts a new open loan offer. */
-loanRoutes.post('/', authenticate, async (c) => {
+/** POST /api/loans/:id/contribute/initiate — returns Base64 TX to contribute to pool. */
+loanRoutes.post('/:id/contribute/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { amount } = await c.req.json<{ amount: string }>()
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ transaction: FIXTURE_TX })
+  }
+
   const d1 = c.env?.DB
   if (!d1) return c.json({ error: 'not_implemented' }, 501)
   const db = createAppDb(d1)
-  const raw = await c.req.json<Record<string, unknown>>()
 
-  // id, borrower, status, and all timestamps are set server-side — never from the request.
-  const forbidden = [
-    'id', 'borrower', 'status', 'lender', 'repaid',
-    'dueDate', 'due_date', 'onChainRef', 'on_chain_ref',
-    'createdAt', 'created_at', 'updatedAt', 'updated_at',
-  ]
-  const attempted = forbidden.filter(k => k in raw)
-  if (attempted.length > 0) {
-    return c.json({ error: `fields not settable via API: ${attempted.join(', ')}` }, 400)
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
+
+  try {
+    const result = await initiateLoanContribution(
+      config,
+      c.var.user.address,
+      loan.onChainRef,
+      BigInt(amount)
+    )
+    return c.json(result)
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Contribution initiation failed for loan ${id} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate contribution' }, 500)
   }
-
-  const body = raw as { amount?: number; currency?: string; apy?: number; duration?: number }
-  const { amount, currency, apy, duration } = body
-  if (!amount || !currency || !apy || !duration) {
-    return c.json({ error: 'amount, currency, apy and duration are required' }, 400)
-  }
-  if (amount <= 0 || apy <= 0 || duration <= 0) {
-    return c.json({ error: 'amount, apy and duration must be positive' }, 400)
-  }
-
-  const id  = crypto.randomUUID()
-  const now = new Date()
-  await db.insert(loanListings).values({
-    id, borrower: c.var.user.address,
-    amount, currency, apy, duration,
-    status: 'open', repaid: 0,
-    createdAt: now, updatedAt: now,
-  })
-
-  const [row] = await enrichedQuery(db).where(eq(loanListings.id, id))
-  return c.json(toContractView(row), 201)
 })
 
-/**
- * PATCH /api/loans/:id — update terms of an open offer (borrower only, pre-fund).
- *
- * Only amount, currency, apy, and duration are user-editable.
- *
- * Fields that are NEVER accepted from external input:
- *   - createdAt / created_at — set once at creation, never changes
- *   - updatedAt / updated_at — always set to server time on every write
- *   - status                 — managed by business logic (cancel, fund)
- *   - borrower               — set at creation from the authenticated address
- *   - lender                 — set when funded via POST /:id/fund
- *   - repaid                 — updated from chain sync only
- *   - dueDate  / due_date    — computed when funded
- *   - onChainRef / on_chain_ref — written by chain sync only
- */
-loanRoutes.patch('/:id', authenticate, async (c) => {
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const id  = c.req.param('id')
+/** POST /api/loans/:id/contribute/finalize — verify signature and update D1. */
+loanRoutes.post('/:id/contribute/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature, amount } = await c.req.json<{ signature: string, amount: string }>()
+  const config = c.get('config')
 
-  const [row] = await db.select().from(loanListings).where(eq(loanListings.id, id))
-  if (!row) return c.json({ error: 'not_found' }, 404)
-  if (row.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
-  if (row.status !== 'open') return c.json({ error: 'listing_not_open' }, 409)
-
-  const raw = await c.req.json<Record<string, unknown>>()
-
-  const forbidden = [
-    'createdAt', 'created_at', 'updatedAt', 'updated_at',
-    'status', 'borrower', 'lender', 'repaid',
-    'dueDate', 'due_date', 'onChainRef', 'on_chain_ref',
-  ]
-  const attempted = forbidden.filter(k => k in raw)
-  if (attempted.length > 0) {
-    return c.json({ error: `fields not settable via API: ${attempted.join(', ')}` }, 400)
+  if (config.fixturesEnabled) {
+    return c.json({ success: true })
   }
 
-  const body = raw as { amount?: number; currency?: string; apy?: number; duration?: number }
-  const updates: Partial<typeof loanListings.$inferInsert> = { updatedAt: new Date() }
-  if (body.amount   !== undefined) updates.amount   = body.amount
-  if (body.currency !== undefined) updates.currency = body.currency
-  if (body.apy      !== undefined) updates.apy      = body.apy
-  if (body.duration !== undefined) updates.duration = body.duration
-
-  await db.update(loanListings).set(updates).where(eq(loanListings.id, id))
-  const [updated] = await enrichedQuery(db).where(eq(loanListings.id, id))
-  return c.json(toContractView(updated))
-})
-
-/** DELETE /api/loans/:id — cancel an open offer (borrower only). */
-loanRoutes.delete('/:id', authenticate, async (c) => {
   const d1 = c.env?.DB
   if (!d1) return c.json({ error: 'not_implemented' }, 501)
   const db = createAppDb(d1)
-  const id  = c.req.param('id')
 
-  const [row] = await db.select().from(loanListings).where(eq(loanListings.id, id))
-  if (!row) return c.json({ error: 'not_found' }, 404)
-  if (row.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
-  if (row.status !== 'open') return c.json({ error: 'listing_not_open' }, 409)
-
-  await db.delete(loanListings).where(eq(loanListings.id, id))
-  return c.body(null, 204)
+  try {
+    await verifyAndFinalizeContribution(config, signature, id, BigInt(amount), c.var.user.address, db)
+    return c.json({ success: true })
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Contribution finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or contribution storage failed' }, 400)
+  }
 })
 
-/**
- * POST /api/loans/:id/fund — called by the frontend after the lender signs the
- * on-chain lending contract.
- *
- * Current behaviour: returns 204 and does nothing (the on-chain record is the
- * source of truth). The caller is the *lender*, not the borrower.
- *
- * Intended future behaviour (without Helios/webhook push):
- *   1. Frontend submits the signed Solana tx, waits for confirmation, then calls
- *      this endpoint to tell the backend a contract was created for this listing.
- *   2. Backend reads the contract account from the Solana RPC directly, verifies
- *      the terms match the listing (amount, apy, duration, borrower, lender), and
- *      only then flips status → active, writes lender + dueDate + onChainRef.
- *   3. If the RPC read fails or terms mismatch, 400 is returned; frontend retries.
- *
- * With Helios / a Solana webhook provider the backend receives a push event
- * instead and this endpoint becomes a no-op or is removed.
- */
-loanRoutes.post('/:id/fund', authenticate, async (c) => {
+/** POST /api/loans/:id/disburse/initiate — returns Base64 TX to disburse funds. */
+loanRoutes.post('/:id/disburse/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ transaction: FIXTURE_TX })
+  }
+
   const d1 = c.env?.DB
   if (!d1) return c.json({ error: 'not_implemented' }, 501)
   const db = createAppDb(d1)
-  const id  = c.req.param('id')
 
-  const [row] = await db.select().from(loanListings).where(eq(loanListings.id, id))
-  if (!row) return c.json({ error: 'not_found' }, 404)
-  if (row.status !== 'open') return c.json({ error: 'listing_not_open' }, 409)
-  if (row.borrower === c.var.user.address) return c.json({ error: 'borrower_cannot_fund' }, 403)
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
 
-  // TODO: read from Solana RPC to verify the contract exists and terms match
-  // before updating the listing. For now, return 204 to unblock frontend work.
-  return c.body(null, 204)
+  try {
+    const result = await initiateLoanDisbursement(
+      config,
+      c.var.user.address,
+      loan.onChainRef
+    )
+    return c.json(result)
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Disbursement initiation failed for loan ${id} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate disbursement' }, 500)
+  }
+})
+
+/** POST /api/loans/:id/disburse/finalize — verify signature and update D1. */
+loanRoutes.post('/:id/disburse/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature } = await c.req.json<{ signature: string }>()
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ success: true })
+  }
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  try {
+    await verifyAndFinalizeDisbursement(config, signature, id, db)
+    return c.json({ success: true })
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Disbursement finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or disbursement storage failed' }, 400)
+  }
+})
+
+/** POST /api/loans/:id/repay/initiate — returns Base64 TX to repay funds. */
+loanRoutes.post('/:id/repay/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { installmentNumber, amount } = await c.req.json<{ installmentNumber: number, amount: string }>()
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ transaction: FIXTURE_TX })
+  }
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
+
+  try {
+    const result = await initiateLoanRepayment(
+      config,
+      c.var.user.address,
+      loan.onChainRef,
+      installmentNumber,
+      BigInt(amount)
+    )
+    return c.json(result)
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Repayment initiation failed for loan ${id}, installment ${installmentNumber} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate repayment' }, 500)
+  }
+})
+
+/** POST /api/loans/:id/repay/finalize — verify signature and update D1. */
+loanRoutes.post('/:id/repay/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature, amount } = await c.req.json<{ signature: string, amount: string }>()
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ success: true })
+  }
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  try {
+    await verifyAndFinalizeRepayment(config, signature, id, BigInt(amount), db)
+    return c.json({ success: true })
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Repayment finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or repayment storage failed' }, 400)
+  }
+})
+
+/** POST /api/loans/:id/cancel/initiate — returns Base64 TX to cancel. */
+loanRoutes.post('/:id/cancel/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ transaction: FIXTURE_TX })
+  }
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
+
+  try {
+    const result = await initiateLoanCancellation(config, c.var.user.address, loan.onChainRef)
+    return c.json(result)
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Cancellation initiation failed for loan ${id} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate cancellation' }, 500)
+  }
+})
+
+/** POST /api/loans/:id/cancel/finalize — updates status in D1. */
+loanRoutes.post('/:id/cancel/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature } = await c.req.json<{ signature: string }>()
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ success: true })
+  }
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  try {
+    await finalizeLoanCancellation(config, signature, id, db)
+    return c.json({ success: true })
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Cancellation finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or cancellation storage failed' }, 400)
+  }
+})
+
+/** POST /api/loans/:id/default/initiate — returns Base64 TX to trigger default. */
+loanRoutes.post('/:id/default/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ transaction: FIXTURE_TX })
+  }
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
+
+  try {
+    const result = await initiateTriggerDefault(config, c.var.user.address, loan.onChainRef)
+    return c.json(result)
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Default initiation failed for loan ${id} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate default trigger' }, 500)
+  }
+})
+
+/** POST /api/loans/:id/default/finalize — updates status in D1. */
+loanRoutes.post('/:id/default/finalize', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const { signature } = await c.req.json<{ signature: string }>()
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ success: true })
+  }
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  try {
+    await finalizeTriggerDefault(config, signature, id, db)
+    return c.json({ success: true })
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Default finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or default storage failed' }, 400)
+  }
 })
 
 export default loanRoutes

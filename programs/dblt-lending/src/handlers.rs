@@ -1,14 +1,15 @@
 use anchor_lang::prelude::*;
+use anchor_lang::system_program;
 use crate::instructions::*; 
 use crate::state::*;
 use crate::error::ErrorCode;
-// use crate::constants::*;
 
 // --- INITIALIZE ---
 pub fn initialize(ctx: Context<Initialize>, admin: Pubkey) -> Result<()> {
     let config = &mut ctx.accounts.config;
     config.admin = admin;
-    config.dblt_mint = ctx.accounts.dblt_mint.key();
+    // [DEFERRED-SPL]
+    // config.dblt_mint = ctx.accounts.dblt_mint.key();
     config.platform_fee_bps = 50;
     config.total_borrowers = 0;
     config.total_lenders = 0;
@@ -87,6 +88,25 @@ pub fn contribute_to_pool(ctx: Context<ContributeToPool>, amount: u64) -> Result
     let vault = &mut ctx.accounts.vault;
     let position = &mut ctx.accounts.position;
     
+    // Check pool status
+    require!(pool.status == PoolStatus::Open as u8, ErrorCode::ListingNotOpen);
+
+    // Over-funding protection
+    let remaining = pool.target_amount.checked_sub(pool.current_amount).ok_or(ErrorCode::MathOverflow)?;
+    require!(amount <= remaining, ErrorCode::OverFunding);
+
+    // Transfer SOL from lender to vault
+    system_program::transfer(
+        CpiContext::new(
+            ctx.accounts.system_program.key(),
+            system_program::Transfer {
+                from: ctx.accounts.lender.to_account_info(),
+                to: vault.to_account_info(),
+            },
+        ),
+        amount,
+    )?;
+
     pool.current_amount = pool.current_amount.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
     vault.total_deposited = vault.total_deposited.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
     
@@ -94,20 +114,45 @@ pub fn contribute_to_pool(ctx: Context<ContributeToPool>, amount: u64) -> Result
     position.pool = pool.key();
     position.amount = position.amount.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
 
+    // If target reached, mark as funded
+    if pool.current_amount >= pool.target_amount {
+        pool.status = PoolStatus::Funded as u8;
+    }
+
     msg!("Contribution made: {}", amount);
     Ok(())
 }
 
-// --- DISBURSE (WITH SCORE CHECK) ---
+// --- DISBURSE ---
 pub fn disburse_loan(ctx: Context<DisburseLoan>) -> Result<()> {
+    let pool = &mut ctx.accounts.pool;
     let vault = &mut ctx.accounts.vault;
-    let borrower_profile = &ctx.accounts.borrower_profile;
+    let borrower = &ctx.accounts.borrower;
 
-    // ✅ VALIDATE BORROWER'S FINANCIAL SCORE
-    require!(borrower_profile.financial_score >= 50, ErrorCode::InsufficientCredit);
+    require!(pool.status == PoolStatus::Funded as u8, ErrorCode::PoolNotFunded);
 
-    vault.total_withdrawn = vault.total_withdrawn.checked_add(vault.total_deposited).ok_or(ErrorCode::MathOverflow)?;
-    msg!("Loan disbursed to borrower with score: {}", borrower_profile.financial_score);
+    // TODO [PRODUCTION]: Schedule creation should ideally be atomic with finalization/disbursement 
+    // to prevent funds being locked without repayment rules.
+
+    let amount = vault.total_deposited;
+    
+    // Transfer SOL from vault to borrower
+    // Since vault is a PDA carrying data, we manually adjust lamports
+    let vault_info = vault.to_account_info();
+    let borrower_info = borrower.to_account_info();
+
+    **vault_info.try_borrow_mut_lamports()? = vault_info.lamports()
+        .checked_sub(amount)
+        .ok_or(ErrorCode::MathOverflow)?;
+        
+    **borrower_info.try_borrow_mut_lamports()? = borrower_info.lamports()
+        .checked_add(amount)
+        .ok_or(ErrorCode::MathOverflow)?;
+
+    vault.total_withdrawn = vault.total_withdrawn.checked_add(amount).ok_or(ErrorCode::MathOverflow)?;
+    pool.status = PoolStatus::Active as u8;
+
+    msg!("Loan disbursed to borrower: {}", borrower.key());
     Ok(())
 }
 
@@ -118,34 +163,98 @@ pub fn finalize_pool(ctx: Context<FinalizePool>) -> Result<()> {
     Ok(())
 }
 
+// --- CANCEL ---
+pub fn cancel_loan(ctx: Context<CancelLoan>) -> Result<()> {
+    let pool = &mut ctx.accounts.pool;
+    let clock = Clock::get()?;
+
+    // Allow cancellation if Open or Funded (but not yet Disbursed/Active)
+    require!(
+        pool.status == PoolStatus::Open as u8 || pool.status == PoolStatus::Funded as u8, 
+        ErrorCode::InvalidPoolStatus
+    );
+    
+    // Standard funding period of 1 week (7 days)
+    let timeout = pool.created_at.checked_add(7 * 24 * 60 * 60).ok_or(ErrorCode::MathOverflow)?;
+    require!(clock.unix_timestamp >= timeout, ErrorCode::TimeoutNotReached);
+    require!(pool.borrower == ctx.accounts.borrower.key(), ErrorCode::Unauthorized);
+
+    pool.status = PoolStatus::Cancelled as u8;
+    Ok(())
+}
+
 // --- WITHDRAW ---
 pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
     let position = &mut ctx.accounts.position;
     let vault = &mut ctx.accounts.vault;
-    require!(vault.total_repaid > 0, ErrorCode::InsufficientFunds);
-    position.withdrawn = position.withdrawn.checked_add(1).ok_or(ErrorCode::MathOverflow)?;
-    Ok(())
-}
+    let pool = &ctx.accounts.pool;
+    let lender = &ctx.accounts.lender;
+    let clock = Clock::get()?;
 
-// --- PLACEHOLDERS FOR OTHER INSTRUCTIONS ---
-pub fn create_term_offer(
-    _ctx: Context<CreateTermOffer>,
-    _min_interest_rate_bps: u64,
-    _max_duration_days: u64,
-    _collateral_required: bool,
-    _description: String,
-) -> Result<()> {
+    let is_cancelled = pool.status == PoolStatus::Cancelled as u8;
+    // Stale check includes Open and Funded (if borrower didn't disburse)
+    let is_stale = (pool.status == PoolStatus::Open as u8 || pool.status == PoolStatus::Funded as u8) && 
+        clock.unix_timestamp >= pool.created_at.checked_add(7 * 24 * 60 * 60).ok_or(ErrorCode::MathOverflow)?;
+
+    let claimable = if is_cancelled || is_stale {
+        // Full principal refund
+        position.amount.saturating_sub(position.withdrawn)
+    } else {
+        // Pro-rata withdrawal logic:
+        // (Lender Position / Total Pool Target) * Total Repaid into Vault
+        // Calculation uses integer division which truncates (rounds down), protecting the vault.
+        let share = (position.amount as u128)
+            .checked_mul(vault.total_repaid as u128)
+            .ok_or(ErrorCode::MathOverflow)?
+            .checked_div(pool.target_amount as u128)
+            .ok_or(ErrorCode::MathOverflow)? as u64;
+
+        share.saturating_sub(position.withdrawn)
+    };
+
+    require!(claimable > 0, ErrorCode::InsufficientFunds);
+    
+    // Transfer SOL from vault to lender
+    // Since vault is a PDA carrying data, we manually adjust lamports
+    let vault_info = vault.to_account_info();
+    let lender_info = lender.to_account_info();
+
+    **vault_info.try_borrow_mut_lamports()? = vault_info.lamports()
+        .checked_sub(claimable)
+        .ok_or(ErrorCode::MathOverflow)?;
+        
+    **lender_info.try_borrow_mut_lamports()? = lender_info.lamports()
+        .checked_add(claimable)
+        .ok_or(ErrorCode::MathOverflow)?;
+
+    position.withdrawn = position.withdrawn.checked_add(claimable).ok_or(ErrorCode::MathOverflow)?;
     Ok(())
 }
 
 pub fn create_loan_pool(
-    _ctx: Context<CreateLoanPool>,
-    _target_amount: u64,
-    _term_offer_id: Pubkey,
+    ctx: Context<CreateLoanPool>,
+    target_amount: u64,
+    term_offer_id: Pubkey,
     _years_data_hash: String,
     _years_covered: u8,
     _currency: String,
     _country: String,
 ) -> Result<()> {
+    let pool = &mut ctx.accounts.pool;
+    let vault = &mut ctx.accounts.vault;
+    let clock = Clock::get()?;
+
+    pool.borrower = ctx.accounts.borrower.key();
+    pool.target_amount = target_amount;
+    pool.current_amount = 0;
+    pool.term_offer = term_offer_id;
+    pool.status = 0; // Open
+    pool.created_at = clock.unix_timestamp;
+
+    vault.pool = pool.key();
+    vault.total_deposited = 0;
+    vault.total_withdrawn = 0;
+    vault.total_repaid = 0;
+
     Ok(())
 }

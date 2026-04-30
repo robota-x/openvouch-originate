@@ -2,7 +2,17 @@ import { describe, it, expect } from 'vitest'
 import app from '../app.js'
 import type { Bindings } from '../types.js'
 
-const FIXTURES: Bindings = { FIXTURES_ENABLED: 'true' } as Bindings
+const FIXTURES: Bindings = { 
+  FIXTURES_ENABLED: 'true',
+  JWT_SECRET: 'test-secret',
+  SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+} as Bindings
+
+const BASE_ENV: Bindings = {
+  JWT_SECRET: 'test-secret',
+  SOLANA_RPC_URL: 'https://api.devnet.solana.com'
+} as Bindings
+
 const ALICE = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU'
 
 // ── Contract shape: GET /api/profiles/:address ────────────────────────────────
@@ -17,6 +27,12 @@ describe('GET /api/profiles/:address — contract shape', () => {
     expect(typeof profile.trustScore).toBe('number')
     expect(Array.isArray(profile.attestations)).toBe(true)
     expect(Array.isArray(profile.loans)).toBe(true)
+    
+    const loans = profile.loans as any[]
+    if (loans.length > 0) {
+      expect(typeof loans[0].amount).toBe('string')
+      expect(typeof loans[0].apy).toBe('string')
+    }
   })
 
   it('returns a zero-trust fallback for an unknown address without throwing', async () => {
@@ -33,7 +49,7 @@ describe('GET /api/profiles/:address — contract shape', () => {
 
 describe('GET /api/profiles/:address', () => {
   it('returns 501 (not yet implemented)', async () => {
-    const res = await app.request('/api/profiles/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU')
+    const res = await app.request('/api/profiles/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', {}, BASE_ENV)
     expect(res.status).toBe(501)
   })
 })
@@ -44,7 +60,7 @@ describe('PATCH /api/profiles/:address', () => {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ nickname: 'alice' }),
-    })
+    }, BASE_ENV)
     expect(res.status).toBe(401)
   })
 
@@ -53,7 +69,7 @@ describe('PATCH /api/profiles/:address', () => {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ unknownField: 'value' }),
-    })
+    }, BASE_ENV)
     expect(res.status).toBe(401)
   })
 })

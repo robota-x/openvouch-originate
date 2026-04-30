@@ -5,6 +5,7 @@ import LoginPage       from '../pages/LoginPage.vue'
 import MarketplacePage from '../pages/MarketplacePage.vue'
 import ProfilePage     from '../pages/ProfilePage.vue'
 import MyLoansPage     from '../pages/MyLoansPage.vue'
+import CreateLoanPage from '../pages/CreateLoanPage.vue'
 import DesignPage      from '../pages/DesignPage.vue'
 import VerifyPortalPage from '../verify/VerifyPortalPage.vue'
 import CompanyAttestationFlowPage from '../verify/CompanyAttestationFlowPage.vue'
@@ -22,6 +23,7 @@ const router = createRouter({
     { path: '/',                 component: LandingPage },
     { path: '/login',            component: LoginPage,      meta: { hideNav: true } },
     { path: '/marketplace',      component: MarketplacePage },
+    { path: '/create-loan',      component: CreateLoanPage, meta: { requiresAuth: true } },
     { path: '/my-loans',         component: MyLoansPage,    meta: { requiresAuth: true } },
     {
       // Redirect to the authenticated user's profile. Guard catches unauthenticated access.

@@ -1,15 +1,29 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { truncate } from '../utils/format'
 import WalletConnectModal from './WalletConnectModal.vue'
+import CreateLoanModal from './CreateLoanModal.vue'
 
 const route  = useRoute()
 const router = useRouter()
 const auth   = useAuth()
 
 const showConnectModal = ref(false)
+
+const showCreateLoanModal = computed({
+  get: () => route.query.action === 'create-loan',
+  set: (val) => {
+    if (val) {
+      router.push({ query: { ...route.query, action: 'create-loan' } })
+    } else {
+      const query = { ...route.query }
+      delete query.action
+      router.push({ query })
+    }
+  }
+})
 
 function isActive(prefix: string) {
   return route.path.startsWith(prefix)
@@ -52,12 +66,30 @@ async function disconnect() {
         >
           My Loans
         </RouterLink>
+        <button
+          v-if="auth.isAuthenticated"
+          @click="showCreateLoanModal = true"
+          class="h-8 px-4 rounded bg-primary text-white text-[10px] font-bold uppercase tracking-wider hover:shadow-glow-primary transition-all"
+        >
+          New Loan
+        </button>
       </div>
 
       <!-- Wallet area -->
       <div class="flex items-center gap-2">
+        <!-- Connected but session inactive (needs re-auth) -->
+        <button
+          v-if="auth.isWalletMissing"
+          class="h-8 px-4 rounded-full border border-orange/50 bg-orange/10 text-orange font-bold text-xs hover:bg-orange/20 transition-colors inline-flex items-center gap-1.5"
+          title="Wallet session expired. Click to re-authorize."
+          @click="auth.reconnect()"
+        >
+          <span class="material-symbols-outlined text-xs">sync_problem</span>
+          Re-authorize
+        </button>
+
         <!-- Connected: address + disconnect -->
-        <template v-if="auth.isAuthenticated && auth.address">
+        <template v-else-if="auth.isAuthenticated && auth.address">
           <RouterLink
             to="/my-profile"
             class="h-8 px-4 rounded-full border border-primary/50 bg-primary/10 text-primary font-mono text-xs font-bold hover:bg-primary/20 transition-colors inline-flex items-center"
@@ -87,4 +119,10 @@ async function disconnect() {
   </nav>
 
   <WalletConnectModal v-model="showConnectModal" />
+  <CreateLoanModal 
+    :show="showCreateLoanModal" 
+    :attestation-count="auth.attestationCount"
+    @close="showCreateLoanModal = false"
+    @success="router.push('/my-loans')"
+  />
 </template>

@@ -39,6 +39,8 @@ pub enum ErrorCode {
     MathOverflow,
     #[msg("Unauthorized")]
     Unauthorized,
+    #[msg("Timeout not reached")]
+    TimeoutNotReached,
     #[msg("The vault has insufficient funds for this operation.")]
     InsufficientFunds,
     #[msg("Invalid number of installments")]
@@ -55,4 +57,14 @@ pub enum ErrorCode {
     ScheduleInactive,
     #[msg("Insufficient payment amount")]
     InsufficientPayment,
+    #[msg("Overpayment")]
+    Overpayment,
+    #[msg("Borrower cannot trigger default on self")]
+    BorrowerCannotDefaultSelf,
+    #[msg("Only participants (lender or borrower) can trigger this action")]
+    NotParticipant,
+    #[msg("Grace period not yet passed")]
+    GracePeriodNotExceeded,
+    #[msg("Listing not open")]
+    ListingNotOpen,
 }
