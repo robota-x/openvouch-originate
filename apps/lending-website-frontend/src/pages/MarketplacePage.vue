@@ -35,11 +35,18 @@ const activeContract     = ref<ContractView | null>(null)
 const showConnectModal   = ref(false)
 const isFunding          = ref(false)
 const fundingSuccess     = ref(false)
+const hideContribute     = ref(false)
 // Held while the user completes auth, then the fund action resumes automatically.
 const pendingFundLoan    = ref<Loan | null>(null)
 
 function openContract(loan: Loan) {
   fundingSuccess.value = false
+
+  // Check if fully funded
+  const raised = BigInt(loan.raisedAmount || '0')
+  const total = BigInt(loan.amount || '1')
+  const isFullyFunded = raised >= total
+
   activeContract.value = {
     id:                      loan.id,
     borrower:                loan.borrower,
@@ -53,6 +60,13 @@ function openContract(loan: Loan) {
     apy:      loan.apy,
     duration: loan.duration,
     status:   'open',
+  }
+
+  // Hide contribute button if fully funded
+  if (isFullyFunded) {
+    hideContribute.value = true
+  } else {
+    hideContribute.value = false
   }
 }
 
@@ -563,6 +577,7 @@ const visibleLoans = computed(() => {
     v-if="activeContract"
     :contract="activeContract"
     :success="fundingSuccess"
+    :hide-contribute="hideContribute"
     @close="activeContract = null; fundingSuccess = false"
     @fund="handleFund"
   />
