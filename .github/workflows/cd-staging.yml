@@ -94,4 +94,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/attestation-identity-service
-          command: deploy --config wrangler.staging.jsonc
+          command: |
+            d1 migrations apply openvouch-attestation-identity-db-staging --remote --config wrangler.staging.jsonc
+            deploy --config wrangler.staging.jsonc
