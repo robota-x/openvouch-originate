@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Loan } from '../types'
-import { toSol, toLamports } from '../utils/precision'
+import { toSol } from '../utils/precision'
 
 const props = defineProps<Loan & { variant?: 'card' | 'list' }>()
 
@@ -9,8 +9,8 @@ const emit = defineEmits<{ fund: [borrower: string]; view: [] }>()
 
 // Progress bar percentage
 const progressPercent = computed(() => {
-  const raised = toLamports(props.raisedAmount || '0')
-  const total = toLamports(props.amount || '1')
+  const raised = BigInt(props.raisedAmount || '0')
+  const total = BigInt(props.amount || '1')
   if (total === 0n) return 0n
   const pct = (raised * 100n) / total
   return pct > 100n ? 100n : pct
@@ -69,7 +69,7 @@ const trustScoreMuted = computed(() => {
     <!-- Amount -->
     <div class="flex-1 min-w-0">
       <p class="font-mono font-bold text-white leading-tight">
-        {{ toSol(raisedAmount || '0') }} / {{ toSol(amount) }}
+        {{ toSol(BigInt(raisedAmount || '0')) }} / {{ toSol(BigInt(amount)) }}
         <span class="text-white/50 text-[10px] font-normal uppercase ml-1">{{ currency }}</span>
       </p>
       <div class="w-24 h-1 bg-white/10 rounded-full mt-1.5 overflow-hidden">
@@ -160,8 +160,8 @@ const trustScoreMuted = computed(() => {
         </p>
       </div>
       <p class="font-mono text-2xl font-bold text-white">
-        {{ toSol(raisedAmount || '0') }}
-        <span class="text-base text-white/50 font-normal">/ {{ toSol(amount) }} {{ currency }}</span>
+        {{ toSol(BigInt(raisedAmount || '0')) }}
+        <span class="text-base text-white/50 font-normal">/ {{ toSol(BigInt(amount)) }} {{ currency }}</span>
       </p>
       <div class="w-full h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden">
         <div 

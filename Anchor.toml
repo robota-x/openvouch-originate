@@ -18,8 +18,8 @@ generic_record = "EL1vHbKVUwHDneBhwqC28o1xrzNSx2Dk2AmxytfQpote"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
-wallet = "keys/localnet/authority.json"
+cluster = "Devnet"
+wallet = "keys/devnet/authority.json"
 
 [scripts]
 test = "make test-programs"

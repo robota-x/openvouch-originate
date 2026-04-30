@@ -212,11 +212,11 @@ const visibleLoans = computed(() => {
   const f = filters
   return loans.value
     .filter(l =>
-      l.apy              >= f.apyMin                                   &&
-      (f.apyMaxUnbound      || l.apy      <= f.apyMax)                 &&
+      Number(l.apy)      >= f.apyMin                                   &&
+      (f.apyMaxUnbound      || Number(l.apy) <= f.apyMax)              &&
       (f.durationMaxUnbound || l.duration <= durationMax.value)        &&
-      toLamports(l.amount)  >= amountMinLamports.value                 &&
-      (f.amountMaxUnbound   || toLamports(l.amount) <= amountMaxLamports.value) &&
+      BigInt(l.amount)   >= amountMinLamports.value                    &&
+      (f.amountMaxUnbound   || BigInt(l.amount) <= amountMaxLamports.value) &&
       l.attestationCount >= f.attestationMin                           &&
       l.repaymentRate    >= f.repaymentMin                             &&
       l.trustScore       >= f.trustScoreMin
@@ -225,10 +225,10 @@ const visibleLoans = computed(() => {
       let diff: number | bigint
       switch (sortBy.value) {
         case 'trustScore':   diff = b.trustScore       - a.trustScore;       break
-        case 'apy':          diff = b.apy              - a.apy;              break
+        case 'apy':          diff = Number(b.apy)       - Number(a.apy);      break
         case 'repaymentRate':    diff = b.repaymentRate    - a.repaymentRate;    break
         case 'attestationCount': diff = b.attestationCount - a.attestationCount; break
-        case 'amount':       diff = toLamports(b.amount) - toLamports(a.amount); break
+        case 'amount':       diff = BigInt(b.amount)     - BigInt(a.amount);     break
         case 'duration':     diff = b.duration         - a.duration;         break
         default:             diff = 0;
       }
