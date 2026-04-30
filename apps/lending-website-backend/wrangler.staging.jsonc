@@ -6,7 +6,8 @@
   "compatibility_date": "2026-04-13",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "SOLANA_RPC_URL": "https://api.devnet.solana.com"
+    "SOLANA_RPC_URL": "https://api.devnet.solana.com",
+    "FIXTURES_ENABLED": "true"
   },
   "d1_databases": [
     {

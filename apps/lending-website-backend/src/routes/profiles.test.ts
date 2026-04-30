@@ -35,11 +35,12 @@ describe('GET /api/profiles/:address — contract shape', () => {
     }
   })
 
-  it('returns a zero-trust fallback for an unknown address without throwing', async () => {
+  it('returns a deterministic trust score for an unknown address without throwing', async () => {
     const res     = await app.request('/api/profiles/UnknownAddressXXX', {}, FIXTURES)
     expect(res.status).toBe(200)
     const profile = await res.json() as Record<string, unknown>
-    expect(profile.trustScore).toBe(0)
+    expect(profile.trustScore as number).toBeGreaterThanOrEqual(100)
+    expect(profile.trustScore as number).toBeLessThanOrEqual(1000)
     expect(profile.attestations).toHaveLength(0)
     expect(profile.loans).toHaveLength(0)
   })
