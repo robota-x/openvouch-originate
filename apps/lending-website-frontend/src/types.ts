@@ -5,9 +5,9 @@ export interface Loan {
   borrower: string         // wallet address, e.g. "7xKX..."
   nickname: string         // ENS / display name, e.g. "alice.sol"
   amount: string           // in `currency` units
-  raisedAmount: string     // currently raised
+  raisedAmount?: string    // currently raised (optional for open offers)
   currency: string         // e.g. "USDC"
-  apy: number              // In basis points (BPS), e.g. 1250 for 12.5%
+  apy: string | number     // In basis points (BPS), e.g. 1250 for 12.5%
   duration: number         // days
   repaymentRate: number    // 0–100 (percentage of past loans repaid)
   attestationCount: number // number of on-chain attestations
@@ -40,9 +40,9 @@ export interface AttestationProvider {
 export interface ProfileLoan {
   id: string
   amount: string        // original requested / borrowed amount
-  raisedAmount: string  // currently raised
+  raisedAmount?: string // currently raised
   currency: string
-  apy: number
+  apy: string | number
   duration: number      // days
   status: 'open' | 'active' | 'repaid' | 'defaulted'
   repaid: string        // 0 when unpaid/defaulted, full amount when repaid; no partials
@@ -63,7 +63,7 @@ export interface LentLoan {
   amount: string                  // The amount this specific lender contributed
   totalLoanAmount?: string        // The total size of the loan pool
   currency: string
-  apy: number
+  apy: string | number
   duration: number                // days
   // Lifecycle — no 'open' state; open offers haven't been funded yet
   status: 'active' | 'repaid' | 'defaulted'
@@ -98,8 +98,9 @@ export interface ContractView {
   // Terms
   amount: string
   raisedAmount?: string
+  repaid?: string
   currency: string
-  apy: number
+  apy: string | number
   duration: number             // days
 
   status: 'open' | 'active' | 'repaid' | 'defaulted'

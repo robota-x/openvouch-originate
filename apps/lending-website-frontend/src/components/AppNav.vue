@@ -77,8 +77,19 @@ async function disconnect() {
 
       <!-- Wallet area -->
       <div class="flex items-center gap-2">
+        <!-- Connected but session inactive (needs re-auth) -->
+        <button
+          v-if="auth.isWalletMissing"
+          class="h-8 px-4 rounded-full border border-orange/50 bg-orange/10 text-orange font-bold text-xs hover:bg-orange/20 transition-colors inline-flex items-center gap-1.5"
+          title="Wallet session expired. Click to re-authorize."
+          @click="auth.reconnect()"
+        >
+          <span class="material-symbols-outlined text-xs">sync_problem</span>
+          Re-authorize
+        </button>
+
         <!-- Connected: address + disconnect -->
-        <template v-if="auth.isAuthenticated && auth.address">
+        <template v-else-if="auth.isAuthenticated && auth.address">
           <RouterLink
             to="/my-profile"
             class="h-8 px-4 rounded-full border border-primary/50 bg-primary/10 text-primary font-mono text-xs font-bold hover:bg-primary/20 transition-colors inline-flex items-center"

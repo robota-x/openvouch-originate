@@ -39,7 +39,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
     <div
       v-if="modelValue"
       class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      @click.self="emit('update:modelValue', false)"
     >
       <div class="glass-panel rounded-xl max-w-sm w-full flex flex-col gap-0 overflow-hidden">
 

@@ -27,6 +27,7 @@ export async function initiateLoanCancellation(
   borrower: string,
   poolAddress: string,
 ) {
+  console.info(`[LendingService] Initiating loan cancellation for borrower: ${borrower}, pool: ${poolAddress}`);
   const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   const borrowerPubkey = new PublicKey(borrower);
   const poolPubkey = new PublicKey(poolAddress);
@@ -45,12 +46,20 @@ export async function finalizeLoanCancellation(
   loanId: string,
   db: any,
 ) {
+  console.info(`[LendingService] Finalizing loan cancellation for loanId: ${loanId}, signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
-  await connection.confirmTransaction(signature, "confirmed");
+  
+  const result = await connection.confirmTransaction(signature, "confirmed");
+  if (result.value.err) {
+    throw new Error(`On-chain confirmation failed for loan cancellation (${loanId}): ${JSON.stringify(result.value.err)}`);
+  }
+  console.debug(`[LendingService] Transaction confirmed for cancellation: ${signature}`);
 
   await db.update(loanListings)
     .set({ status: 'cancelled', updatedAt: new Date() })
     .where(eq(loanListings.id, loanId));
+  
+  console.info(`[LendingService] Loan ${loanId} marked as cancelled in DB`);
 
   return { success: true };
 }
@@ -63,6 +72,7 @@ export async function initiateTriggerDefault(
   authority: string,
   poolAddress: string,
 ) {
+  console.info(`[LendingService] Initiating trigger default for pool: ${poolAddress}, authority: ${authority}`);
   const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   const authorityPubkey = new PublicKey(authority);
   const poolPubkey = new PublicKey(poolAddress);
@@ -92,12 +102,20 @@ export async function finalizeTriggerDefault(
   loanId: string,
   db: any,
 ) {
+  console.info(`[LendingService] Finalizing trigger default for loanId: ${loanId}, signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
-  await connection.confirmTransaction(signature, "confirmed");
+  
+  const result = await connection.confirmTransaction(signature, "confirmed");
+  if (result.value.err) {
+    throw new Error(`On-chain confirmation failed for trigger default (${loanId}): ${JSON.stringify(result.value.err)}`);
+  }
+  console.debug(`[LendingService] Transaction confirmed for default: ${signature}`);
 
   await db.update(loanListings)
     .set({ status: 'defaulted', updatedAt: new Date() })
     .where(eq(loanListings.id, loanId));
+  
+  console.info(`[LendingService] Loan ${loanId} marked as defaulted in DB`);
 
   return { success: true };
 }
@@ -112,6 +130,7 @@ export async function initiateLoanCreation(
   currency: string,
   duration: number,
 ) {
+  console.info(`[LendingService] Initiating loan creation for borrower: ${borrower}, amount: ${amountLamports}`);
   const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   const borrowerPubkey = new PublicKey(borrower);
   
@@ -142,11 +161,12 @@ export async function verifyAndFinalizeLoan(
   config: AppConfig,
   signature: string,
 ) {
+  console.info(`[LendingService] Verifying and finalizing loan for signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
   const result = await connection.confirmTransaction(signature, "confirmed");
   if (result.value.err) {
-    throw new Error(`Transaction failed on-chain: ${JSON.stringify(result.value.err)}`);
+    throw new Error(`Transaction failed on-chain during loan finalization: ${JSON.stringify(result.value.err)} for signature ${signature}`);
   }
 
   const tx = await connection.getTransaction(signature, {
@@ -155,14 +175,14 @@ export async function verifyAndFinalizeLoan(
   });
 
   if (!tx) {
-    throw new Error("Transaction not found after confirmation");
+    throw new Error(`Transaction ${signature} not found after successful confirmation`);
   }
 
   const programId = new PublicKey(config.programs.dbltLending);
   const isOurProgram = tx.transaction.message.staticAccountKeys.some(k => k.equals(programId));
   
   if (!isOurProgram) {
-    throw new Error("Transaction does not involve the lending program");
+    throw new Error(`Transaction ${signature} does not involve the lending program ${config.programs.dbltLending}`);
   }
 
   // Extract the pool public key from the transaction instructions if needed
@@ -184,6 +204,7 @@ export async function initiateLoanContribution(
   poolAddress: string,
   amountLamports: bigint,
 ) {
+  console.info(`[LendingService] Initiating loan contribution from lender: ${lender}, pool: ${poolAddress}, amount: ${amountLamports}`);
   const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   const lenderPubkey = new PublicKey(lender);
   const poolPubkey = new PublicKey(poolAddress);
@@ -213,11 +234,12 @@ export async function verifyAndFinalizeContribution(
   lender: string,
   db: any,
 ) {
+  console.info(`[LendingService] Verifying contribution for loanId: ${loanId}, lender: ${lender}, signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
   const result = await connection.confirmTransaction(signature, "confirmed");
   if (result.value.err) {
-    throw new Error(`Transaction failed on-chain: ${JSON.stringify(result.value.err)}`);
+    throw new Error(`Transaction failed on-chain for contribution (${loanId}): ${JSON.stringify(result.value.err)}`);
   }
 
   const tx = await connection.getTransaction(signature, {
@@ -236,15 +258,17 @@ export async function verifyAndFinalizeContribution(
         if (decoded && decoded.name === 'contributeToPool') {
             const onChainAmountLamports = BigInt((decoded.data as any).amount.toString());
             if (onChainAmountLamports !== amountLamports) {
-                console.warn(`[LendingService] Amount mismatch: on-chain ${onChainAmountLamports}, reported ${amountLamports}`);
+                console.warn(`[LendingService] Amount mismatch for loan ${loanId}: on-chain ${onChainAmountLamports}, reported ${amountLamports}`);
                 amountLamports = onChainAmountLamports;
             }
         }
     }
+  } else {
+    console.warn(`[LendingService] Could not fetch transaction details for ${signature} to verify contribution amount`);
   }
 
   const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, loanId));
-  if (!loan) throw new Error("Loan not found");
+  if (!loan) throw new Error(`Loan ${loanId} not found in database during contribution finalization`);
 
   const newRaisedAmount = BigInt(loan.raisedAmount) + amountLamports;
 
@@ -266,6 +290,8 @@ export async function verifyAndFinalizeContribution(
     });
   });
 
+  console.info(`[LendingService] Contribution of ${amountLamports} recorded for loan ${loanId}`);
+
   return { success: true };
 }
 
@@ -277,6 +303,7 @@ export async function initiateLoanDisbursement(
   borrower: string,
   poolAddress: string,
 ) {
+  console.info(`[LendingService] Initiating loan disbursement for borrower: ${borrower}, pool: ${poolAddress}`);
   const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   const borrowerPubkey = new PublicKey(borrower);
   const poolPubkey = new PublicKey(poolAddress);
@@ -301,11 +328,12 @@ export async function verifyAndFinalizeDisbursement(
   loanId: string,
   db: any,
 ) {
+  console.info(`[LendingService] Verifying disbursement for loanId: ${loanId}, signature: ${signature}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
   const result = await connection.confirmTransaction(signature, "confirmed");
   if (result.value.err) {
-    throw new Error(`Transaction failed on-chain: ${JSON.stringify(result.value.err)}`);
+    throw new Error(`Transaction failed on-chain for disbursement (${loanId}): ${JSON.stringify(result.value.err)}`);
   }
 
   await db.update(loanListings)
@@ -314,6 +342,8 @@ export async function verifyAndFinalizeDisbursement(
       updatedAt: new Date()
     })
     .where(eq(loanListings.id, loanId));
+
+  console.info(`[LendingService] Loan ${loanId} marked as active (disbursed)`);
 
   return { success: true };
 }
@@ -328,6 +358,7 @@ export async function initiateLoanRepayment(
   installmentNumber: number,
   amountLamports: bigint,
 ) {
+  console.info(`[LendingService] Initiating loan repayment for borrower: ${borrower}, pool: ${poolAddress}, installment: ${installmentNumber}`);
   const ctx = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   const borrowerPubkey = new PublicKey(borrower);
   const poolPubkey = new PublicKey(poolAddress);
@@ -359,11 +390,12 @@ export async function verifyAndFinalizeRepayment(
   amountLamports: bigint,
   db: any,
 ) {
+  console.info(`[LendingService] Verifying repayment for loanId: ${loanId}, signature: ${signature}, reported amount: ${amountLamports}`);
   const { connection } = getBlockchainContext(config.blockchain.rpcUrl, config.programs.dbltLending);
   
   const result = await connection.confirmTransaction(signature, "confirmed");
   if (result.value.err) {
-    throw new Error(`Transaction failed on-chain: ${JSON.stringify(result.value.err)}`);
+    throw new Error(`Transaction failed on-chain for repayment (${loanId}): ${JSON.stringify(result.value.err)}`);
   }
 
   const tx = await connection.getTransaction(signature, {
@@ -382,15 +414,17 @@ export async function verifyAndFinalizeRepayment(
         if (decoded && decoded.name === 'makeRepayment') {
             const onChainAmountLamports = BigInt((decoded.data as any).amount.toString());
             if (onChainAmountLamports !== amountLamports) {
-                console.warn(`[LendingService] Amount mismatch: on-chain ${onChainAmountLamports}, reported ${amountLamports}`);
+                console.warn(`[LendingService] Amount mismatch for repayment of loan ${loanId}: on-chain ${onChainAmountLamports}, reported ${amountLamports}`);
                 amountLamports = onChainAmountLamports;
             }
         }
     }
+  } else {
+    console.warn(`[LendingService] Could not fetch transaction details for ${signature} to verify repayment amount`);
   }
 
   const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, loanId));
-  if (!loan) throw new Error("Loan not found");
+  if (!loan) throw new Error(`Loan ${loanId} not found in database during repayment finalization`);
 
   const newRepaidAmount = BigInt(loan.repaid) + amountLamports;
   const newStatus = newRepaidAmount >= BigInt(loan.amount) ? 'repaid' : 'active';
@@ -402,6 +436,8 @@ export async function verifyAndFinalizeRepayment(
       updatedAt: new Date()
     })
     .where(eq(loanListings.id, loanId));
+
+  console.info(`[LendingService] Repayment of ${amountLamports} recorded for loan ${loanId}. New status: ${newStatus}`);
 
   return { success: true };
 }

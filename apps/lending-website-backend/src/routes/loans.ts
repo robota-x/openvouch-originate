@@ -3,7 +3,21 @@ import { eq, sql } from 'drizzle-orm'
 import { loanListings, profiles as profilesTable, attestations as attestationsTable } from '../db/schema.js'
 import { authenticate } from '../middleware/session.js'
 import { createAppDb, type Db } from '../db/client.js'
-import { toLamports, toSol } from '../utils/precision.js'
+import type { AppEnv, Loan, ContractView } from '../types.js'
+import { 
+  initiateLoanCreation, 
+  verifyAndFinalizeLoan, 
+  initiateLoanContribution, 
+  verifyAndFinalizeContribution,
+  initiateLoanDisbursement,
+  verifyAndFinalizeDisbursement,
+  initiateLoanRepayment,
+  verifyAndFinalizeRepayment,
+  initiateLoanCancellation,
+  finalizeLoanCancellation,
+  initiateTriggerDefault,
+  finalizeTriggerDefault
+} from '../services/lending.js'
 
 const loanRoutes = new Hono<AppEnv>()
 
@@ -17,6 +31,7 @@ function enrichedQuery(db: Db) {
       lender:       loanListings.lender,
       amount:       loanListings.amount,
       raisedAmount: loanListings.raisedAmount,
+      repaid:       loanListings.repaid,
       currency:     loanListings.currency,
       apy:          loanListings.apy,
       duration:     loanListings.duration,
@@ -66,7 +81,7 @@ function toListItem(r: EnrichedRow): Loan {
     amount:           r.amount.toString(),
     raisedAmount:     r.raisedAmount.toString(),
     currency:         r.currency,
-    apy:              (r.apy * 100).toString(),
+    apy:              (r.apy * 10000).toString(), // Convert back to BPS for frontend
     duration:         r.duration,
     trustScore:       r.trustScore ?? 0,
     repaymentRate:    repaymentRate(r),
@@ -85,8 +100,9 @@ function toContractView(r: EnrichedRow): ContractView {
     lender:                   r.lender ?? undefined,
     amount:                   r.amount.toString(),
     raisedAmount:             r.raisedAmount.toString(),
+    repaid:                   r.repaid.toString(),
     currency:                 r.currency,
-    apy:                      (r.apy * 100).toString(),
+    apy:                      (r.apy * 10000).toString(), // Convert back to BPS for frontend
     duration:                 r.duration,
     status:                   r.status,
     dueDate:                  r.dueDate ?? undefined,
@@ -96,96 +112,85 @@ function toContractView(r: EnrichedRow): ContractView {
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
-/** POST /api/loans/:id/cancel/initiate — returns Base64 TX to cancel. */
-loanRoutes.post('/:id/cancel/initiate', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const config = c.get('config')
+// Sentinel returned by every initiate route when fixtures are enabled.
+// The frontend bridge detects 'fixture' (non-base64), skips sign+broadcast,
+// and passes a dummy signature to the finalize route (which also no-ops in fixture mode).
+const FIXTURE_TX = 'fixture'
 
+/** POST /api/loans/initiate — returns Base64 TX to create pool. */
+loanRoutes.post('/initiate', authenticate, async (c) => {
+  const body = await c.req.json<{ amount: string; currency: string; duration: number }>()
+  const config = c.get('config')
+  
   if (config.fixturesEnabled) {
-    return c.json({ transaction: 'mock-base64-transaction-cancellation' })
+    return c.json({ transaction: FIXTURE_TX })
   }
 
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-
-  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
-  if (!loan) return c.json({ error: 'not_found' }, 404)
-  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
-
   try {
-    const result = await initiateLoanCancellation(config, c.var.user.address, loan.onChainRef!)
+    const result = await initiateLoanCreation(
+      config,
+      c.var.user.address,
+      BigInt(body.amount),
+      body.currency,
+      body.duration
+    )
     return c.json(result)
   } catch (e: any) {
-    return c.json({ error: e.message }, 500)
+    console.error(`[LoanRoutes] Failed to initiate loan for ${c.var.user.address}:`, e)
+    
+    if (e.message.includes('403') || e.message.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Internal server error during loan initiation' }, 500)
   }
 })
 
-/** POST /api/loans/:id/cancel/finalize — updates status in D1. */
-loanRoutes.post('/:id/cancel/finalize', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const { signature } = await c.req.json<{ signature: string }>()
+/** POST /api/loans/finalize — verify signature and record in D1. */
+loanRoutes.post('/finalize', authenticate, async (c) => {
+  const { signature, amount, currency, duration, apy } = await c.req.json<{ 
+    signature: string, 
+    amount: string, 
+    currency: string, 
+    duration: number,
+    apy: string 
+  }>()
+  
   const config = c.get('config')
-
   if (config.fixturesEnabled) {
-    return c.json({ success: true })
+    return c.json({ id: crypto.randomUUID(), success: true }, 201)
   }
 
   const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  if (!d1) return c.json({ error: 'D1 database not found' }, 501)
   const db = createAppDb(d1)
 
   try {
-    await finalizeLoanCancellation(config, signature, id, db)
-    return c.json({ success: true })
+    await verifyAndFinalizeLoan(config, signature)
+
+    const id = crypto.randomUUID()
+    const now = new Date()
+    await db.insert(loanListings).values({
+      id, 
+      borrower: c.var.user.address,
+      amount: BigInt(amount),
+      currency, 
+      apy: parseInt(apy) / 10000, 
+      duration,
+      status: 'open', 
+      raisedAmount: 0n,
+      repaid: 0n,
+      onChainRef: signature,
+      createdAt: now, 
+      updatedAt: now,
+    })
+
+    return c.json({ id, success: true }, 201)
   } catch (e: any) {
-    return c.json({ error: e.message }, 400)
-  }
-})
-
-/** POST /api/loans/:id/default/initiate — returns Base64 TX to trigger default. */
-loanRoutes.post('/:id/default/initiate', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const config = c.get('config')
-
-  if (config.fixturesEnabled) {
-    return c.json({ transaction: 'mock-base64-transaction-default' })
-  }
-
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-
-  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
-  if (!loan) return c.json({ error: 'not_found' }, 404)
-
-  try {
-    const result = await initiateTriggerDefault(config, c.var.user.address, loan.onChainRef!)
-    return c.json(result)
-  } catch (e: any) {
-    return c.json({ error: e.message }, 500)
-  }
-})
-
-/** POST /api/loans/:id/default/finalize — updates status in D1. */
-loanRoutes.post('/:id/default/finalize', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const { signature } = await c.req.json<{ signature: string }>()
-  const config = c.get('config')
-
-  if (config.fixturesEnabled) {
-    return c.json({ success: true })
-  }
-
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-
-  try {
-    await finalizeTriggerDefault(config, signature, id, db)
-    return c.json({ success: true })
-  } catch (e: any) {
-    return c.json({ error: e.message }, 400)
+    console.error(`[LoanRoutes] Finalization failed for sig ${signature}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Verification or database storage failed' }, 400)
   }
 })
 
@@ -221,74 +226,6 @@ loanRoutes.get('/:id', async (c) => {
   return c.json(toContractView(row))
 })
 
-/** POST /api/loans/initiate — returns Base64 TX to create pool. */
-loanRoutes.post('/initiate', authenticate, async (c) => {
-  const body = await c.req.json<{ amount: string; currency: string; duration: number }>()
-  const config = c.get('config')
-  
-  if (config.fixturesEnabled) {
-    return c.json({ transaction: 'mock-base64-transaction-creation' })
-  }
-
-  try {
-    const result = await initiateLoanCreation(
-      config,
-      c.var.user.address,
-      BigInt(body.amount),
-      body.currency,
-      body.duration
-    )
-    return c.json(result)
-  } catch (e: any) {
-    return c.json({ error: e.message }, 500)
-  }
-})
-
-/** POST /api/loans/finalize — verify signature and record in D1. */
-loanRoutes.post('/finalize', authenticate, async (c) => {
-  const { signature, amount, currency, duration, apy } = await c.req.json<{ 
-    signature: string, 
-    amount: string, 
-    currency: string, 
-    duration: number,
-    apy: string
-  }>()
-  
-  const config = c.get('config')
-  if (config.fixturesEnabled) {
-    return c.json({ id: crypto.randomUUID(), success: true }, 201)
-  }
-
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-
-  try {
-    await verifyAndFinalizeLoan(config, signature)
-
-    const id = crypto.randomUUID()
-    const now = new Date()
-    await db.insert(loanListings).values({
-      id, 
-      borrower: c.var.user.address,
-      amount: BigInt(amount), 
-      currency, 
-      apy: parseFloat(apy) / 100, 
-      duration,
-      status: 'open', 
-      raisedAmount: 0n,
-      repaid: 0n,
-      onChainRef: signature,
-      createdAt: now, 
-      updatedAt: now,
-    })
-
-    return c.json({ id, success: true }, 201)
-  } catch (e: any) {
-    return c.json({ error: e.message }, 400)
-  }
-})
-
 /** POST /api/loans/:id/contribute/initiate — returns Base64 TX to contribute to pool. */
 loanRoutes.post('/:id/contribute/initiate', authenticate, async (c) => {
   const id = c.req.param('id')
@@ -296,7 +233,7 @@ loanRoutes.post('/:id/contribute/initiate', authenticate, async (c) => {
   const config = c.get('config')
 
   if (config.fixturesEnabled) {
-    return c.json({ transaction: 'mock-base64-transaction-contribution' })
+    return c.json({ transaction: FIXTURE_TX })
   }
 
   const d1 = c.env?.DB
@@ -305,7 +242,6 @@ loanRoutes.post('/:id/contribute/initiate', authenticate, async (c) => {
 
   const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
   if (!loan) return c.json({ error: 'not_found' }, 404)
-  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
   if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
 
   try {
@@ -317,7 +253,11 @@ loanRoutes.post('/:id/contribute/initiate', authenticate, async (c) => {
     )
     return c.json(result)
   } catch (e: any) {
-    return c.json({ error: e.message }, 500)
+    console.error(`[LoanRoutes] Contribution initiation failed for loan ${id} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate contribution' }, 500)
   }
 })
 
@@ -339,7 +279,8 @@ loanRoutes.post('/:id/contribute/finalize', authenticate, async (c) => {
     await verifyAndFinalizeContribution(config, signature, id, BigInt(amount), c.var.user.address, db)
     return c.json({ success: true })
   } catch (e: any) {
-    return c.json({ error: e.message }, 400)
+    console.error(`[LoanRoutes] Contribution finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or contribution storage failed' }, 400)
   }
 })
 
@@ -349,7 +290,7 @@ loanRoutes.post('/:id/disburse/initiate', authenticate, async (c) => {
   const config = c.get('config')
 
   if (config.fixturesEnabled) {
-    return c.json({ transaction: 'mock-base64-transaction-disbursement' })
+    return c.json({ transaction: FIXTURE_TX })
   }
 
   const d1 = c.env?.DB
@@ -369,7 +310,11 @@ loanRoutes.post('/:id/disburse/initiate', authenticate, async (c) => {
     )
     return c.json(result)
   } catch (e: any) {
-    return c.json({ error: e.message }, 500)
+    console.error(`[LoanRoutes] Disbursement initiation failed for loan ${id} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate disbursement' }, 500)
   }
 })
 
@@ -391,7 +336,8 @@ loanRoutes.post('/:id/disburse/finalize', authenticate, async (c) => {
     await verifyAndFinalizeDisbursement(config, signature, id, db)
     return c.json({ success: true })
   } catch (e: any) {
-    return c.json({ error: e.message }, 400)
+    console.error(`[LoanRoutes] Disbursement finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or disbursement storage failed' }, 400)
   }
 })
 
@@ -402,7 +348,7 @@ loanRoutes.post('/:id/repay/initiate', authenticate, async (c) => {
   const config = c.get('config')
 
   if (config.fixturesEnabled) {
-    return c.json({ transaction: 'mock-base64-transaction-repayment' })
+    return c.json({ transaction: FIXTURE_TX })
   }
 
   const d1 = c.env?.DB
@@ -424,7 +370,11 @@ loanRoutes.post('/:id/repay/initiate', authenticate, async (c) => {
     )
     return c.json(result)
   } catch (e: any) {
-    return c.json({ error: e.message }, 500)
+    console.error(`[LoanRoutes] Repayment initiation failed for loan ${id}, installment ${installmentNumber} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate repayment' }, 500)
   }
 })
 
@@ -446,7 +396,38 @@ loanRoutes.post('/:id/repay/finalize', authenticate, async (c) => {
     await verifyAndFinalizeRepayment(config, signature, id, BigInt(amount), db)
     return c.json({ success: true })
   } catch (e: any) {
-    return c.json({ error: e.message }, 400)
+    console.error(`[LoanRoutes] Repayment finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or repayment storage failed' }, 400)
+  }
+})
+
+/** POST /api/loans/:id/cancel/initiate — returns Base64 TX to cancel. */
+loanRoutes.post('/:id/cancel/initiate', authenticate, async (c) => {
+  const id = c.req.param('id')
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ transaction: FIXTURE_TX })
+  }
+
+  const d1 = c.env?.DB
+  if (!d1) return c.json({ error: 'not_implemented' }, 501)
+  const db = createAppDb(d1)
+
+  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
+  if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
+
+  try {
+    const result = await initiateLoanCancellation(config, c.var.user.address, loan.onChainRef)
+    return c.json(result)
+  } catch (e: any) {
+    console.error(`[LoanRoutes] Cancellation initiation failed for loan ${id} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate cancellation' }, 500)
   }
 })
 
@@ -454,35 +435,51 @@ loanRoutes.post('/:id/repay/finalize', authenticate, async (c) => {
 loanRoutes.post('/:id/cancel/finalize', authenticate, async (c) => {
   const id = c.req.param('id')
   const { signature } = await c.req.json<{ signature: string }>()
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ success: true })
+  }
+
   const d1 = c.env?.DB
   if (!d1) return c.json({ error: 'not_implemented' }, 501)
   const db = createAppDb(d1)
-  const config = c.get('config')
 
   try {
     await finalizeLoanCancellation(config, signature, id, db)
     return c.json({ success: true })
   } catch (e: any) {
-    return c.json({ error: e.message }, 400)
+    console.error(`[LoanRoutes] Cancellation finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or cancellation storage failed' }, 400)
   }
 })
 
 /** POST /api/loans/:id/default/initiate — returns Base64 TX to trigger default. */
 loanRoutes.post('/:id/default/initiate', authenticate, async (c) => {
   const id = c.req.param('id')
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ transaction: FIXTURE_TX })
+  }
+
   const d1 = c.env?.DB
   if (!d1) return c.json({ error: 'not_implemented' }, 501)
   const db = createAppDb(d1)
-  const config = c.get('config')
 
   const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
   if (!loan) return c.json({ error: 'not_found' }, 404)
+  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
 
   try {
-    const result = await initiateTriggerDefault(config, c.var.user.address, loan.onChainRef!)
+    const result = await initiateTriggerDefault(config, c.var.user.address, loan.onChainRef)
     return c.json(result)
   } catch (e: any) {
-    return c.json({ error: e.message }, 500)
+    console.error(`[LoanRoutes] Default initiation failed for loan ${id} by ${c.var.user.address}:`, e)
+    if (e.message?.includes('403') || e.message?.includes('blockhash')) {
+      return c.json({ error: 'Blockchain node connectivity issue', code: 'RPC_ERROR' }, 503)
+    }
+    return c.json({ error: 'Failed to initiate default trigger' }, 500)
   }
 })
 
@@ -490,239 +487,22 @@ loanRoutes.post('/:id/default/initiate', authenticate, async (c) => {
 loanRoutes.post('/:id/default/finalize', authenticate, async (c) => {
   const id = c.req.param('id')
   const { signature } = await c.req.json<{ signature: string }>()
+  const config = c.get('config')
+
+  if (config.fixturesEnabled) {
+    return c.json({ success: true })
+  }
+
   const d1 = c.env?.DB
   if (!d1) return c.json({ error: 'not_implemented' }, 501)
   const db = createAppDb(d1)
-  const config = c.get('config')
 
   try {
     await finalizeTriggerDefault(config, signature, id, db)
     return c.json({ success: true })
   } catch (e: any) {
-    return c.json({ error: e.message }, 400)
-  }
-})
-
-/** GET /api/loans — all open loan requests. */
-loanRoutes.get('/', async (c) => {
-  if (c.get('config').fixturesEnabled) {
-    const { fixtureOpenLoans } = await import('../fixtures.js')
-    return c.json(fixtureOpenLoans)
-  }
-
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const rows = await enrichedQuery(db).where(eq(loanListings.status, 'open'))
-  return c.json(rows.map(toListItem))
-})
-
-/** GET /api/loans/:id — detail view. */
-loanRoutes.get('/:id', async (c) => {
-  const id = c.req.param('id')
-
-  if (c.get('config').fixturesEnabled) {
-    const { fixtureContractView } = await import('../fixtures.js')
-    const loan = fixtureContractView(id)
-    return loan ? c.json(loan) : c.json({ error: 'not_found' }, 404)
-  }
-
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const [row] = await enrichedQuery(db).where(eq(loanListings.id, id))
-  if (!row) return c.json({ error: 'not_found' }, 404)
-  return c.json(toContractView(row))
-})
-
-/** POST /api/loans/initiate — returns Base64 TX to create pool. */
-loanRoutes.post('/initiate', authenticate, async (c) => {
-  const body = await c.req.json<{ amount: string; currency: string; duration: number }>()
-  const config = c.get('config')
-  
-  try {
-    const result = await initiateLoanCreation(
-      config,
-      c.var.user.address,
-      toLamports(body.amount),
-      body.currency,
-      body.duration
-    )
-    return c.json(result)
-  } catch (e: any) {
-    return c.json({ error: e.message }, 500)
-  }
-})
-
-/** POST /api/loans/finalize — verify signature and record in D1. */
-loanRoutes.post('/finalize', authenticate, async (c) => {
-  const { signature, amount, currency, duration, apy } = await c.req.json<{ 
-    signature: string, 
-    amount: string, 
-    currency: string, 
-    duration: number,
-    apy: string
-  }>()
-  
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const config = c.get('config')
-
-  try {
-    await verifyAndFinalizeLoan(config, signature)
-
-    const id = crypto.randomUUID()
-    const now = new Date()
-    await db.insert(loanListings).values({
-      id, 
-      borrower: c.var.user.address,
-      amount: BigInt(amount), 
-      currency, 
-      apy: parseFloat(apy) / 100, 
-      duration,
-      status: 'open', 
-      raisedAmount: 0n,
-      repaid: 0n,
-      onChainRef: signature,
-      createdAt: now, 
-      updatedAt: now,
-    })
-
-    return c.json({ id, success: true }, 201)
-  } catch (e: any) {
-    return c.json({ error: e.message }, 400)
-  }
-})
-
-/** POST /api/loans/:id/contribute/initiate — returns Base64 TX to contribute to pool. */
-loanRoutes.post('/:id/contribute/initiate', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const { amount } = await c.req.json<{ amount: string }>()
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const config = c.get('config')
-
-  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
-  if (!loan) return c.json({ error: 'not_found' }, 404)
-  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
-  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
-
-  try {
-    const result = await initiateLoanContribution(
-      config,
-      c.var.user.address,
-      loan.onChainRef,
-      toLamports(amount)
-    )
-    return c.json(result)
-  } catch (e: any) {
-    return c.json({ error: e.message }, 500)
-  }
-})
-
-/** POST /api/loans/:id/contribute/finalize — verify signature and update D1. */
-loanRoutes.post('/:id/contribute/finalize', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const { signature, amount } = await c.req.json<{ signature: string, amount: string }>()
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const config = c.get('config')
-
-  try {
-    await verifyAndFinalizeContribution(config, signature, id, toLamports(amount), c.var.user.address, db)
-    return c.json({ success: true })
-  } catch (e: any) {
-    return c.json({ error: e.message }, 400)
-  }
-})
-
-/** POST /api/loans/:id/disburse/initiate — returns Base64 TX to disburse funds. */
-loanRoutes.post('/:id/disburse/initiate', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const config = c.get('config')
-
-  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
-  if (!loan) return c.json({ error: 'not_found' }, 404)
-  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
-  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
-
-  try {
-    const result = await initiateLoanDisbursement(
-      config,
-      c.var.user.address,
-      loan.onChainRef
-    )
-    return c.json(result)
-  } catch (e: any) {
-    return c.json({ error: e.message }, 500)
-  }
-})
-
-/** POST /api/loans/:id/disburse/finalize — verify signature and update D1. */
-loanRoutes.post('/:id/disburse/finalize', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const { signature } = await c.req.json<{ signature: string }>()
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const config = c.get('config')
-
-  try {
-    await verifyAndFinalizeDisbursement(config, signature, id, db)
-    return c.json({ success: true })
-  } catch (e: any) {
-    return c.json({ error: e.message }, 400)
-  }
-})
-
-/** POST /api/loans/:id/repay/initiate — returns Base64 TX to repay funds. */
-loanRoutes.post('/:id/repay/initiate', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const { installmentNumber, amount } = await c.req.json<{ installmentNumber: number, amount: string }>()
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const config = c.get('config')
-
-  const [loan] = await db.select().from(loanListings).where(eq(loanListings.id, id))
-  if (!loan) return c.json({ error: 'not_found' }, 404)
-  if (loan.borrower !== c.var.user.address) return c.json({ error: 'forbidden' }, 403)
-  if (!loan.onChainRef) return c.json({ error: 'no_on_chain_pool' }, 400)
-
-  try {
-    const result = await initiateLoanRepayment(
-      config,
-      c.var.user.address,
-      loan.onChainRef,
-      installmentNumber,
-      toLamports(amount)
-    )
-    return c.json(result)
-  } catch (e: any) {
-    return c.json({ error: e.message }, 500)
-  }
-})
-
-/** POST /api/loans/:id/repay/finalize — verify signature and update D1. */
-loanRoutes.post('/:id/repay/finalize', authenticate, async (c) => {
-  const id = c.req.param('id')
-  const { signature, amount } = await c.req.json<{ signature: string, amount: string }>()
-  const d1 = c.env?.DB
-  if (!d1) return c.json({ error: 'not_implemented' }, 501)
-  const db = createAppDb(d1)
-  const config = c.get('config')
-
-  try {
-    await verifyAndFinalizeRepayment(config, signature, id, toLamports(amount), db)
-    return c.json({ success: true })
-  } catch (e: any) {
-    return c.json({ error: e.message }, 400)
+    console.error(`[LoanRoutes] Default finalization failed for loan ${id}, sig ${signature}:`, e)
+    return c.json({ error: 'Verification or default storage failed' }, 400)
   }
 })
 

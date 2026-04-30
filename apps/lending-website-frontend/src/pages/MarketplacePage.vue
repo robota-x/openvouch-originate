@@ -8,7 +8,7 @@ import { ApiError, type Loan, type ContractView } from '../types'
 import { useAuth } from '../composables/useAuth'
 import { useSolana } from '../composables/useSolana'
 import { solanaBridge } from '../utils/solana-bridge'
-import { toLamports, toSol, LAMPORTS_PER_SOL } from '../utils/precision'
+import { toLamports, LAMPORTS_PER_SOL } from '../utils/precision'
 
 type View   = 'grid' | 'list'
 type SortBy  = 'trustScore' | 'apy' | 'repaymentRate' | 'attestationCount' | 'amount' | 'duration'
@@ -71,21 +71,30 @@ async function handleFund(loanId: string, amountToLend?: string) {
   isFunding.value = true
   try {
     // 1. Get Base64 TX from backend
-    const contributionAmountLamports = amountToLend 
-      ? toLamports(amountToLend) 
-      : (toLamports(loan.amount) - toLamports(loan.raisedAmount || '0'))
-    const contributionAmount = toSol(contributionAmountLamports)
+    // Convert user-entered SOL to lamport string; fallback uses remaining from API (already lamports).
+    const contributionLamports = amountToLend
+      ? toLamports(amountToLend).toString()
+      : (BigInt(loan.amount) - BigInt(loan.raisedAmount || '0')).toString()
 
     const { transaction: txBase64 } = await backendClient.initiateContribution(
       auth.token!,
       loan.id,
-      contributionAmount
+      contributionLamports
     )
 
-    // 2. Deserialize
+    // 2. Sign and Broadcast
+    if (!auth.connectedWallet) {
+      try {
+        await auth.reconnect()
+      } catch (err) {
+        alert('Wallet session lost. Please click "Re-authorize" in the top navigation.')
+        return
+      }
+    }
+
+    // Deserialize
     const tx = solanaBridge.deserializeTx(txBase64)
 
-    // 3. Sign and Broadcast
     const signature = await solanaBridge.signAndBroadcast(
       solana.connection,
       tx,
@@ -95,7 +104,7 @@ async function handleFund(loanId: string, amountToLend?: string) {
     // 4. Finalize with backend
     await backendClient.finalizeContribution(auth.token!, loan.id, {
       signature,
-      amount: contributionAmount
+      amount: contributionLamports
     })
 
     // 5. Refresh
@@ -151,6 +160,7 @@ function fmtDays(d: number): string {
 }
 
 function fmtAmount(n: number): string {
+  if (n === undefined || n === null) return '0'
   if (n >= 1_000_000) return '1M'
   if (n >= 100_000)   return `${(n / 1000).toFixed(0)}k`
   if (n >= 1_000)     return `${(n / 1000).toFixed(1)}k`
@@ -340,12 +350,12 @@ const visibleLoans = computed(() => {
 
         <!-- Amount range (exponential) -->
         <div class="flex flex-col gap-3">
-          <p class="text-xs text-muted uppercase tracking-widest">Amount (USDC)</p>
+          <p class="text-xs text-muted uppercase tracking-widest">Amount (SOL)</p>
           <div class="flex flex-col gap-2">
             <!-- Min -->
             <div class="flex items-center justify-between">
               <span class="text-xs text-muted">Min</span>
-              <span class="font-mono text-xs text-white">{{ fmtAmount(amountMinVal) }}</span>
+              <span class="font-mono text-xs text-white">{{ fmtAmount(amountMin) }}</span>
             </div>
             <input
               v-model.number="filters.amountMinSlider"
@@ -356,7 +366,7 @@ const visibleLoans = computed(() => {
             <!-- Max -->
             <div class="flex items-center justify-between">
               <span class="text-xs text-muted">
-                Max<span v-if="!filters.amountMaxUnbound" class="font-mono text-white ml-1">{{ fmtAmount(amountMaxVal) }}</span>
+                Max<span v-if="!filters.amountMaxUnbound" class="font-mono text-white ml-1">{{ fmtAmount(amountMax) }}</span>
               </span>
               <label class="flex items-center gap-1.5 cursor-pointer select-none">
                 <input v-model="filters.amountMaxUnbound" type="checkbox" class="accent-primary cursor-pointer" />

@@ -7,16 +7,24 @@ const props = defineProps<Loan & { variant?: 'card' | 'list' }>()
 
 const emit = defineEmits<{ fund: [borrower: string]; view: [] }>()
 
+// Progress bar percentage
+const progressPercent = computed(() => {
+  const raised = toLamports(props.raisedAmount || '0')
+  const total = toLamports(props.amount || '1')
+  if (total === 0n) return 0n
+  const pct = (raised * 100n) / total
+  return pct > 100n ? 100n : pct
+})
+
 // 100% → emerald  ·  ≥ 90% → orange (caution)  ·  < 90% → danger
 const repaymentStyle = computed(() => {
-  if (props.repaymentRate === 100)  return 'border-emerald/50 bg-emerald/10 text-emerald'
-  if (props.repaymentRate >= 90)    return 'border-orange/50  bg-orange/10  text-orange'
-  return                                   'border-danger/50  bg-danger/10  text-danger'
+  const r = Number(props.repaymentRate) // BPS
+  if (r >= 10000) return 'border-emerald/50 bg-emerald/10 text-emerald'
+  if (r >= 9000)  return 'border-orange/50  bg-orange/10  text-orange'
+  return                'border-danger/50  bg-danger/10  text-danger'
 })
 
 // ≥ 700 → emerald  ·  ≥ 400 → orange  ·  < 400 → danger
-// trustScoreColor  — plain text, used in card header (no bg)
-// trustScoreMuted  — subtle bg + text, used in list cell (no border, rounded not rounded-full)
 const trustScoreColor = computed(() => {
   if (props.trustScore >= 700) return 'text-emerald'
   if (props.trustScore >= 400) return 'text-orange'
@@ -51,7 +59,7 @@ const trustScoreMuted = computed(() => {
       </div>
     </RouterLink>
 
-    <!-- Trust Score — subtle rounded chip, no border, no icon in rows -->
+    <!-- Trust Score -->
     <div class="w-20 flex-shrink-0">
       <span class="font-mono font-bold text-xs px-1.5 py-0.5 rounded" :class="trustScoreMuted">
         {{ trustScore }}
@@ -61,20 +69,20 @@ const trustScoreMuted = computed(() => {
     <!-- Amount -->
     <div class="flex-1 min-w-0">
       <p class="font-mono font-bold text-white leading-tight">
-        {{ toSol(toLamports(raisedAmount)) }} / {{ toSol(toLamports(amount)) }}
+        {{ toSol(raisedAmount || '0') }} / {{ toSol(amount) }}
         <span class="text-white/50 text-[10px] font-normal uppercase ml-1">{{ currency }}</span>
       </p>
       <div class="w-24 h-1 bg-white/10 rounded-full mt-1.5 overflow-hidden">
         <div 
           class="h-full bg-primary transition-all duration-500" 
-          :style="{ width: `${Math.min(100n, (toLamports(raisedAmount || '0') * 100n) / toLamports(amount))}%` }"
+          :style="{ width: `${progressPercent}%` }"
         />
       </div>
     </div>
 
     <!-- APY -->
     <div class="w-20 flex-shrink-0">
-      <p class="font-mono font-bold text-white">{{ apy / 100 }}%</p>
+      <p class="font-mono font-bold text-white">{{ (Number(apy) / 100).toFixed(2) }}%</p>
     </div>
 
     <!-- Duration -->
@@ -92,7 +100,7 @@ const trustScoreMuted = computed(() => {
     <!-- Repaid -->
     <div class="w-24 flex-shrink-0">
       <span class="px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono" :class="repaymentStyle">
-        {{ repaymentRate }}%
+        {{ (Number(repaymentRate) / 100).toFixed(0) }}%
       </span>
     </div>
 
@@ -124,7 +132,7 @@ const trustScoreMuted = computed(() => {
           <!-- Badges -->
           <div class="flex items-center gap-1.5 flex-wrap mt-1">
             <span class="px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono" :class="repaymentStyle">
-              {{ repaymentRate }}% repaid
+              {{ (Number(repaymentRate) / 100).toFixed(0) }}% repaid
             </span>
             <span class="px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary/80 text-[10px] font-bold font-mono">
               {{ attestationCount }} attestations
@@ -148,17 +156,17 @@ const trustScoreMuted = computed(() => {
       <div class="flex items-end justify-between mb-1">
         <p class="text-xs text-muted uppercase tracking-widest">Amount</p>
         <p class="font-mono text-xs text-white/70">
-          {{ (toLamports(raisedAmount || '0') * 100n) / toLamports(amount) }}% funded
+          {{ progressPercent }}% funded
         </p>
       </div>
       <p class="font-mono text-2xl font-bold text-white">
-        {{ toSol(toLamports(raisedAmount)) }}
-        <span class="text-base text-white/50 font-normal">/ {{ toSol(toLamports(amount)) }} {{ currency }}</span>
+        {{ toSol(raisedAmount || '0') }}
+        <span class="text-base text-white/50 font-normal">/ {{ toSol(amount) }} {{ currency }}</span>
       </p>
       <div class="w-full h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden">
         <div 
           class="h-full bg-primary transition-all duration-500 shadow-glow-primary" 
-          :style="{ width: `${Math.min(100n, (toLamports(raisedAmount || '0') * 100n) / toLamports(amount))}%` }"
+          :style="{ width: `${progressPercent}%` }"
         />
       </div>
     </div>
@@ -167,7 +175,7 @@ const trustScoreMuted = computed(() => {
     <div class="bg-black/20 rounded px-4 py-3 flex items-center justify-between">
       <div>
         <p class="text-xs text-muted uppercase tracking-widest mb-0.5">APY</p>
-        <p class="font-mono text-lg font-bold text-white">{{ apy / 100 }}%</p>
+        <p class="font-mono text-lg font-bold text-white">{{ (Number(apy) / 100).toFixed(2) }}%</p>
       </div>
       <div class="text-right">
         <p class="text-xs text-muted uppercase tracking-widest mb-0.5">Duration</p>

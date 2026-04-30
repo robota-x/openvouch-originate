@@ -77,17 +77,33 @@ function applySuggested() {
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────
+async function ensureWallet() {
+  if (!auth.connectedWallet) {
+    try {
+      await auth.reconnect()
+    } catch (err) {
+      alert('Wallet session lost. Please click "Re-authorize" in the top navigation.')
+      return false
+    }
+  }
+  return true
+}
+
 async function handleSubmit() {
   if (!auth.isAuthenticated) return
+  if (!(await ensureWallet())) return
   
   isSubmitting.value = true
   error.value = null
   
   try {
+    // Convert user-entered SOL to lamport string once — all API calls use lamports.
+    const amountLamports = toLamports(amount.value).toString()
+
     // 1. Get Base64 TX from backend
     const { transaction: txBase64 } = await backendClient.initiateLoan(
       auth.token!,
-      { amount: amount.value, currency: currency.value, duration: duration.value }
+      { amount: amountLamports, currency: currency.value, duration: duration.value }
     )
 
     // 2. Deserialize
@@ -103,7 +119,7 @@ async function handleSubmit() {
     // 4. Finalize with backend
     const result = await backendClient.finalizeLoan(auth.token!, {
       signature,
-      amount: amount.value,
+      amount: amountLamports,
       currency: currency.value,
       duration: duration.value,
       apy: apy.value
@@ -129,7 +145,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   <Teleport to="body">
     <div v-if="show" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/80 backdrop-blur-md" @click="emit('close')"></div>
+      <div class="absolute inset-0 bg-black/80 backdrop-blur-md"></div>
       
       <!-- Modal Content -->
       <div class="relative glass-panel rounded-xl max-w-md w-full overflow-hidden shadow-2xl border border-white/10">

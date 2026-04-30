@@ -46,6 +46,7 @@ export interface ContractView {
   lender?:                  string
   amount:                   string
   raisedAmount:             string
+  repaid:                   string
   currency:                 string
   apy:                      string
   duration:                 number

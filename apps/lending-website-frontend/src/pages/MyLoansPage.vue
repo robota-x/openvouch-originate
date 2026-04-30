@@ -7,7 +7,7 @@ import { ApiError } from '../types'
 import { backendClient } from '../api/client'
 import { fmt } from '../utils/format'
 import { profileLoanToContractView } from '../utils/loans'
-import { toLamports, toSol } from '../utils/precision'
+import { toSol } from '../utils/precision'
 import { useSolana } from '../composables/useSolana'
 import { solanaBridge } from '../utils/solana-bridge'
 import BorrowedLoanCard from '../components/BorrowedLoanCard.vue'
@@ -34,8 +34,21 @@ async function refreshProfile() {
 
 onMounted(refreshProfile)
 
+async function ensureWallet() {
+  if (!auth.connectedWallet) {
+    try {
+      await auth.reconnect()
+    } catch (err) {
+      alert('Wallet session lost. Please click "Re-authorize" in the top navigation.')
+      return false
+    }
+  }
+  return true
+}
+
 async function handleDisburse(loanId: string) {
   if (!auth.isAuthenticated) return
+  if (!(await ensureWallet())) return
   
   isProcessing.value = true
   try {
@@ -55,6 +68,7 @@ async function handleDisburse(loanId: string) {
 
 async function handleRepay(loanId: string, amount: string) {
   if (!auth.isAuthenticated) return
+  if (!(await ensureWallet())) return
   
   isProcessing.value = true
   try {
@@ -75,6 +89,7 @@ async function handleRepay(loanId: string, amount: string) {
 
 async function handleCancel(loanId: string) {
   if (!auth.isAuthenticated) return
+  if (!(await ensureWallet())) return
   
   isProcessing.value = true
   try {
@@ -94,6 +109,7 @@ async function handleCancel(loanId: string) {
 
 async function handleTriggerDefault(loanId: string) {
   if (!auth.isAuthenticated) return
+  if (!(await ensureWallet())) return
   
   isProcessing.value = true
   try {
@@ -125,8 +141,8 @@ const lentLoans = computed(() => profile.value?.lentLoans ?? [])
 // ── Recap stats ────────────────────────────────────────────────────────────
 const borrowRepaymentRate = computed(() => {
   const settled = borrowedLoans.value.filter(l => l.status === 'repaid' || l.status === 'defaulted')
-  const borrowed = settled.reduce((s, l) => s + toLamports(l.amount), 0n)
-  const repaid   = settled.reduce((s, l) => s + toLamports(l.repaid), 0n)
+  const borrowed = settled.reduce((s, l) => s + BigInt(l.amount), 0n)
+  const repaid   = settled.reduce((s, l) => s + BigInt(l.repaid), 0n)
   return borrowed > 0n ? Number((repaid * 100n) / borrowed) : 100
 })
 
@@ -134,7 +150,7 @@ const lendInterest = computed(() => {
   const totalInterestLamports = lentLoans.value
     .filter(l => l.status === 'repaid')
     .reduce((s, l) => {
-      const amount = toLamports(l.amount)
+      const amount = BigInt(l.amount)
       return s + (amount * BigInt(l.apy) * BigInt(l.duration)) / (10000n * 365n)
     }, 0n)
   return toSol(totalInterestLamports)
@@ -142,13 +158,16 @@ const lendInterest = computed(() => {
 const lendLost = computed(() => {
   const totalLostLamports = lentLoans.value
     .filter(l => l.status === 'defaulted')
-    .reduce((s, l) => s + toLamports(l.amount), 0n)
+    .reduce((s, l) => s + BigInt(l.amount), 0n)
   return toSol(totalLostLamports)
 })
 const lendOutstanding = computed(() => {
   const totalOutstandingLamports = lentLoans.value
     .filter(l => l.status === 'active')
-    .reduce((s, l) => s + toLamports(l.amount), 0n)
+    .reduce((s, l) => {
+      const amount = BigInt(l.amount)
+      return s + (amount * BigInt(l.apy) * BigInt(l.duration)) / (10000n * 365n)
+    }, 0n)
   return toSol(totalOutstandingLamports)
 })
 
@@ -251,7 +270,7 @@ function openLentContract(loan: LentLoan) {
               :key="loan.id"
               v-bind="loan"
               @view="openBorrowedContract(loan)"
-              @repay="handleRepay(loan.id, toSol(toLamports(loan.amount) / BigInt(loan.duration)))"
+              @repay="handleRepay(loan.id, (BigInt(loan.amount) / BigInt(loan.duration)).toString())"
             />
           </div>
 
@@ -271,9 +290,9 @@ function openLentContract(loan: LentLoan) {
               <span class="text-muted font-normal text-sm ml-1.5">{{ lentLoans.length }}</span>
             </h2>
             <div v-if="lentLoans.length" class="flex items-center gap-4 font-mono text-sm text-muted flex-wrap justify-end">
-              <span v-if="lendOutstanding > 0">{{ fmt(lendOutstanding) }} outstanding</span>
-              <span v-if="lendInterest > 0" class="text-emerald">+{{ fmt(lendInterest) }} earned</span>
-              <span v-if="lendLost > 0" class="text-danger">−{{ fmt(lendLost) }} lost</span>
+              <span v-if="lendOutstanding !== '0'">{{ lendOutstanding }} SOL outstanding</span>
+              <span v-if="lendInterest !== '0'" class="text-emerald">+{{ lendInterest }} SOL earned</span>
+              <span v-if="lendLost !== '0'" class="text-danger">−{{ lendLost }} SOL lost</span>
             </div>
           </div>
 
