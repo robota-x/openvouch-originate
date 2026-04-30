@@ -34,10 +34,12 @@ const solana = useSolana()
 const activeContract     = ref<ContractView | null>(null)
 const showConnectModal   = ref(false)
 const isFunding          = ref(false)
+const fundingSuccess     = ref(false)
 // Held while the user completes auth, then the fund action resumes automatically.
 const pendingFundLoan    = ref<Loan | null>(null)
 
 function openContract(loan: Loan) {
+  fundingSuccess.value = false
   activeContract.value = {
     id:                      loan.id,
     borrower:                loan.borrower,
@@ -61,10 +63,10 @@ async function handleFund(loanId: string, amountToLend?: string) {
   const loan = loans.value.find(l => l.id === loanId)
   if (!loan) return
 
-  activeContract.value = null
   if (!auth.isAuthenticated) {
+    activeContract.value = null
     pendingFundLoan.value = loan
-    showConnectModal.value    = true
+    showConnectModal.value = true
     return
   }
 
@@ -107,9 +109,9 @@ async function handleFund(loanId: string, amountToLend?: string) {
       amount: contributionLamports
     })
 
-    // 5. Refresh
+    // 5. Refresh and show success
     loans.value = await backendClient.getOpenRequests()
-    alert('Success! Contribution made.')
+    fundingSuccess.value = true
   } catch (e: any) {
     console.error('[MarketplacePage] Funding failed:', e)
     alert(`Funding failed: ${e.message}`)
@@ -560,7 +562,8 @@ const visibleLoans = computed(() => {
   <ContractModal
     v-if="activeContract"
     :contract="activeContract"
-    @close="activeContract = null"
+    :success="fundingSuccess"
+    @close="activeContract = null; fundingSuccess = false"
     @fund="handleFund"
   />
 

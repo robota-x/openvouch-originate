@@ -5,7 +5,11 @@ import { truncate, fmtDate } from '../utils/format'
 import { useAuth } from '../composables/useAuth'
 import { toSol } from '../utils/precision'
 
-const props = defineProps<{ contract: ContractView }>()
+const props = defineProps<{
+  contract: ContractView
+  hideContribute?: boolean
+  success?: boolean
+}>()
 const emit  = defineEmits<{
   close: []
   fund: [loanId: string, amount: string]
@@ -87,10 +91,11 @@ const statusStyle = computed(() => {
   if (s === 'open')      return 'border-primary/40 bg-primary/10 text-primary'
   if (s === 'active')    return 'border-white/20   bg-white/5   text-muted'
   if (s === 'repaid')    return 'border-emerald/40 bg-emerald/10 text-emerald'
+  if (s === 'cancelled') return 'border-orange/40  bg-orange/10  text-orange'
   return                        'border-danger/40  bg-danger/10  text-danger'
 })
 const statusLabel = computed(() => ({
-  open: 'Open offer', active: 'Active', repaid: 'Repaid', defaulted: 'Defaulted',
+  open: 'Open offer', active: 'Active', repaid: 'Repaid', defaulted: 'Defaulted', cancelled: 'Cancelled',
 }[props.contract.status]))
 
 // ── Timeline ───────────────────────────────────────────────────────────────────
@@ -285,8 +290,17 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
         <!-- Footer / Action Area -->
         <div class="px-6 py-6 border-t border-border flex flex-col gap-6">
 
-          <!-- Funding input (open loans only) -->
-          <div v-if="contract.status === 'open'" class="flex flex-col gap-4">
+          <!-- Success message -->
+          <div v-if="props.success" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-emerald/10 border border-emerald/30">
+            <span class="material-symbols-outlined text-emerald text-2xl">check_circle</span>
+            <div class="flex-1">
+              <p class="text-emerald font-bold text-sm">Contribution successful!</p>
+              <p class="text-muted text-xs mt-0.5">Your funds have been added to this loan.</p>
+            </div>
+          </div>
+
+          <!-- Funding input (open loans, not when viewed from My Loans) -->
+          <div v-else-if="contract.status === 'open' && !props.hideContribute" class="flex flex-col gap-4">
             <div class="flex items-center justify-between">
               <label class="text-[10px] text-muted uppercase tracking-widest font-bold">Your Contribution</label>
               <div class="flex items-center gap-2">
@@ -323,7 +337,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
           <!-- Buttons -->
           <div class="flex items-center justify-end gap-3">
             <button
-              v-if="canTriggerDefault"
+              v-if="canTriggerDefault && !props.success"
               class="px-4 py-2 rounded bg-danger/10 text-danger text-sm font-bold border border-danger/20 hover:bg-danger/20 transition-colors"
               @click="emit('default', contract.id!)"
             >Trigger Default</button>
@@ -332,7 +346,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
               @click="emit('close')"
             >Close</button>
             <button
-              v-if="contract.status === 'open'"
+              v-if="contract.status === 'open' && !props.hideContribute && !props.success"
               class="px-8 py-2.5 rounded bg-primary text-white text-sm font-bold shadow-glow-primary hover:shadow-glow-primary-strong transition-all"
               @click="emit('fund', contract.id!, contributionAmount)"
             >Contribute</button>

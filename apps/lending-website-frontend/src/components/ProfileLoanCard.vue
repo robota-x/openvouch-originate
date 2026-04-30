@@ -28,7 +28,7 @@ const statusLabel = computed(() => {
 const daysRemaining = computed(() => {
   if (!props.dueDate) return null
   const due   = new Date(props.dueDate).getTime()
-  const today = new Date('2026-04-12').getTime()
+  const today = new Date().getTime()
   return Math.ceil((due - today) / 86_400_000)
 })
 </script>

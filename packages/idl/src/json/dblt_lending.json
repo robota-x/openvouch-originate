@@ -83,30 +83,6 @@
           "signer": true
         },
         {
-          "name": "lender_profile",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  112,
-                  114,
-                  111,
-                  102,
-                  105,
-                  108,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "lender"
-              }
-            ]
-          }
-        },
-        {
           "name": "position",
           "writable": true,
           "pda": {

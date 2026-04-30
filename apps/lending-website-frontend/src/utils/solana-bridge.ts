@@ -48,6 +48,11 @@ export const solanaBridge = {
       return 'fixture-sig-' + Date.now()
     }
 
+    // Refresh blockhash right before signing to prevent expiration.
+    // Backend-provided blockhash can expire if user takes time to review in wallet.
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = blockhash;
+
     let signedTx: Transaction;
 
     // 1. Resolve signing capability

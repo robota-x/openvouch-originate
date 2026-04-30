@@ -21,6 +21,16 @@ import {
 
 const loanRoutes = new Hono<AppEnv>()
 
+// ── Trust score computation ───────────────────────────────────────────────────
+// Deterministic trust score: 100–500 from address hash, +250 per verified attestation, capped at 1000.
+function computeTrustScore(address: string, verifiedAttestationCount: number): number {
+  let h = 5381
+  for (let i = 0; i < address.length; i++) {
+    h = (((h << 5) + h) ^ address.charCodeAt(i)) >>> 0
+  }
+  return Math.min(1000, 100 + (h % 401) + verifiedAttestationCount * 250)
+}
+
 // ── Shared enriched query ─────────────────────────────────────────────────────
 
 function enrichedQuery(db: Db) {
@@ -83,7 +93,7 @@ function toListItem(r: EnrichedRow): Loan {
     currency:         r.currency,
     apy:              (r.apy * 10000).toString(), // Convert back to BPS for frontend
     duration:         r.duration,
-    trustScore:       r.trustScore ?? 0,
+    trustScore:       r.trustScore ?? computeTrustScore(r.borrower, r.attestationCount),
     repaymentRate:    repaymentRate(r),
     attestationCount: r.attestationCount,
   }
@@ -94,7 +104,7 @@ function toContractView(r: EnrichedRow): ContractView {
     id:                       r.id,
     borrower:                 r.borrower,
     borrowerNickname:         r.nickname ?? r.borrower.slice(0, 8),
-    borrowerTrustScore:       r.trustScore ?? 0,
+    borrowerTrustScore:       r.trustScore ?? computeTrustScore(r.borrower, r.attestationCount),
     borrowerRepaymentRate:    repaymentRate(r),
     borrowerAttestationCount: r.attestationCount,
     lender:                   r.lender ?? undefined,
@@ -147,12 +157,13 @@ loanRoutes.post('/initiate', authenticate, async (c) => {
 
 /** POST /api/loans/finalize — verify signature and record in D1. */
 loanRoutes.post('/finalize', authenticate, async (c) => {
-  const { signature, amount, currency, duration, apy } = await c.req.json<{ 
-    signature: string, 
-    amount: string, 
-    currency: string, 
+  const { signature, poolAddress, amount, currency, duration, apy } = await c.req.json<{
+    signature: string,
+    poolAddress: string,
+    amount: string,
+    currency: string,
     duration: number,
-    apy: string 
+    apy: string
   }>()
   
   const config = c.get('config')
@@ -179,7 +190,7 @@ loanRoutes.post('/finalize', authenticate, async (c) => {
       status: 'open', 
       raisedAmount: 0n,
       repaid: 0n,
-      onChainRef: signature,
+      onChainRef: poolAddress,
       createdAt: now, 
       updatedAt: now,
     })

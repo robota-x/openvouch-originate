@@ -44,7 +44,7 @@ export interface ProfileLoan {
   currency: string
   apy: string | number
   duration: number      // days
-  status: 'open' | 'active' | 'repaid' | 'defaulted'
+  status: 'open' | 'active' | 'repaid' | 'defaulted' | 'cancelled'
   repaid: string        // 0 when unpaid/defaulted, full amount when repaid; no partials
   dueDate?: string      // ISO date; present for active/repaid/defaulted loans
   counterparty?: string // lender address; absent for open offers
@@ -103,7 +103,7 @@ export interface ContractView {
   apy: string | number
   duration: number             // days
 
-  status: 'open' | 'active' | 'repaid' | 'defaulted'
+  status: 'open' | 'active' | 'repaid' | 'defaulted' | 'cancelled'
 
   // Dates (absent for open offers)
   dueDate?: string             // ISO date

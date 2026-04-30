@@ -29,6 +29,7 @@ const apy = ref(1200) // BPS
 const duration = ref(90)
 const isSubmitting = ref(false)
 const error = ref<string | null>(null)
+const succeeded = ref(false)
 
 const displayApy = computed({
   get: () => apy.value / 100,
@@ -100,8 +101,8 @@ async function handleSubmit() {
     // Convert user-entered SOL to lamport string once — all API calls use lamports.
     const amountLamports = toLamports(amount.value).toString()
 
-    // 1. Get Base64 TX from backend
-    const { transaction: txBase64 } = await backendClient.initiateLoan(
+    // 1. Get Base64 TX + pool address from backend
+    const { transaction: txBase64, poolAddress } = await backendClient.initiateLoan(
       auth.token!,
       { amount: amountLamports, currency: currency.value, duration: duration.value }
     )
@@ -116,17 +117,21 @@ async function handleSubmit() {
       auth.connectedWallet
     )
 
-    // 4. Finalize with backend
+    // 4. Finalize with backend — store poolAddress (not signature) as the on-chain ref
     const result = await backendClient.finalizeLoan(auth.token!, {
       signature,
+      poolAddress,
       amount: amountLamports,
       currency: currency.value,
       duration: duration.value,
       apy: apy.value
     })
 
-    emit('success', result.id)
-    emit('close')
+    succeeded.value = true
+    setTimeout(() => {
+      emit('success', result.id)
+      emit('close')
+    }, 3000)
   } catch (e: any) {
     console.error('[CreateLoanModal] Failed to create loan:', e)
     error.value = e instanceof ApiError ? e.message : (e.message || 'Transaction failed')
@@ -156,7 +161,14 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
           </button>
         </div>
 
-        <form @submit.prevent="handleSubmit" class="p-6 flex flex-col gap-5">
+        <!-- Success screen -->
+        <div v-if="succeeded" class="p-10 flex flex-col items-center gap-4 text-center">
+          <span class="material-symbols-outlined text-5xl text-emerald" style="font-variation-settings: 'FILL' 1">check_circle</span>
+          <p class="text-white font-display font-bold text-lg">Loan pool created</p>
+          <p class="text-muted text-sm">Your request is live on-chain. Redirecting to My Loans…</p>
+        </div>
+
+        <form v-else @submit.prevent="handleSubmit" class="p-6 flex flex-col gap-5">
           <!-- Amount -->
           <div class="flex flex-col gap-2">
             <label class="text-[10px] text-muted uppercase tracking-[0.2em] font-bold">Principal Amount (SOL)</label>

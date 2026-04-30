@@ -8,7 +8,7 @@ import { sqliteTable, text, integer, real, blob, customType } from 'drizzle-orm/
  * Custom BigInt type for SQLite that uses INTEGER mode.
  * Ensures we use 64-bit integers in D1 while having bigint in JS.
  */
-export const sqliteBigInt = customType<{ data: bigint; driverData: bigint }>({
+export const sqliteBigInt = customType<{ data: bigint; driverData: number }>({
   dataType() {
     return 'integer';
   },
@@ -19,7 +19,7 @@ export const sqliteBigInt = customType<{ data: bigint; driverData: bigint }>({
     return 0n;
   },
   toDriver(value: bigint) {
-    return value;
+    return Number(value);
   },
 });
 

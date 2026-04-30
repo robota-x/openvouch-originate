@@ -16,7 +16,14 @@ RPC="http://localhost:8899"
 
 cd "$REPO_ROOT"
 
-# ── 1. Reset validator ────────────────────────────────────────────────────────
+# ── 1. Reset local D1 database ───────────────────────────────────────────────
+echo "==> Wiping local D1 database..."
+rm -rf "$REPO_ROOT/apps/lending-website-backend/.wrangler/state/v3/d1"
+
+echo "==> Running D1 migrations..."
+(cd "$REPO_ROOT/apps/lending-website-backend" && echo "y" | npx wrangler d1 migrations apply openvouch-originate-db-local --local)
+
+# ── 2. Reset validator ────────────────────────────────────────────────────────
 echo "==> Stopping any existing validator..."
 pkill -f solana-test-validator 2>/dev/null && sleep 1 || true
 
@@ -30,7 +37,7 @@ until solana cluster-version --url "$RPC" > /dev/null 2>&1; do
 done
 echo " ready."
 
-# ── 2. Fund wallets ───────────────────────────────────────────────────────────
+# ── 3. Fund wallets ───────────────────────────────────────────────────────────
 AUTHORITY_PUBKEY=$(solana-keygen pubkey "$AUTHORITY_KEY")
 echo "==> Funding authority ($AUTHORITY_PUBKEY)..."
 solana airdrop 10 "$AUTHORITY_PUBKEY" --url "$RPC"
@@ -38,17 +45,24 @@ solana airdrop 10 "$AUTHORITY_PUBKEY" --url "$RPC"
 echo "==> Funding demo wallet ($DEMO_WALLET)..."
 solana airdrop 100 "$DEMO_WALLET" --url "$RPC"
 
-# ── 3. Build + sync keys ──────────────────────────────────────────────────────
+echo "==> Funding additional test wallets..."
+solana airdrop 100 vhoYtZGs6KXzwrnb2gw4tZFgxh3ZY2qRiEGEQVFNA6c --url "$RPC"
+solana airdrop 100 EAy5RYr18CmVD52hWJ1RoYemPa6GRpnyQvqPqrD7Bvao --url "$RPC"
+
+# ── 4. Build + sync keys ──────────────────────────────────────────────────────
 echo "==> Building programs (localnet)..."
 bash "$REPO_ROOT/programs/build-sync.sh" --env localnet
 
-# ── 4. Deploy ─────────────────────────────────────────────────────────────────
+# ── 5. Deploy ─────────────────────────────────────────────────────────────────
 echo "==> Deploying to localnet..."
 anchor program deploy \
   --provider.cluster localnet \
   --provider.wallet "$AUTHORITY_KEY"
 
-# ── 5. Rebuild IDL package ────────────────────────────────────────────────────
+# ── 6. Rebuild IDL package ────────────────────────────────────────────────────
+echo "==> Copying fresh IDLs to @openvouch/idl..."
+cp target/idl/*.json packages/idl/src/json/
+
 echo "==> Rebuilding @openvouch/idl..."
 npm run build -w packages/idl
 

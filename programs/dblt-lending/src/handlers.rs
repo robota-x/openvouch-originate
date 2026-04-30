@@ -166,7 +166,6 @@ pub fn finalize_pool(ctx: Context<FinalizePool>) -> Result<()> {
 // --- CANCEL ---
 pub fn cancel_loan(ctx: Context<CancelLoan>) -> Result<()> {
     let pool = &mut ctx.accounts.pool;
-    let clock = Clock::get()?;
 
     // Allow cancellation if Open or Funded (but not yet Disbursed/Active)
     require!(
@@ -174,9 +173,6 @@ pub fn cancel_loan(ctx: Context<CancelLoan>) -> Result<()> {
         ErrorCode::InvalidPoolStatus
     );
     
-    // Standard funding period of 1 week (7 days)
-    let timeout = pool.created_at.checked_add(7 * 24 * 60 * 60).ok_or(ErrorCode::MathOverflow)?;
-    require!(clock.unix_timestamp >= timeout, ErrorCode::TimeoutNotReached);
     require!(pool.borrower == ctx.accounts.borrower.key(), ErrorCode::Unauthorized);
 
     pool.status = PoolStatus::Cancelled as u8;
