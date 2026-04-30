@@ -28,9 +28,10 @@ jobs:
       - name: Build only
         run: npm run build
         env:
+          VITE_SOLANA_RPC_URL: https://api.devnet.solana.com
           VITE_API_BASE_URL: https://api.openvouch-originate.robota.dev
-          VITE_IDENTITY_API_BASE_URL: https://openvouch-attestation-identity-service-production.robota.dev
-          VITE_ATTESTATION_API_BASE_URL: https://openvouch-attestation-uk-company-service-production.robota.dev
+          VITE_IDENTITY_API_BASE_URL: https://identity-attestation.openvouch-originate.robota.dev
+          VITE_ATTESTATION_API_BASE_URL: https://company-attestation.openvouch-originate.robota.dev
 
       - name: Deploy Frontend
         uses: cloudflare/wrangler-action@v3
