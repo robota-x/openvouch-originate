@@ -40,6 +40,12 @@ export default defineConfig(({ mode }) => {
 
     test: {
       environment: 'happy-dom',
+      env: {
+        VITE_SOLANA_RPC_URL: 'http://localhost:8899',
+        VITE_API_BASE_URL: 'http://localhost:8787',
+        VITE_ATTESTATION_API_BASE_URL: 'http://localhost:8788',
+        VITE_IDENTITY_API_BASE_URL: 'http://localhost:8789',
+      },
     },
   }
 })
