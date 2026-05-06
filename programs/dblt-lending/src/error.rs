@@ -1,3 +1,74 @@
+// use anchor_lang::prelude::*;
+
+// #[error_code]
+// #[derive(PartialEq)]
+// pub enum ErrorCode {
+//     #[msg("String too long")]
+//     StringTooLong,
+//     #[msg("Invalid component type")]
+//     InvalidComponent,
+//     #[msg("Already verified")]
+//     AlreadyVerified,
+//     #[msg("Lender cannot have financial scores")]
+//     LenderNoFinancials,
+//     #[msg("Invalid interest rate")]
+//     InvalidInterestRate,
+//     #[msg("Invalid duration")]
+//     InvalidDuration,
+//     #[msg("Invalid years covered")]
+//     InvalidYearsCovered,
+//     #[msg("Invalid amount")]
+//     InvalidAmount,
+//     #[msg("Invalid currency code")]
+//     InvalidCurrencyCode,
+//     #[msg("Invalid country code")]
+//     InvalidCountryCode,
+//     #[msg("Insufficient credit score")]
+//     InsufficientCredit,
+//     #[msg("Pool not open")]
+//     PoolNotOpen,
+//     #[msg("Over funding")]
+//     OverFunding,
+//     #[msg("Pool not funded")]
+//     PoolNotFunded,
+//     #[msg("Nothing to withdraw")]
+//     NothingToWithdraw,
+//     #[msg("Invalid pool status")]
+//     InvalidPoolStatus,
+//     #[msg("Math overflow")]
+//     MathOverflow,
+//     #[msg("Unauthorized")]
+//     Unauthorized,
+//     #[msg("Timeout not reached")]
+//     TimeoutNotReached,
+//     #[msg("The vault has insufficient funds for this operation.")]
+//     InsufficientFunds,
+//     #[msg("Invalid number of installments")]
+//     InvalidNumInstallments,
+//     #[msg("Too many installments")]
+//     TooManyInstallments,
+//     #[msg("Invalid installment interval")]
+//     InvalidInstallmentInterval,
+//     #[msg("Late penalty too high")]
+//     PenaltyTooHigh,
+//     #[msg("Early repayment discount too high")]
+//     DiscountTooHigh,
+//     #[msg("Repayment schedule inactive")]
+//     ScheduleInactive,
+//     #[msg("Insufficient payment amount")]
+//     InsufficientPayment,
+//     #[msg("Overpayment")]
+//     Overpayment,
+//     #[msg("Borrower cannot trigger default on self")]
+//     BorrowerCannotDefaultSelf,
+//     #[msg("Only participants (lender or borrower) can trigger this action")]
+//     NotParticipant,
+//     #[msg("Grace period not yet passed")]
+//     GracePeriodNotExceeded,
+//     #[msg("Listing not open")]
+//     ListingNotOpen,
+// }
+
 use anchor_lang::prelude::*;
 
 #[error_code]
@@ -5,66 +76,114 @@ use anchor_lang::prelude::*;
 pub enum ErrorCode {
     #[msg("String too long")]
     StringTooLong,
+    
     #[msg("Invalid component type")]
     InvalidComponent,
+    
     #[msg("Already verified")]
     AlreadyVerified,
+    
     #[msg("Lender cannot have financial scores")]
     LenderNoFinancials,
+    
     #[msg("Invalid interest rate")]
     InvalidInterestRate,
+    
     #[msg("Invalid duration")]
     InvalidDuration,
+    
     #[msg("Invalid years covered")]
     InvalidYearsCovered,
+    
     #[msg("Invalid amount")]
     InvalidAmount,
+    
     #[msg("Invalid currency code")]
     InvalidCurrencyCode,
+    
     #[msg("Invalid country code")]
     InvalidCountryCode,
+    
     #[msg("Insufficient credit score")]
     InsufficientCredit,
+    
     #[msg("Pool not open")]
     PoolNotOpen,
+    
     #[msg("Over funding")]
     OverFunding,
+    
     #[msg("Pool not funded")]
     PoolNotFunded,
+    
     #[msg("Nothing to withdraw")]
     NothingToWithdraw,
+    
     #[msg("Invalid pool status")]
     InvalidPoolStatus,
+    
     #[msg("Math overflow")]
     MathOverflow,
+    
     #[msg("Unauthorized")]
     Unauthorized,
+    
     #[msg("Timeout not reached")]
     TimeoutNotReached,
+    
     #[msg("The vault has insufficient funds for this operation.")]
     InsufficientFunds,
+    
     #[msg("Invalid number of installments")]
     InvalidNumInstallments,
+    
     #[msg("Too many installments")]
     TooManyInstallments,
+    
     #[msg("Invalid installment interval")]
     InvalidInstallmentInterval,
+    
     #[msg("Late penalty too high")]
     PenaltyTooHigh,
+    
     #[msg("Early repayment discount too high")]
     DiscountTooHigh,
+    
     #[msg("Repayment schedule inactive")]
     ScheduleInactive,
+    
     #[msg("Insufficient payment amount")]
     InsufficientPayment,
+    
     #[msg("Overpayment")]
     Overpayment,
+    
     #[msg("Borrower cannot trigger default on self")]
     BorrowerCannotDefaultSelf,
+    
     #[msg("Only participants (lender or borrower) can trigger this action")]
     NotParticipant,
+    
     #[msg("Grace period not yet passed")]
     GracePeriodNotExceeded,
+    
     #[msg("Listing not open")]
     ListingNotOpen,
+
+    // --- NEW: Review System Errors ---
+
+    #[msg("Rating must be between 1 and 5")]
+    InvalidRating,
+
+    #[msg("Comment exceeds 150 words limit")]
+    CommentTooLong,
+
+    #[msg("Review already exists for this pool")]
+    ReviewAlreadyExists,
+
+    #[msg("Review target is invalid (must be the other party in the loan)")]
+    InvalidReviewTarget,
+
+    #[msg("Loan must be completed or defaulted before leaving a review")]
+    LoanNotFinished,
 }

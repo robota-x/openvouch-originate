@@ -20,7 +20,6 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
-    "@tailwindcss/oxide-linux-x64-gnu": "^4.2.4",
     "@tailwindcss/vite": "^4.1.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.0",

@@ -1,39 +1,90 @@
-import { createMiddleware } from 'hono/factory'
-import { jwtVerify, SignJWT } from 'jose'
-import type { AppEnv } from '../types.js'
+// import { createMiddleware } from 'hono/factory'
+// import { jwtVerify, SignJWT } from 'jose'
+// import type { AppEnv } from '../types.js'
+
+// /**
+//  * Middleware for session-protected routes.
+//  * Reads jwtSecret from c.var.config, verifies the Bearer token, sets c.var.user.
+//  * Returns 401 if the secret is absent or the token is invalid.
+//  */
+// export const authenticate = createMiddleware<AppEnv>(async (c, next) => {
+//   const secret = c.get('config').jwtSecret
+//   if (!secret) {
+//     return c.json({ error: 'not_authenticated' }, 401)
+//   }
+
+//   const header = c.req.header('Authorization')
+//   if (!header?.startsWith('Bearer ')) {
+//     return c.json({ error: 'not_authenticated' }, 401)
+//   }
+
+//   try {
+//     const key = new TextEncoder().encode(secret)
+//     const { payload } = await jwtVerify(header.slice(7), key)
+//     c.set('user', { address: payload.sub as string })
+//     await next()
+//   } catch {
+//     return c.json({ error: 'not_authenticated' }, 401)
+//   }
+// })
+
+// /** Sign a 7-day HS256 JWT for the given wallet address. */
+// export async function createToken(secret: string, address: string): Promise<string> {
+//   const key = new TextEncoder().encode(secret)
+//   return new SignJWT({ sub: address })
+//     .setProtectedHeader({ alg: 'HS256' })
+//     .setIssuedAt()
+//     .setExpirationTime('7d')
+//     .sign(key)
+// }
+
+import { createMiddleware } from "hono/factory";
+import { jwtVerify, SignJWT } from "jose";
+import type { AppEnv } from "../types.js";
 
 /**
  * Middleware for session-protected routes.
- * Reads jwtSecret from c.var.config, verifies the Bearer token, sets c.var.user.
+ * Reads jwtSecret from c.var.config, verifies the Bearer token, sets c.var.user AND c.var.userAddress.
  * Returns 401 if the secret is absent or the token is invalid.
  */
 export const authenticate = createMiddleware<AppEnv>(async (c, next) => {
-  const secret = c.get('config').jwtSecret
+  const secret = c.get("config").jwtSecret;
   if (!secret) {
-    return c.json({ error: 'not_authenticated' }, 401)
+    return c.json({ error: "not_authenticated" }, 401);
   }
 
-  const header = c.req.header('Authorization')
-  if (!header?.startsWith('Bearer ')) {
-    return c.json({ error: 'not_authenticated' }, 401)
+  const header = c.req.header("Authorization");
+  if (!header?.startsWith("Bearer ")) {
+    return c.json({ error: "not_authenticated" }, 401);
   }
 
   try {
-    const key = new TextEncoder().encode(secret)
-    const { payload } = await jwtVerify(header.slice(7), key)
-    c.set('user', { address: payload.sub as string })
-    await next()
+    const key = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(header.slice(7), key);
+
+    const address = payload.sub as string;
+
+    // Set the standard user object
+    c.set("user", { address });
+
+    // Set the alias for convenient access in routes (fixes c.get('userAddress') errors)
+    c.set("userAddress", address);
+
+    await next();
   } catch {
-    return c.json({ error: 'not_authenticated' }, 401)
+    return c.json({ error: "not_authenticated" }, 401);
   }
-})
+});
 
 /** Sign a 7-day HS256 JWT for the given wallet address. */
-export async function createToken(secret: string, address: string): Promise<string> {
-  const key = new TextEncoder().encode(secret)
+export async function createToken(
+  secret: string,
+  address: string,
+): Promise<string> {
+  const key = new TextEncoder().encode(secret);
   return new SignJWT({ sub: address })
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime('7d')
-    .sign(key)
+    .setExpirationTime("7d")
+    .sign(key);
 }

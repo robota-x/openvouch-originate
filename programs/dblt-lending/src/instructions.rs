@@ -1,3 +1,238 @@
+// use anchor_lang::prelude::*;
+// // [DEFERRED-SPL]
+// // use anchor_spl::token::{Token, TokenAccount, Mint};
+
+// use crate::state::*;
+// use crate::constants::*;
+
+// // ==================== INITIALIZE ====================
+// #[derive(Accounts)]
+// pub struct Initialize<'info> {
+//     #[account(init, payer = admin, space = 8 + 200)]
+//     pub config: Account<'info, Config>,
+//     // [DEFERRED-SPL]
+//     // pub dblt_mint: Account<'info, Mint>,
+//     #[account(mut)]
+//     pub admin: Signer<'info>,
+//     pub system_program: Program<'info, System>,
+// }
+
+// // ==================== USERS ====================
+// #[derive(Accounts)]
+// pub struct RegisterUser<'info> {
+//     #[account(mut)]
+//     pub user: Signer<'info>,
+//     #[account(
+//         init,
+//         payer = user,
+//         space = 8 + std::mem::size_of::<UserProfile>(),
+//         seeds = [SEED_PROFILE, user.key().as_ref()],
+//         bump
+//     )]
+//     pub user_profile: Account<'info, UserProfile>,
+//     pub system_program: Program<'info, System>,
+// }
+
+// // ==================== SCORE ====================
+// #[derive(Accounts)]
+// pub struct UpdateScore<'info> {
+//     #[account(mut)]
+//     pub user: Signer<'info>,
+//     #[account(
+//         mut,
+//         seeds = [SEED_PROFILE, user.key().as_ref()],
+//         bump
+//     )]
+//     pub user_profile: Account<'info, UserProfile>,
+// }
+
+// // ==================== LOAN POOL ====================
+// #[derive(Accounts)]
+// pub struct CreateLoanPool<'info> {
+//     #[account(mut)]
+//     pub borrower: Signer<'info>,
+
+//     #[account(
+//         init,
+//         payer = borrower,
+//         space = 8 + std::mem::size_of::<LoanPool>(),
+//     )]
+//     pub pool: Account<'info, LoanPool>,
+
+//     #[account(
+//         init,
+//         payer = borrower,
+//         space = 8 + std::mem::size_of::<LoanVault>(),
+//         seeds = [SEED_VAULT, pool.key().as_ref()],
+//         bump
+//     )]
+//     pub vault: Account<'info, LoanVault>,
+
+//     pub system_program: Program<'info, System>,
+// }
+
+// // ==================== CONTRIBUTION ====================
+// #[derive(Accounts)]
+// pub struct ContributeToPool<'info> {
+//     #[account(mut)]
+//     pub pool: Account<'info, LoanPool>,
+//     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
+//     pub vault: Account<'info, LoanVault>,
+//     #[account(mut)]
+//     pub lender: Signer<'info>,
+
+//     // [DEFERRED-SPL]
+//     // #[account(mut)]
+//     // pub lender_token_account: Account<'info, TokenAccount>,
+//     // #[account(mut)]
+//     // pub vault_token_account: Account<'info, TokenAccount>,
+//     // pub token_program: Program<'info, Token>,
+
+//     #[account(
+//         init_if_needed,
+//         payer = lender,
+//         space = 8 + std::mem::size_of::<LenderPosition>(),
+//         seeds = [SEED_POSITION, pool.key().as_ref(), lender.key().as_ref()],
+//         bump
+//     )]
+//     pub position: Account<'info, LenderPosition>,
+    
+//     pub system_program: Program<'info, System>,
+// }
+
+// // ==================== DISBURSE ====================
+// #[derive(Accounts)]
+// pub struct DisburseLoan<'info> {
+//     #[account(mut)]
+//     pub pool: Account<'info, LoanPool>,
+//     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
+//     pub vault: Account<'info, LoanVault>,
+//     #[account(mut)]
+//     pub borrower: Signer<'info>,
+    
+//     pub system_program: Program<'info, System>,
+// }
+
+// // ==================== FINALIZE ====================
+// #[derive(Accounts)]
+// pub struct FinalizePool<'info> {
+//     #[account(mut)]
+//     pub authority: Signer<'info>,
+//     #[account(mut)]
+//     pub pool: Account<'info, LoanPool>,
+// }
+
+// // ==================== CANCEL ====================
+// #[derive(Accounts)]
+// pub struct CancelLoan<'info> {
+//     #[account(mut)]
+//     pub borrower: Signer<'info>,
+//     #[account(mut)]
+//     pub pool: Account<'info, LoanPool>,
+// }
+
+// // ==================== WITHDRAW ====================
+// #[derive(Accounts)]
+// pub struct WithdrawFunds<'info> {
+//     #[account(mut)]
+//     pub lender: Signer<'info>,
+//     #[account(mut)]
+//     pub pool: Account<'info, LoanPool>,
+//     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
+//     pub vault: Account<'info, LoanVault>,
+    
+//     // [DEFERRED-SPL]
+//     // #[account(mut)]
+//     // pub lender_token_account: Account<'info, TokenAccount>,
+//     // #[account(mut)]
+//     // pub vault_token_account: Account<'info, TokenAccount>,
+//     // pub token_program: Program<'info, Token>,
+
+//     #[account(mut, seeds=[SEED_POSITION, pool.key().as_ref(), lender.key().as_ref()], bump)]
+//     pub position: Account<'info, LenderPosition>,
+//     pub system_program: Program<'info, System>,
+// }
+
+// // ==================== REPAYMENT ====================
+// #[derive(Accounts)]
+// pub struct CreateRepaymentSchedule<'info> {
+//     #[account(mut)]
+//     pub borrower: Signer<'info>,
+//     #[account(mut)]
+//     pub pool: Account<'info, LoanPool>,
+//     #[account(
+//         init,
+//         payer = borrower,
+//         space = 8 + std::mem::size_of::<RepaymentSchedule>(),
+//         seeds = [b"schedule", pool.key().as_ref()],
+//         bump
+//     )]
+//     pub repayment_schedule: Account<'info, RepaymentSchedule>,
+//     pub system_program: Program<'info, System>,
+// }
+
+// #[derive(Accounts)]
+// pub struct MakeRepayment<'info> {
+//     #[account(mut)]
+//     pub borrower: Signer<'info>,
+//     #[account(mut)]
+//     pub pool: Account<'info, LoanPool>,
+//     #[account(mut, seeds=[b"schedule", pool.key().as_ref()], bump)]
+//     pub repayment_schedule: Account<'info, RepaymentSchedule>,
+//     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
+//     pub vault: Account<'info, LoanVault>,
+    
+//     // [DEFERRED-SPL]
+//     // #[account(mut)]
+//     // pub borrower_token_account: Account<'info, TokenAccount>,
+//     // #[account(mut)]
+//     // pub vault_token_account: Account<'info, TokenAccount>,
+//     // pub token_program: Program<'info, Token>,
+
+//     pub system_program: Program<'info, System>,
+// }
+
+// #[derive(Accounts)]
+// pub struct MarkDefault<'info> {
+//     pub authority: Signer<'info>,
+//     #[account(mut)]
+//     pub pool: Account<'info, LoanPool>,
+//     #[account(mut, seeds=[b"schedule", pool.key().as_ref()], bump)]
+//     pub repayment_schedule: Account<'info, RepaymentSchedule>,
+// }
+
+// #[derive(Accounts)]
+// pub struct GetParticipantPosition<'info> {
+//     pub pool: Account<'info, LoanPool>,
+//     #[account(
+//         seeds = [SEED_POSITION, pool.key().as_ref(), participant.key().as_ref()],
+//         bump
+//     )]
+//     pub position: Option<Account<'info, LenderPosition>>,
+//     pub participant: Signer<'info>,
+// }
+
+// #[derive(Accounts)]
+// pub struct EarlyRepayAll<'info> {
+//     #[account(mut)]
+//     pub borrower: Signer<'info>,
+//     #[account(mut)]
+//     pub pool: Account<'info, LoanPool>,
+//     #[account(mut)]
+//     pub repayment_schedule: Account<'info, RepaymentSchedule>,
+//     #[account(mut, seeds=[SEED_VAULT, pool.key().as_ref()], bump)]
+//     pub vault: Account<'info, LoanVault>,
+    
+//     // [DEFERRED-SPL]
+//     // #[account(mut)]
+//     // pub borrower_token_account: Account<'info, TokenAccount>,
+//     // #[account(mut)]
+//     // pub vault_token_account: Account<'info, TokenAccount>,
+//     // pub token_program: Program<'info, Token>,
+
+//     pub system_program: Program<'info, System>,
+// }
+
 use anchor_lang::prelude::*;
 // [DEFERRED-SPL]
 // use anchor_spl::token::{Token, TokenAccount, Mint};
@@ -229,6 +464,48 @@ pub struct EarlyRepayAll<'info> {
     // #[account(mut)]
     // pub vault_token_account: Account<'info, TokenAccount>,
     // pub token_program: Program<'info, Token>,
+
+    pub system_program: Program<'info, System>,
+}
+
+// ==================== REVIEW SYSTEM ====================
+
+/// Context for submitting a review.
+/// 
+/// IMPORTANT: The `lender_position` account must be passed explicitly.
+/// - If the reviewer is the Lender: `lender_position` is their own position (seeded by [SEED_POSITION, pool, Lender]).
+/// - If the reviewer is the Borrower: `lender_position` is the Lender's position (seeded by [SEED_POSITION, pool, Lender]).
+/// The frontend must fetch the Lender's public key from the pool data to derive this account address if the reviewer is the borrower.
+#[derive(Accounts)]
+pub struct SubmitReview<'info> {
+    /// The user submitting the review (must be a signer).
+    #[account(mut)]
+    pub reviewer: Signer<'info>,
+
+    /// The loan pool being reviewed.
+    #[account(mut)]
+    pub pool: Account<'info, LoanPool>,
+
+    /// The LenderPosition account for the Lender involved in this pool.
+    /// This is used to verify participation and identify the target.
+    /// Seed: [SEED_POSITION, pool.key(), lender.key()]
+    /// Note: The frontend must provide the correct Lender key to derive this address.
+    #[account(
+        seeds = [SEED_POSITION, pool.key().as_ref(), position.lender.as_ref()],
+        bump
+    )]
+    pub position: Account<'info, LenderPosition>,
+
+    /// The new Review account to be initialized.
+    /// Seed: [b"review", pool.key(), reviewer.key()]
+    #[account(
+        init,
+        payer = reviewer,
+        space = 8 + std::mem::size_of::<Review>(),
+        seeds = [b"review", pool.key().as_ref(), reviewer.key().as_ref()],
+        bump
+    )]
+    pub review: Account<'info, Review>,
 
     pub system_program: Program<'info, System>,
 }
