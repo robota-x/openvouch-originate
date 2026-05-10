@@ -368,7 +368,7 @@ const redirectUrlForCompany = computed(() => {
             }}</span>
             <span
               class="material-symbols-outlined text-sm leading-none"
-              style="font-variation-settings: &quot;FILL&quot; 1"
+              style="font-variation-settings: 'FILL' 1"
               >auto_awesome</span
             >
           </div>
@@ -578,11 +578,7 @@ const redirectUrlForCompany = computed(() => {
   <ReviewModal
     v-if="isReviewModalOpen && activeReviewLoan"
     :loan-id="activeReviewLoan.id"
-    :target-address="
-      auth.address === activeReviewLoan.borrower
-        ? activeReviewLoan.lender
-        : activeReviewLoan.borrower
-    "
+    :target-address="activeReviewLoan.counterparty ?? ''"
     :is-open="isReviewModalOpen"
     @close="closeReviewModal"
   />
