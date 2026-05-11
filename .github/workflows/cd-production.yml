@@ -42,6 +42,16 @@ jobs:
           workingDirectory: apps/lending-website-frontend
           command: deploy --config wrangler.production.jsonc
 
+      - name: Deploy Lending Backend
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/lending-website-backend
+          command: |
+            d1 migrations apply openvouch-originate-db-production --remote --config wrangler.production.jsonc
+            deploy --config wrangler.production.jsonc
+
       - name: Inject Lending Backend Secrets (Production)
         working-directory: apps/lending-website-backend
         run: |
@@ -52,16 +62,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           JWT_SECRET: ${{ secrets.JWT_SECRET_PRODUCTION }}
           SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL_PRODUCTION }}
-
-      - name: Deploy Lending Backend
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/lending-website-backend
-          command: |
-            d1 migrations apply openvouch-originate-db-production --remote --config wrangler.production.jsonc
-            deploy --config wrangler.production.jsonc
 
       - name: Inject UK Company Service Secrets (Production)
         working-directory: apps/attestation-uk-company-service
