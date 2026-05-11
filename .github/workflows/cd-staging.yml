@@ -64,14 +64,6 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET_STAGING }}
           SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL_STAGING }}
 
-      - name: Inject UK Company Service Secrets (Staging)
-        working-directory: apps/attestation-uk-company-service
-        run: echo "$COMPANIES_HOUSE_UK_API_KEY" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          COMPANIES_HOUSE_UK_API_KEY: ${{ secrets.COMPANIES_HOUSE_UK_API_KEY_STAGING }}
-
       - name: Deploy UK Company Service
         uses: cloudflare/wrangler-action@v3
         with:
@@ -81,6 +73,14 @@ jobs:
           command: |
             d1 migrations apply openvouch-attestation-uk-company-db-staging --remote --config wrangler.staging.jsonc
             deploy --config wrangler.staging.jsonc
+
+      - name: Inject UK Company Service Secrets (Staging)
+        working-directory: apps/attestation-uk-company-service
+        run: echo "$COMPANIES_HOUSE_UK_API_KEY" | npx wrangler secret put COMPANIES_HOUSE_UK_API_KEY --config wrangler.staging.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          COMPANIES_HOUSE_UK_API_KEY: ${{ secrets.COMPANIES_HOUSE_UK_API_KEY_STAGING }}
 
       - name: Inject Identity Service Secrets (Staging)
         working-directory: apps/attestation-identity-service
