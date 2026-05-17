@@ -5,9 +5,7 @@
   "main": "src/worker.ts",
   "compatibility_date": "2026-04-13",
   "compatibility_flags": ["nodejs_compat"],
-  "vars": {
-    "SOLANA_RPC_URL": "https://api.devnet.solana.com"
-  },
+  "vars": {},
   "d1_databases": [
     {
       "binding": "DB",
