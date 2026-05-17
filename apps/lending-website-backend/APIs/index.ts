@@ -1,3 +1,4 @@
+// for future updates beyond the hackathon. Purpose to make it easy to work with APIs for different countries and continents in a structured way. Each continent has its own file, and each country within that continent has its own API endpoint and key, loaded from environment variables for security. This structure allows for easy expansion as more APIs are added in the future.
 // // // apis/index.ts
 // // import Europe from './Europe';
 // // import Asia from './Asia';
